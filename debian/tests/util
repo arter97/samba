@@ -47,3 +47,19 @@ populate_share() {
     chown -R "${usergroup}:${usergroup}" "${sharepath}"
 }
 
+
+# $1: kernel version in the form major.minor.patch
+check_kernel_version() {
+    local k_ver=$1
+    local k_major=$(echo ${k_ver} | cut -d . -f 1)
+    local k_minor=$(echo ${k_ver} | cut -d . -f 2)
+
+    # uring is supported starting with kernel 5.1.x
+    if [ ${k_major} -eq 5 ] && [ ${k_minor} -ge 1 ]; then
+       return 0
+    elif [ ${k_major} -ge 6 ]; then
+       return 0
+    else
+        return 1
+    fi
+}
