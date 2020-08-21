@@ -5,12 +5,6 @@ set -e
 
 . debian/tests/util
 
-ARCH=$(dpkg --print-architecture)
-if [ "$ARCH" = "i386" ]; then
-    echo "liburing not available on $ARCH, skipping test"
-    exit 77
-fi
-
 k_ver=$(uname -r | cut -d - -f 1)
 if ! check_kernel_version ${k_ver}; then
     echo "uring not available in kernel version ${k_ver}, skipping test"
