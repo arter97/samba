@@ -169,26 +169,42 @@ static void downgrade_file_oplock(files_struct *fsp)
 	TALLOC_FREE(fsp->oplock_timeout);
 }
 
-uint32_t get_lease_type(const struct share_mode_entry *e, struct file_id id)
+uint32_t get_lease_type(struct share_mode_entry *e, struct file_id id)
 {
-	if (e->op_type == LEASE_OPLOCK) {
-		NTSTATUS status;
-		uint32_t current_state;
+	struct GUID_txt_buf guid_strbuf;
+	struct file_id_buf file_id_strbuf;
+	NTSTATUS status;
+	uint32_t current_state;
 
-		status = leases_db_get(
-			&e->client_guid,
-			&e->lease_key,
-			&id,
-			&current_state,
-			NULL,	/* breaking */
-			NULL,	/* breaking_to_requested */
-			NULL,	/* breaking_to_required */
-			NULL,	/* lease_version */
-			NULL);	/* epoch */
-		SMB_ASSERT(NT_STATUS_IS_OK(status));
+	if (e->op_type != LEASE_OPLOCK) {
+		return map_oplock_to_lease_type(e->op_type);
+	}
+
+	status = leases_db_get(&e->client_guid,
+			       &e->lease_key,
+			       &id,
+			       &current_state,
+			       NULL,	/* breaking */
+			       NULL,	/* breaking_to_requested */
+			       NULL,	/* breaking_to_required */
+			       NULL,	/* lease_version */
+			       NULL);	/* epoch */
+	if (NT_STATUS_IS_OK(status)) {
 		return current_state;
 	}
-	return map_oplock_to_lease_type(e->op_type);
+
+	if (share_entry_stale_pid(e)) {
+		return 0;
+	}
+	DBG_ERR("leases_db_get for client_guid [%s] "
+		"lease_key [%"PRIu64"/%"PRIu64"] "
+		"file_id [%s] failed: %s\n",
+		GUID_buf_string(&e->client_guid, &guid_strbuf),
+		e->lease_key.data[0],
+		e->lease_key.data[1],
+		file_id_str_buf(id, &file_id_strbuf),
+		nt_errstr(status));
+	smb_panic("leases_db_get() failed");
 }
 
 /****************************************************************************
@@ -319,7 +335,7 @@ static void lease_timeout_handler(struct tevent_context *ctx,
 
 	DEBUG(1, ("lease break timed out for file %s -- replying anyway\n",
 		  fsp_str_dbg(fsp)));
-	(void)downgrade_lease(lease->sconn->client->connections,
+	(void)downgrade_lease(lease->sconn->client,
 			1,
 			&fsp->file_id,
 			&lease->lease.lease_key,
@@ -393,7 +409,7 @@ bool fsp_lease_update(struct files_struct *fsp)
 
 struct downgrade_lease_additional_state {
 	struct tevent_immediate *im;
-	struct smbXsrv_connection *xconn;
+	struct smbXsrv_client *client;
 	uint32_t break_flags;
 	struct smb2_lease_key lease_key;
 	uint32_t break_from;
@@ -408,10 +424,9 @@ static void downgrade_lease_additional_trigger(struct tevent_context *ev,
 	struct downgrade_lease_additional_state *state =
 		talloc_get_type_abort(private_data,
 		struct downgrade_lease_additional_state);
-	struct smbXsrv_connection *xconn = state->xconn;
 	NTSTATUS status;
 
-	status = smbd_smb2_send_lease_break(xconn,
+	status = smbd_smb2_send_lease_break(state->client,
 					    state->new_epoch,
 					    state->break_flags,
 					    &state->lease_key,
@@ -419,8 +434,8 @@ static void downgrade_lease_additional_trigger(struct tevent_context *ev,
 					    state->break_to);
 	TALLOC_FREE(state);
 	if (!NT_STATUS_IS_OK(status)) {
-		smbd_server_connection_terminate(xconn,
-						 nt_errstr(status));
+		smbd_server_disconnect_client(state->client,
+					      nt_errstr(status));
 		return;
 	}
 }
@@ -459,13 +474,13 @@ static void fsps_lease_update(struct smbd_server_connection *sconn,
 	files_forall(sconn, fsps_lease_update_fn, &state);
 }
 
-NTSTATUS downgrade_lease(struct smbXsrv_connection *xconn,
+NTSTATUS downgrade_lease(struct smbXsrv_client *client,
 			 uint32_t num_file_ids,
 			 const struct file_id *ids,
 			 const struct smb2_lease_key *key,
 			 uint32_t lease_state)
 {
-	struct smbd_server_connection *sconn = xconn->client->sconn;
+	struct smbd_server_connection *sconn = client->sconn;
 	const struct GUID *client_guid = NULL;
 	struct share_mode_lock *lck;
 	const struct file_id id = ids[0];
@@ -485,7 +500,7 @@ NTSTATUS downgrade_lease(struct smbXsrv_connection *xconn,
 		return NT_STATUS_OBJECT_NAME_NOT_FOUND;
 	}
 
-	client_guid = &sconn->client->connections->smb2.client.guid;
+	client_guid = &sconn->client->global->client_guid;
 
 	status = leases_db_get(client_guid,
 			       key,
@@ -549,7 +564,7 @@ NTSTATUS downgrade_lease(struct smbXsrv_connection *xconn,
 			breaking_to_requested |= SMB2_LEASE_READ;
 		}
 
-		state = talloc_zero(xconn,
+		state = talloc_zero(client,
 				    struct downgrade_lease_additional_state);
 		if (state == NULL) {
 			TALLOC_FREE(lck);
@@ -563,7 +578,7 @@ NTSTATUS downgrade_lease(struct smbXsrv_connection *xconn,
 			return NT_STATUS_NO_MEMORY;
 		}
 
-		state->xconn = xconn;
+		state->client = client;
 		state->lease_key = *key;
 		state->break_from = current_state;
 		state->break_to = breaking_to_requested;
@@ -591,8 +606,7 @@ NTSTATUS downgrade_lease(struct smbXsrv_connection *xconn,
 				NTSTATUS set_status;
 
 				set_status = leases_db_set(
-					&sconn->client->connections->
-					smb2.client.guid,
+					&sconn->client->global->client_guid,
 					key,
 					current_state,
 					breaking,
@@ -610,7 +624,7 @@ NTSTATUS downgrade_lease(struct smbXsrv_connection *xconn,
 		}
 
 		tevent_schedule_immediate(state->im,
-					  xconn->client->raw_ev_ctx,
+					  client->raw_ev_ctx,
 					  downgrade_lease_additional_trigger,
 					  state);
 

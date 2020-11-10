@@ -83,7 +83,7 @@
 /* the default pager to use for the client "more" command. Users can
    override this with the PAGER environment variable */
 #ifndef PAGER
-#define PAGER "/usr/bin/pager"
+#define PAGER "more"
 #endif
 
 /* the size of the uid cache used to reduce valid user checks */
@@ -128,7 +128,7 @@
 /* Timout (in seconds) to wait for an oplock break
    message to return from the client. */
 
-#define OPLOCK_BREAK_TIMEOUT 30
+#define OPLOCK_BREAK_TIMEOUT 35
 
 /* Timout (in seconds) to add to the oplock break timeout
    to wait for the smbd to smbd message to return. */

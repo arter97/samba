@@ -223,9 +223,6 @@ def SAMBA_LIBRARY(bld, libname, source,
             raise Errors.WafError("public library '%s' must have header files" %
                        libname)
 
-    if private_library and not vnum:
-        vnum = '0'
-
     if bundled_name is not None:
         pass
     elif target_type == 'PYTHON' or realname or not private_library:
@@ -368,8 +365,10 @@ def SAMBA_BINARY(bld, binname, source,
                  for_selftest=False):
     '''define a Samba binary'''
 
-    if for_selftest and not bld.CONFIG_GET('ENABLE_SELFTEST'):
-        enabled=False
+    if for_selftest:
+        install=False
+        if not bld.CONFIG_GET('ENABLE_SELFTEST'):
+            enabled=False
 
     if not enabled:
         SET_TARGET_TYPE(bld, binname, 'DISABLED')

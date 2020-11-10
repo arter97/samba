@@ -19,6 +19,7 @@ dnf install -y \
     bind-utils \
     binutils \
     bison \
+    ccache \
     chrpath \
     cups-devel \
     curl \
@@ -83,12 +84,14 @@ dnf install -y \
     procps-ng \
     psmisc \
     python3 \
+    python3-cryptography \
     python3-devel \
     python3-dns \
     python3-gpg \
     python3-libsemanage \
     python3-markdown \
     python3-policycoreutils \
+    python3-pyasn1 \
     quota-devel \
     readline-devel \
     redhat-lsb \
@@ -101,6 +104,7 @@ dnf install -y \
     systemd-devel \
     tar \
     tree \
+    wget \
     which \
     xfsprogs-devel \
     yum-utils \

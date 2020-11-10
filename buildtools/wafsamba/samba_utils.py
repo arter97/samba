@@ -126,7 +126,7 @@ def install_rpath(target):
     ret = set()
     if bld.env.RPATH_ON_INSTALL:
         ret.add(bld.EXPAND_VARIABLES(bld.env.LIBDIR))
-    if bld.env.RPATH_ON_INSTALL_PRIVATE:
+    if bld.env.RPATH_ON_INSTALL_PRIVATE and needs_private_lib(bld, target):
         ret.add(bld.EXPAND_VARIABLES(bld.env.PRIVATELIBDIR))
     return list(ret)
 
@@ -718,6 +718,9 @@ def samba_before_apply_obj_vars(self):
     for i in v['LIBPATH']:
         if is_standard_libpath(v, i):
             v['LIBPATH'].remove(i)
+
+# Samba options are mostly on by default (administrators and packagers
+# specify features to remove, not add), which is why default=True
 
 def samba_add_onoff_option(opt, option, help=(), dest=None, default=True,
                            with_name="with", without_name="without"):

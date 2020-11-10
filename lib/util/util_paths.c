@@ -68,25 +68,54 @@ static char *get_user_home_dir(TALLOC_CTX *mem_ctx)
 {
 	struct passwd pwd = {0};
 	struct passwd *pwdbuf = NULL;
-	char buf[NSS_BUFLEN_PASSWD] = {0};
+	char *buf = NULL;
+	char *out = NULL;
+	long int initlen;
+	size_t len;
 	int rc;
 
-	rc = getpwuid_r(getuid(), &pwd, buf, NSS_BUFLEN_PASSWD, &pwdbuf);
-	if (rc != 0 || pwdbuf == NULL ) {
-		int len_written;
-		const char *szPath = getenv("HOME");
-		if (szPath == NULL) {
-			return NULL;
-		}
-		len_written = snprintf(buf, sizeof(buf), "%s", szPath);
-		if (len_written >= sizeof(buf) || len_written < 0) {
-			/* Output was truncated or an error. */
-			return NULL;
-		}
-		return talloc_strdup(mem_ctx, buf);
+	initlen = sysconf(_SC_GETPW_R_SIZE_MAX);
+	if (initlen == -1) {
+		len = 1024;
+	} else {
+		len = (size_t)initlen;
+	}
+	buf = talloc_size(mem_ctx, len);
+	if (buf == NULL) {
+		return NULL;
 	}
 
-	return talloc_strdup(mem_ctx, pwd.pw_dir);
+	rc = getpwuid_r(getuid(), &pwd, buf, len, &pwdbuf);
+	while (rc == ERANGE) {
+		size_t newlen = 2 * len;
+		if (newlen < len) {
+			/* Overflow */
+			goto done;
+		}
+		len = newlen;
+		buf = talloc_realloc_size(mem_ctx, buf, len);
+		if (buf == NULL) {
+			goto done;
+		}
+		rc = getpwuid_r(getuid(), &pwd, buf, len, &pwdbuf);
+	}
+	if (rc != 0 || pwdbuf == NULL ) {
+		const char *szPath = getenv("HOME");
+		if (szPath == NULL) {
+			goto done;
+		}
+		len = strnlen(szPath, PATH_MAX);
+		if (len >= PATH_MAX) {
+			return NULL;
+		}
+		out = talloc_strdup(mem_ctx, szPath);
+		goto done;
+	}
+
+	out = talloc_strdup(mem_ctx, pwd.pw_dir);
+done:
+	TALLOC_FREE(buf);
+	return out;
 }
 
 char *path_expand_tilde(TALLOC_CTX *mem_ctx, const char *d)
