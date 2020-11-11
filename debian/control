@@ -246,8 +246,7 @@ Pre-Depends: ${misc:Pre-Depends}
 Architecture: any
 Section: python
 Provides: ${python3:Provides}
-Depends: python3-crypto,
-         python3-ldb,
+Depends: python3-ldb,
          python3-tdb,
          samba-libs (= ${binary:Version}),
          ${misc:Depends},
