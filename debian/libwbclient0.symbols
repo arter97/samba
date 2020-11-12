@@ -145,6 +145,7 @@ libsamba-util.so.0 libwbclient0 #MINVER#
  generate_random_str_list@SAMBA_UTIL_0.0.1 2:4.11.0
  generate_random_u64@SAMBA_UTIL_0.0.1 2:4.11.0
  generate_unique_strs@SAMBA_UTIL_0.0.1 2:4.11.0
+ generate_unique_u64@SAMBA_UTIL_0.0.1 2:4.13.2
  get_conv_handle@SAMBA_UTIL_0.0.1 2:4.11.0
  get_dyn_BINDDNS_DIR@SAMBA_UTIL_0.0.1 2:4.11.0
  get_dyn_BINDIR@SAMBA_UTIL_0.0.1 2:4.11.0
@@ -383,6 +384,7 @@ libsamba-util.so.0 libwbclient0 #MINVER#
  smb_memdup@SAMBA_UTIL_0.0.1 2:4.11.0
  smb_msleep@SAMBA_UTIL_0.0.1 2:4.11.0
  smb_panic@SAMBA_UTIL_0.0.1 2:4.11.0
+ smb_panic_log@SAMBA_UTIL_0.0.1 2:4.13.2
  smb_strtoul@SAMBA_UTIL_0.0.1 2:4.11.0
  smb_strtoull@SAMBA_UTIL_0.0.1 2:4.11.0
  smb_thread_once@SAMBA_UTIL_0.0.1 2:4.11.0
@@ -473,6 +475,7 @@ libsamba-util.so.0 libwbclient0 #MINVER#
  sys_pclose@SAMBA_UTIL_0.0.1 2:4.11.0
  sys_poll_intr@SAMBA_UTIL_0.0.1 2:4.11.0
  sys_popenv@SAMBA_UTIL_0.0.1 2:4.11.0
+ talloc_alpha_strcpy@SAMBA_UTIL_0.0.1 2:4.13.2
  talloc_stackframe_exists@SAMBA_UTIL_0.0.1 2:4.11.0
  talloc_strdup_upper@SAMBA_UTIL_0.0.1 2:4.11.0
  tfork_child_pid@SAMBA_UTIL_0.0.1 2:4.11.0
