@@ -1,9 +1,11 @@
-samba (2:4.13.2+dfsg-1) UNRELEASED; urgency=medium
+samba (2:4.13.2+dfsg-1) experimental; urgency=medium
 
   * New upstream major version
     - Update d/gbp.conf, d/watch and d/README.source for 4.13
     - Update patches
     - Bump build-depends ldb >= 2.2.0
+    - Install new files
+    - Update symbols
   * Includes the following security fixes:
     - CVE-2020-14318: Missing handle permissions check in SMB1/2/3 ChangeNotify
       (Closes: #973400)
@@ -15,8 +17,18 @@ samba (2:4.13.2+dfsg-1) UNRELEASED; urgency=medium
   * Includes the following fixes:
     - Fixes "samba_dnsupdate gives depreacation warnings" (Closes: #973957)
     - s3: libsmbclient.h: add missing time.h include (Closes: #946840)
+  * Remove unused python3-crypto dependency (Closes: #971292)
+  * Enable Spotlight with ES backend (Closes: #956096, #956482)
+  * Standards-Version: 4.5.0
+  * Add missing Build-Depends-Package in libsmbclient.symbols and
+    libwbclient0.symbols
+  * d/copyright: Fix duplicate-globbing-patterns
+  * Remove outdated/malformed lintian overrides
+  * d/winbind.logrotate: Only reload winbindd when running (Closes: #946821)
+  * Bump to debhelper compat 13
+  * Add another library-not-linked-against-libc override
 
- -- Mathieu Parent <sathieu@debian.org>  Wed, 11 Nov 2020 20:50:07 +0100
+ -- Mathieu Parent <sathieu@debian.org>  Thu, 12 Nov 2020 11:23:01 +0100
 
 samba (2:4.12.5+dfsg-3) unstable; urgency=high
 
