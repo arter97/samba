@@ -1,4 +1,5 @@
 libsamba-util.so.0 libwbclient0 #MINVER#
+* Build-Depends-Package: libwbclient-dev
  BlockSignals@SAMBA_UTIL_0.0.1 2:4.11.0
  CatchChild@SAMBA_UTIL_0.0.1 2:4.11.0
  CatchChildLeaveStatus@SAMBA_UTIL_0.0.1 2:4.11.0
