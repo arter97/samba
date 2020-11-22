@@ -1,3 +1,10 @@
+samba (2:4.13.2+dfsg-3) unstable; urgency=medium
+
+  * Ensure systemd-tmpfiles is called before testparm (Closes: #975422)
+  * Only check configuration on configure step
+
+ -- Mathieu Parent <sathieu@debian.org>  Sun, 22 Nov 2020 10:44:51 +0100
+
 samba (2:4.13.2+dfsg-2) unstable; urgency=medium
 
   * Upload to unstable 
