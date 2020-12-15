@@ -1,3 +1,17 @@
+samba (2:4.13.2+dfsg-4) UNRELEASED; urgency=medium
+
+  [ Andreas Hasenack ]
+  * d/control: enable the liburing vfs module (Closes: #976854)
+  * Add new DEP8 tests for the uring vfs module
+  * Factor out common DEP8 test code into d/t/util and change the tests to
+    source from it
+  * Add set -x and set -e to DEP8 tests
+
+  [ Mathieu Parent ]
+  * liburing-dev is linux-any
+
+ -- Mathieu Parent <sathieu@debian.org>  Tue, 15 Dec 2020 22:18:00 +0100
+
 samba (2:4.13.2+dfsg-3) unstable; urgency=medium
 
   * Ensure systemd-tmpfiles is called before testparm (Closes: #975422)
