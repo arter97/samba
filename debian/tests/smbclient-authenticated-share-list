@@ -1,17 +1,18 @@
-#!/bin/sh -x
+#!/bin/sh
+
+set -x
+set -e
+
+. debian/tests/util
 
 username="smbtest$$"
 password="$$"
 
-echo "Creating a local test user called ${username}"
-useradd -m "$username"
-
-echo "Setting samba password for the ${username} user"
-echo "${password}\n${password}" | smbpasswd -s -a ${username}
+add_user "${username}" "${password}"
 
 echo "Testing with incorrect password: must fail"
-smbclient -L localhost -U ${username}%wrongpass && exit 1
+smbclient -L localhost -U "${username}"%wrongpass && exit 1
 
 echo "Testing with correct password: must work"
-smbclient -L localhost -U ${username}%${password}
+smbclient -L localhost -U "${username}"%"${password}"
 
