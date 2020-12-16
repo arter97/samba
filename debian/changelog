@@ -1,4 +1,4 @@
-samba (2:4.13.2+dfsg-4) UNRELEASED; urgency=medium
+samba (2:4.13.3+dfsg-1) unstable; urgency=medium
 
   [ Andreas Hasenack ]
   * d/control: enable the liburing vfs module (Closes: #976854)
@@ -9,8 +9,9 @@ samba (2:4.13.2+dfsg-4) UNRELEASED; urgency=medium
 
   [ Mathieu Parent ]
   * liburing-dev is linux-any
+  * New upstream version
 
- -- Mathieu Parent <sathieu@debian.org>  Tue, 15 Dec 2020 22:18:00 +0100
+ -- Mathieu Parent <sathieu@debian.org>  Wed, 16 Dec 2020 18:23:09 +0100
 
 samba (2:4.13.2+dfsg-3) unstable; urgency=medium
 
