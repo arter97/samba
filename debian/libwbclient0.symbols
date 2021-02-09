@@ -81,6 +81,7 @@ libsamba-util.so.0 libwbclient0 #MINVER#
  data_path@SAMBA_UTIL_0.0.1 2:4.11.0
  directory_create_or_exist@SAMBA_UTIL_0.0.1 2:4.11.0
  directory_create_or_exist_strict@SAMBA_UTIL_0.0.1 2:4.11.0
+ directory_create_or_exists_recursive@SAMBA_UTIL_0.0.1 2:4.13.4
  directory_exist@SAMBA_UTIL_0.0.1 2:4.11.0
  display_set_stderr@SAMBA_UTIL_0.0.1 2:4.11.0
  dump_data@SAMBA_UTIL_0.0.1 2:4.11.0
