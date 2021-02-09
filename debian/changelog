@@ -1,3 +1,20 @@
+samba (2:4.13.4+dfsg-1) unstable; urgency=medium
+
+  * New upstream version
+    - GPG signature has changed
+    - Update samba-libs.install
+    - Update symbols
+  * Never use priority high when asking for DHCP integration (Closes: #981554)
+  * Sync CTDB patches with Ubuntu:
+    - Add "ctdb-config: enable syslog by default"
+    - Update "fix nfs related service names"
+  * d/rules: Ubuntu specifics
+    - No Ceph on i386
+    - Disable some i386 packages
+    - No GlusterFS
+
+ -- Mathieu Parent <sathieu@debian.org>  Tue, 09 Feb 2021 22:26:43 +0100
+
 samba (2:4.13.3+dfsg-1) unstable; urgency=medium
 
   [ Andreas Hasenack ]
