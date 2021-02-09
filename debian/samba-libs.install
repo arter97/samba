@@ -116,7 +116,6 @@ usr/lib/*/samba/libshares.so.*
 usr/lib/*/samba/libsmb-transport.so.0
 usr/lib/*/samba/libsmbclient-raw.so.0*
 usr/lib/*/samba/libsmbd-base.so.0
-usr/lib/*/samba/libsmbd-conn.so.0
 usr/lib/*/samba/libsmbd-shim.so.0
 usr/lib/*/samba/libsmbldaphelper.so.*
 usr/lib/*/samba/libsmbpasswdparser.so.*
