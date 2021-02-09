@@ -33,7 +33,14 @@ systemd-*)
 		;;
 	*-debian)
 		nfs_rquotad_service="quotarpc"
+		nfs_lock_service=""
+		nfs_lock_service=""
+		nfs_mountd_service=""
+		nfs_status_service=""
+		nfs_rquotad_service=""
+		nfs_service="nfs-kernel-server"
 		nfs_config="/etc/default/nfs-kernel-server"
+		nfs_rquotad_config="/etc/default/quota"
 		;;
 	*)
 		echo "Internal error"

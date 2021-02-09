@@ -29,7 +29,7 @@ die ()
 }
 
 # Try different variables to find config file for NFS_HOSTNAME
-load_system_config "nfs" "nfs-common"
+load_system_config "nfs-kernel-server"
 
 # If NFS_HOSTNAME not set then try to pull it out of /etc/nfs.conf
 if [ -z "$NFS_HOSTNAME" ] && type nfsconf >/dev/null 2>&1 ; then
