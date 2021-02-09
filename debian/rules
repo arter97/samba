@@ -8,6 +8,7 @@ export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
 include /usr/share/dpkg/pkg-info.mk
+include /usr/share/dpkg/vendor.mk
 
 DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
 DEB_HOST_ARCH_OS ?= $(shell dpkg-architecture -qDEB_HOST_ARCH_OS)
@@ -31,7 +32,7 @@ WAF_NO_PARALLEL := $(WAF) -j 1
 export PATH:=$(CURDIR)/debian/bin:$(PATH)
 
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-WAF += -j $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    WAF += -j $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
 
 conf_args = \
@@ -74,13 +75,35 @@ conf_args = \
 		--enable-spotlight
 
 
-ifneq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el ppc64 s390x x32, $(DEB_HOST_ARCH)))
-        conf_args += \
-                --enable-ceph-reclock
-else
-        conf_args += \
-                --disable-cephfs
+WITH_CEPH = yes
+# Ceph is not available on all platforms
+ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el ppc64 s390x x32, $(DEB_HOST_ARCH)))
+    WITH_CEPH = no
 endif
+# Ubuntu i386 binary compatibility only effort: No Ceph
+ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
+    WITH_CEPH = no
+endif
+
+ifeq ($(WITH_CEPH), yes)
+	conf_args += \
+		--enable-ceph-reclock
+else
+	conf_args += \
+		--disable-cephfs
+endif
+
+
+WITH_GLUSTERFS = yes
+# GlusterFS is linux-only
+ifneq ($(DEB_HOST_ARCH_OS), linux)
+    WITH_CEPH = no
+endif
+# GlusterFS is not in Ubuntu main
+ifeq ($(DEB_VENDOR), Ubuntu)
+    WITH_GLUSTERFS = no
+endif
+
 
 ifeq ($(DEB_HOST_ARCH_OS), linux)
 	conf_args += \
@@ -92,8 +115,17 @@ else
 		--without-systemd
 endif
 
+# Ubuntu i386 binary compatibility only effort: Disable some i386 packages
+ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
+	BUILD_PACKAGES += \
+		-Nctdb \
+		-Nlibpam-winbind \
+		-Nsamba \
+		-Nsamba-testsuite
+endif
+
 %:
-	dh $* --with python3
+	dh $* --with python3 $(BUILD_PACKAGES)
 
 override_dh_auto_configure:
 	$(WAF_NO_PARALLEL) configure $(conf_args)
@@ -265,7 +297,7 @@ override_dh_makeshlibs:
 override_dh_shlibdeps:
 	LD_LIBRARY_PATH=$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/samba:$$LD_LIBRARY_PATH \
 	  dh_shlibdeps -a -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
-ifneq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el ppc64 s390x x32, $(DEB_HOST_ARCH)))
+ifeq ($(WITH_CEPH), yes)
 	LD_LIBRARY_PATH=$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/samba:$$LD_LIBRARY_PATH \
 	  dh_shlibdeps -a -- -pvfsceph -dRecommends \
 	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so
@@ -273,7 +305,7 @@ ifneq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el ppc64 s390
 	  dh_shlibdeps -a -- -prados -dRecommends \
 	    -e debian/ctdb/usr/lib/*/ctdb/ctdb_mutex_ceph_rados_helper
 endif
-ifeq ($(DEB_HOST_ARCH_OS), linux)
+ifeq ($(WITH_GLUSTERFS), yes)
 	LD_LIBRARY_PATH=$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/samba:$$LD_LIBRARY_PATH \
 	  dh_shlibdeps -a -- -pvfsglusterfs -dRecommends \
 	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so
