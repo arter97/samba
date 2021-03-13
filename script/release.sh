@@ -208,12 +208,12 @@ verify_samba_stable() {
 		return 1
 	}
 
-#	grep -q "${GPG_KEYID}" "${verify_out}" || {
-#		echo "oldtagname[${oldtagname}] was not generated with GPG_KEYID[${GPG_KEYID}]!"
-#		echo ""
-#		cat "${verify_out}"
-#		return 1
-#	}
+	grep -q "${GPG_KEYID}" "${verify_out}" || {
+		echo "oldtagname[${oldtagname}] was not generated with GPG_KEYID[${GPG_KEYID}]!"
+		echo ""
+		cat "${verify_out}"
+		return 1
+	}
 
 	echo "Verifying ${oldtagname}.tar.gz and ${oldtagname}.tar.asc"
 
@@ -232,12 +232,12 @@ verify_samba_stable() {
 		return 1
 	}
 
-#	grep -q "${GPG_KEYID}" "${verify_out}" || {
-#		echo "${oldtagname}.tar.asc was not generated with GPG_KEYID[${GPG_KEYID}]!"
-#		echo ""
-#		cat "${verify_out}"
-#		return 1
-#	}
+	grep -q "${GPG_KEYID}" "${verify_out}" || {
+		echo "${oldtagname}.tar.asc was not generated with GPG_KEYID[${GPG_KEYID}]!"
+		echo ""
+		cat "${verify_out}"
+		return 1
+	}
 
 	return 0
 }
