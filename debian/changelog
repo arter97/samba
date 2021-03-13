@@ -1,3 +1,9 @@
+samba (2:4.13.5+dfsg-1) unstable; urgency=medium
+
+  * New upstream version (Closes: #984863)
+
+ -- Mathieu Parent <sathieu@debian.org>  Sat, 13 Mar 2021 08:31:27 +0100
+
 samba (2:4.13.4+dfsg-1) unstable; urgency=medium
 
   * New upstream version
