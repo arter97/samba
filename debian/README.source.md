@@ -11,7 +11,7 @@ Building
 
 The first time:
 
-    sudo apt install git-buildpackage pristine-tar cowbuilder
+    sudo apt install git-buildpackage pristine-tar cowbuilder dh-python
     DIST=sid ARCH=amd64 git-pbuilder create
     git clone https://salsa.debian.org/samba-team/samba.git
 
