@@ -421,7 +421,8 @@ Architecture: any
 Multi-Arch: same
 Depends: libwbclient0 (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: dpkg (>= 1.15.6~)
-Breaks: samba-libs (<< 2:4.11.0+dfsg-1~)
+Breaks: samba-libs (<< 2:4.11.0+dfsg-1~), samba-dev (<< 2:4.11)
+Replaces: samba-dev (<< 2:4.11)
 Description: Samba winbind client library - development files
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file and printer sharing with
