@@ -1,3 +1,13 @@
+samba (2:4.13.5+dfsg-2.1) UNRELEASED; urgency=medium
+
+  * Non-maintainer upload.
+  * Add autopkgtest to verify tmpfiles setup (LP: #1905387)
+    - debian/t/reinstall-samba-common-bin: make sure /run/samba is created
+      by the samba-common-bin installation process (postinst script)
+    - d/t/control: run new reinstall-samba-common-bin test case
+
+ -- Athos Ribeiro <athos.ribeiro@canonical.com>  Thu, 27 May 2021 14:26:47 -0300
+
 samba (2:4.13.5+dfsg-2) unstable; urgency=high
 
   * CVE-2021-20254: Negative idmap cache entries can cause incorrect group
