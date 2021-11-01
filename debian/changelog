@@ -1,4 +1,4 @@
-samba (2:4.13.5+dfsg-3) UNRELEASED; urgency=medium
+samba (2:4.13.13+dfsg-1) unstable; urgency=high
 
   [ Athos Ribeiro ]
   * Add autopkgtest to verify tmpfiles setup (LP: #1905387)
@@ -11,10 +11,13 @@ samba (2:4.13.5+dfsg-3) UNRELEASED; urgency=medium
     (LP: #1942195)
 
   [ Mathieu Parent ]
+  * New upstream version
+    - Remove CVE-2021-20254.patch
+    - Bump build-depends ldb  >= 2.2.0
   * libwbclient0: Add Breaks+Replaces: libsamba-util0 (<< 2:4.0.0)
     (Closes: #988170)
 
- -- Mathieu Parent <sathieu@debian.org>  Mon, 01 Nov 2021 08:09:12 +0100
+ -- Mathieu Parent <sathieu@debian.org>  Mon, 01 Nov 2021 08:59:20 +0100
 
 samba (2:4.13.5+dfsg-2) unstable; urgency=high
 
