@@ -89,6 +89,21 @@ EXCLUDE_USAGE = {
     'python/samba/tests/krb5/simple_tests.py',
     'python/samba/tests/krb5/s4u_tests.py',
     'python/samba/tests/krb5/xrealm_tests.py',
+    'python/samba/tests/krb5/as_canonicalization_tests.py',
+    'python/samba/tests/krb5/compatability_tests.py',
+    'python/samba/tests/krb5/rfc4120_constants.py',
+    'python/samba/tests/krb5/kdc_tests.py',
+    'python/samba/tests/krb5/kdc_base_test.py',
+    'python/samba/tests/krb5/kdc_tgs_tests.py',
+    'python/samba/tests/krb5/test_ccache.py',
+    'python/samba/tests/krb5/test_ldap.py',
+    'python/samba/tests/krb5/test_rpc.py',
+    'python/samba/tests/krb5/test_smb.py',
+    'python/samba/tests/krb5/ms_kile_client_principal_lookup_tests.py',
+    'python/samba/tests/krb5/as_req_tests.py',
+    'python/samba/tests/krb5/fast_tests.py',
+    'python/samba/tests/krb5/rodc_tests.py',
+    'python/samba/tests/krb5/salt_tests.py',
 }
 
 EXCLUDE_HELP = {

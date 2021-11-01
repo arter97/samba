@@ -148,11 +148,21 @@ def configure(conf):
         conf.env.DEVELOPER = True
         # if we are in a git tree without a pre-commit hook, install a
         # simple default.
-        pre_commit_hook = os.path.join(Context.g_module.top, '.git/hooks/pre-commit')
-        if (os.path.isdir(os.path.dirname(pre_commit_hook)) and
-            not os.path.exists(pre_commit_hook)):
-            shutil.copy(os.path.join(Context.g_module.top, 'script/git-hooks/pre-commit-hook'),
-                        pre_commit_hook)
+        # we need git for 'waf dist'
+        githooksdir = None
+        conf.find_program('git', var='GIT')
+        if 'GIT' in conf.env:
+            githooksdir = conf.CHECK_COMMAND('%s rev-parse --git-path hooks' % conf.env.GIT[0],
+                               msg='Finding githooks directory',
+                               define=None,
+                               on_target=False)
+        if githooksdir and os.path.isdir(githooksdir):
+            pre_commit_hook = os.path.join(githooksdir, 'pre-commit')
+            if not os.path.exists(pre_commit_hook):
+                Logs.info("Installing script/git-hooks/pre-commit-hook as %s" %
+                          pre_commit_hook)
+                shutil.copy(os.path.join(Context.g_module.top, 'script/git-hooks/pre-commit-hook'),
+                            pre_commit_hook)
 
     conf.ADD_EXTRA_INCLUDES('#include/public #source4 #lib #source4/lib #source4/include #include #lib/replace')
 
@@ -340,7 +350,8 @@ def configure(conf):
     # allows us to find problems on our development hosts faster.
     # It also results in faster load time.
 
-    conf.add_as_needed()
+    if conf.CHECK_LDFLAGS('-Wl,--as-needed'):
+        conf.env.append_unique('LINKFLAGS', '-Wl,--as-needed')
 
     if not conf.CHECK_NEED_LC("-lc not needed"):
         conf.ADD_LDFLAGS('-lc', testflags=False)
