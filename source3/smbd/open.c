@@ -477,7 +477,7 @@ static int process_symlink_open(struct connection_struct *conn,
 			unsigned int link_depth)
 {
 	const char *conn_rootdir = NULL;
-	struct smb_filename conn_rootdir_fname;
+	struct smb_filename conn_rootdir_fname = { 0 };
 	int fd = -1;
 	char *link_target = NULL;
 	int link_len = -1;
@@ -493,9 +493,16 @@ static int process_symlink_open(struct connection_struct *conn,
 		errno = ENOMEM;
 		return -1;
 	}
-	conn_rootdir_fname = (struct smb_filename) {
-		.base_name = discard_const_p(char, conn_rootdir),
-	};
+	/*
+	 * With shadow_copy2 conn_rootdir can be talloc_freed
+	 * whilst we use it in this function. We must take a copy.
+	 */
+	conn_rootdir_fname.base_name = talloc_strdup(talloc_tos(),
+						     conn_rootdir);
+	if (conn_rootdir_fname.base_name == NULL) {
+		errno = ENOMEM;
+		return -1;
+	}
 
 	/*
 	 * Ensure we don't get stuck in a symlink loop.
@@ -602,6 +609,7 @@ static int process_symlink_open(struct connection_struct *conn,
 
 	TALLOC_FREE(resolved_fname);
 	TALLOC_FREE(link_target);
+	TALLOC_FREE(conn_rootdir_fname.base_name);
 	if (oldwd_fname != NULL) {
 		int ret = vfs_ChDir(conn, oldwd_fname);
 		if (ret == -1) {
@@ -947,7 +955,6 @@ void change_file_owner_to_parent(connection_struct *conn,
 			 "directory %s. Error was %s\n",
 			 smb_fname_str_dbg(smb_fname_parent),
 			 strerror(errno)));
-		TALLOC_FREE(smb_fname_parent);
 		return;
 	}
 
@@ -957,7 +964,6 @@ void change_file_owner_to_parent(connection_struct *conn,
 			"is already owned by uid %d\n",
 			fsp_str_dbg(fsp),
 			(int)fsp->fsp_name->st.st_ex_uid ));
-		TALLOC_FREE(smb_fname_parent);
 		return;
 	}
 
@@ -2994,6 +3000,9 @@ static void poll_open_done(struct tevent_req *subreq)
 
 	status = share_mode_watch_recv(subreq, NULL, NULL);
 	TALLOC_FREE(subreq);
+	open_rec->watch_req = NULL;
+	TALLOC_FREE(open_rec->te);
+
 	DBG_DEBUG("dbwrap_watched_watch_recv returned %s\n",
 		  nt_errstr(status));
 
