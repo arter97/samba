@@ -1071,11 +1071,11 @@ void winbind_msg_online(struct messaging_context *msg_ctx,
 		   primary domain comes back online */
 
 		if ( domain->primary ) {
-			struct winbindd_child *idmap = idmap_child();
+			pid_t idmap_pid = idmap_child_pid();
 
-			if ( idmap->pid != 0 ) {
+			if (idmap_pid != 0) {
 				messaging_send_buf(msg_ctx,
-						   pid_to_procid(idmap->pid), 
+						   pid_to_procid(idmap_pid),
 						   MSG_WINBIND_ONLINE,
 						   (const uint8_t *)domain->name,
 						   strlen(domain->name)+1);
@@ -1776,7 +1776,7 @@ static bool fork_domain_child(struct winbindd_child *child)
 
 	if (child_domain != NULL) {
 		setproctitle("domain child [%s]", child_domain->name);
-	} else if (child == idmap_child()) {
+	} else if (is_idmap_child(child)) {
 		setproctitle("idmap child");
 	}
 
@@ -1826,7 +1826,7 @@ static bool fork_domain_child(struct winbindd_child *child)
 	 * We are in idmap child, make sure that we set the
 	 * check_online_event to bring primary domain online.
 	 */
-	if (child == idmap_child()) {
+	if (is_idmap_child(child)) {
 		set_domain_online_request(primary_domain);
 	}
 
