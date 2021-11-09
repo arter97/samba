@@ -1,3 +1,29 @@
+samba (2:4.13.14+dfsg-1) unstable; urgency=high
+
+  * New upstream security release in order to address the following defects:
+    - CVE-2016-2124: don't fallback to non spnego authentication if we require
+      kerberos
+    - MS CVE-2020-17049 in Samba: 'Bronze bit' S4U2Proxy Constrained Delegation
+      bypass
+    - CVE-2020-25717: A user on the domain can become root on domain members
+    - CVE-2020-25718: An RODC can issue (forge) administrator tickets to other
+      servers
+      + Bump build-depends ldb >= 2.2.3
+    - CVE-2020-25719: AD DC Username based races when no PAC is given
+    - CVE-2020-25721: Kerberos acceptors need easy access to stable AD
+      identifiers (eg objectSid)
+    - CVE-2020-25722: AD DC UPN vs samAccountName not checked (top-level bug
+      for AD DC validation issues)
+    - CVE-2021-3738: crash in dsdb stack
+    - CVE-2021-23192: dcerpc requests don't check all fragments against the
+      first auth_state
+      + Update d/samba-libs.install for libdcerpc-pkt-auth.so.0
+  * Add patch to fix "allow trusted domains"
+  * Bump ldb build-depends to 2.2.3
+  * Update d/samba-libs.install
+
+ -- Mathieu Parent <sathieu@debian.org>  Tue, 09 Nov 2021 20:53:03 +0100
+
 samba (2:4.13.13+dfsg-1) unstable; urgency=high
 
   [ Athos Ribeiro ]
