@@ -200,7 +200,7 @@ NTSTATUS _wbint_Sids2UnixIDs(struct pipes_struct *p,
 
 		sid_compose(m->sid, d->sid, ids[i].rid);
 		m->status = ID_UNKNOWN;
-		m->xid = (struct unixid) { .type = ids[i].type };
+		m->xid = (struct unixid) { .type = ids[i].type_hint };
 	}
 
 	status = dom->methods->sids_to_unixids(dom, id_map_ptrs);
@@ -226,6 +226,12 @@ NTSTATUS _wbint_Sids2UnixIDs(struct pipes_struct *p,
 
 	for (i=0; i<num_ids; i++) {
 		struct id_map *m = id_map_ptrs[i];
+
+		if (m->status == ID_REQUIRE_TYPE) {
+			ids[i].xid.id = UINT32_MAX;
+			ids[i].xid.type = ID_TYPE_WB_REQUIRE_TYPE;
+			continue;
+		}
 
 		if (!idmap_unix_id_is_in_range(m->xid.id, dom)) {
 			DBG_DEBUG("id %"PRIu32" is out of range "
@@ -933,6 +939,13 @@ NTSTATUS _winbind_SamLogon(struct pipes_struct *p,
 	uint16_t validation_level;
 	union netr_Validation *validation = NULL;
 	bool interactive = false;
+
+	/*
+	 * Make sure we start with authoritative=true,
+	 * it will only set to false if we don't know the
+	 * domain.
+	 */
+	r->out.authoritative = true;
 
 	domain = wb_child_domain();
 	if (domain == NULL) {

@@ -66,7 +66,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=rep_pfc_flags, auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -87,7 +87,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -109,7 +109,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -129,7 +129,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=rep_pfc_flags, auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertEqual(rep.u.secondary_address, "")
         self.assertPadding(rep.u._pad1, 2)
@@ -150,7 +150,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -397,7 +397,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -470,7 +470,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -490,7 +490,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -522,7 +522,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -542,7 +542,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 1)
@@ -563,7 +563,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, ctx1.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -590,7 +590,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -610,7 +610,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 1)
@@ -631,7 +631,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -647,7 +647,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 1)
@@ -706,7 +706,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -733,7 +733,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -766,7 +766,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -795,7 +795,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -827,7 +827,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -856,7 +856,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 1)
@@ -877,7 +877,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, ctx1a.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -903,7 +903,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -929,7 +929,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 1)
@@ -948,7 +948,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -967,7 +967,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 1)
@@ -986,7 +986,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1005,7 +1005,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 1)
@@ -1024,7 +1024,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1050,7 +1050,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 2)
@@ -1074,7 +1074,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1086,7 +1086,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 2)
@@ -1110,7 +1110,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1123,7 +1123,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1135,7 +1135,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 2)
@@ -1159,7 +1159,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1172,7 +1172,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1198,7 +1198,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 2)
@@ -1222,7 +1222,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1234,7 +1234,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 0)
         self.assertPadding(rep.u._pad1, 2)
         self.assertEqual(rep.u.num_results, 2)
@@ -1258,7 +1258,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1283,7 +1283,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -1319,7 +1319,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -1353,7 +1353,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -1425,7 +1425,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -1460,7 +1460,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -1495,7 +1495,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -1618,7 +1618,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -1639,7 +1639,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1659,7 +1659,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We get a fault back
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -1683,6 +1683,1279 @@ class TestDCERPC_BIND(RawDCERPCTest):
 
     def test_auth_none_packet_request(self):
         return self._test_auth_none_level_request(dcerpc.DCERPC_AUTH_LEVEL_PACKET)
+
+    def test_ntlmssp_multi_auth_first1_lastSame2(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_FAULT_SEC_PKG_ERROR
+        auth_context_2nd = 2
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = None
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_lastNext2(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = 2
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = 4
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_lastSame111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = None
+        auth_context_2nd = 1
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = None
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_lastNext111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = 1
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = 4
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_lastNext111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = 1
+        expected_call_id = 4
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = 4
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_lastSameNone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = None
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_lastSameNone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = None
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_lastNextNone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = 4
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_lastNextNone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = 4
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = 4
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_lastSameNone111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = None
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_lastSameNone111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = None
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_lastNextNone111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = 4
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_lastNextNone111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = 4
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = 4
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_last(auth_type,
+                                                  expected_fault,
+                                                  auth_context_2nd=auth_context_2nd,
+                                                  expected_call_id=expected_call_id,
+                                                  expected_context_id=expected_context_id,
+                                                  not_executed=not_executed,
+                                                  conc_mpx=conc_mpx,
+                                                  forced_call_id=forced_call_id,
+                                                  forced_context_id=forced_context_id,
+                                                  forced_opnum=forced_opnum,
+                                                  forced_auth_context_id=forced_auth_context_id,
+                                                  forced_auth_type=forced_auth_type,
+                                                  forced_auth_level=forced_auth_level)
+
+    def _test_generic_auth_first_2nd(self,
+                                     auth_type,
+                                     pfc_flags_2nd,
+                                     expected_fault,
+                                     auth_context_2nd=2,
+                                     skip_first=False,
+                                     expected_call_id=None,
+                                     expected_context_id=None,
+                                     conc_mpx=False,
+                                     not_executed=False,
+                                     forced_call_id=None,
+                                     forced_context_id=None,
+                                     forced_opnum=None,
+                                     forced_auth_context_id=None,
+                                     forced_auth_type=None,
+                                     forced_auth_level=None):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        auth_level1 = dcerpc.DCERPC_AUTH_LEVEL_INTEGRITY
+        auth_context_id1=1
+        auth_level2 = dcerpc.DCERPC_AUTH_LEVEL_PACKET
+        auth_context_id2=2
+
+        creds = self.get_user_creds()
+
+        abstract = samba.dcerpc.mgmt.abstract_syntax()
+        transfer = base.transfer_syntax_ndr()
+
+        tsf1_list = [transfer]
+        ctx = samba.dcerpc.dcerpc.ctx_list()
+        ctx.context_id = 1
+        ctx.num_transfer_syntaxes = len(tsf1_list)
+        ctx.abstract_syntax = abstract
+        ctx.transfer_syntaxes = tsf1_list
+
+        auth_context1 = self.get_auth_context_creds(creds=creds,
+                                                    auth_type=auth_type,
+                                                    auth_level=auth_level1,
+                                                    auth_context_id=auth_context_id1,
+                                                    hdr_signing=False)
+        auth_context2 = self.get_auth_context_creds(creds=creds,
+                                                    auth_type=auth_type,
+                                                    auth_level=auth_level2,
+                                                    auth_context_id=auth_context_id2,
+                                                    hdr_signing=False)
+
+        bind_pfc_flags = dcerpc.DCERPC_PFC_FLAG_FIRST | dcerpc.DCERPC_PFC_FLAG_LAST
+        if conc_mpx:
+            bind_pfc_flags |= dcerpc.DCERPC_PFC_FLAG_CONC_MPX
+
+        ack0 = self.do_generic_bind(call_id=0,
+                                    ctx=ctx,
+                                    pfc_flags=bind_pfc_flags)
+
+        ack1 = self.do_generic_bind(call_id=1,
+                                    ctx=ctx,
+                                    auth_context=auth_context1,
+                                    assoc_group_id = ack0.u.assoc_group_id,
+                                    start_with_alter=True)
+        if auth_context_2nd == 2:
+            ack2 = self.do_generic_bind(call_id=2,
+                                        ctx=ctx,
+                                        auth_context=auth_context2,
+                                        assoc_group_id = ack0.u.assoc_group_id,
+                                        start_with_alter=True)
+
+        ndr_print = self.do_ndr_print
+        hexdump = self.do_hexdump
+        inq_if_ids = samba.dcerpc.mgmt.inq_if_ids()
+        io = inq_if_ids
+        if ndr_print:
+            sys.stderr.write("in: %s" % samba.ndr.ndr_print_in(io))
+        stub_in = samba.ndr.ndr_pack_in(io)
+        stub_in += b'\xfe'*45 # add some padding in order to have some payload
+        if hexdump:
+            sys.stderr.write("stub_in: %d\n%s" % (len(stub_in), self.hexdump(stub_in)))
+
+        call_id = 3
+        context_id = ctx.context_id
+        opnum = io.opnum()
+
+        if not skip_first:
+            pfc_flags = samba.dcerpc.dcerpc.DCERPC_PFC_FLAG_FIRST
+            stub_in_tmp = stub_in[0:16]
+            req = self.generate_request_auth(call_id=call_id,
+                                             context_id=context_id,
+                                             pfc_flags=pfc_flags,
+                                             opnum=opnum,
+                                             alloc_hint=len(stub_in),
+                                             stub=stub_in_tmp,
+                                             auth_context=auth_context1)
+            self.send_pdu(req, ndr_print=ndr_print, hexdump=hexdump)
+            rep = self.recv_pdu(timeout=0.01)
+            self.assertIsNone(rep)
+            self.assertIsConnected()
+
+        # context_id, opnum and auth header values are completely ignored
+        if auth_context_2nd == 1:
+            auth_context_copy = auth_context1.copy()
+        elif auth_context_2nd == 2:
+            auth_context_copy = auth_context2.copy()
+        else:
+            auth_context_copy = None
+
+        expected_pfc_flags = dcerpc.DCERPC_PFC_FLAG_FIRST | dcerpc.DCERPC_PFC_FLAG_LAST
+        if expected_context_id is None:
+            expected_context_id = context_id
+        if expected_call_id is None:
+            expected_call_id = call_id
+        if not_executed:
+            expected_pfc_flags |= dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE
+
+        if forced_call_id is not None:
+            call_id = forced_call_id
+        if forced_context_id is not None:
+            context_id = forced_context_id
+        if forced_opnum is not None:
+            opnum = forced_opnum
+        if forced_auth_context_id is not None:
+            auth_context_copy["auth_context_id"] = forced_auth_context_id
+        if forced_auth_type is not None:
+            auth_context_copy["auth_type"] = forced_auth_type
+        if forced_auth_level is not None:
+            auth_context_copy["auth_level"] = forced_auth_level
+
+        pfc_flags = samba.dcerpc.dcerpc.DCERPC_PFC_FLAG_FIRST
+        stub_in_tmp = stub_in[16:-1]
+        req = self.generate_request_auth(call_id=call_id,
+                                         context_id=context_id,
+                                         pfc_flags=pfc_flags_2nd,
+                                         opnum=opnum,
+                                         alloc_hint=len(stub_in_tmp),
+                                         stub=stub_in_tmp,
+                                         auth_context=auth_context_copy)
+        self.send_pdu(req, ndr_print=ndr_print, hexdump=hexdump)
+        if expected_fault is None:
+            self.do_single_request(call_id=3, ctx=ctx, io=io, send_req=False, auth_context=auth_context1)
+            return
+        rep = self.recv_pdu()
+        self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, expected_call_id,
+                        pfc_flags=expected_pfc_flags,
+                        auth_length=0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
+        self.assertEqual(rep.u.context_id, expected_context_id)
+        self.assertEqual(rep.u.cancel_count, 0)
+        self.assertEqual(rep.u.flags, 0)
+        self.assertEqual(rep.u.status, expected_fault)
+        self.assertEqual(rep.u.reserved, 0)
+        self.assertEqual(len(rep.u.error_and_verifier), 0)
+
+        if not_executed:
+            # still alive
+            rep = self.recv_pdu(timeout=0.01)
+            self.assertIsNone(rep)
+            self.assertIsConnected()
+            return
+
+        # wait for a disconnect
+        rep = self.recv_pdu()
+        self.assertIsNone(rep)
+        self.assertNotConnected()
+
+    def _test_generic_auth_first_last(self,
+                                      auth_type,
+                                      expected_fault,
+                                      auth_context_2nd=2,
+                                      expected_call_id=None,
+                                      expected_context_id=None,
+                                      conc_mpx=False,
+                                      not_executed=False,
+                                      forced_call_id=None,
+                                      forced_context_id=None,
+                                      forced_opnum=None,
+                                      forced_auth_context_id=None,
+                                      forced_auth_type=None,
+                                      forced_auth_level=None):
+        pfc_flags_2nd = samba.dcerpc.dcerpc.DCERPC_PFC_FLAG_LAST
+        return self._test_generic_auth_first_2nd(auth_type,
+                                                 pfc_flags_2nd,
+                                                 expected_fault,
+                                                 auth_context_2nd=auth_context_2nd,
+                                                 expected_call_id=expected_call_id,
+                                                 expected_context_id=expected_context_id,
+                                                 not_executed=not_executed,
+                                                 conc_mpx=conc_mpx,
+                                                 forced_call_id=forced_call_id,
+                                                 forced_context_id=forced_context_id,
+                                                 forced_opnum=forced_opnum,
+                                                 forced_auth_context_id=forced_auth_context_id,
+                                                 forced_auth_type=forced_auth_type,
+                                                 forced_auth_level=forced_auth_level)
+
+    def _test_generic_auth_first_first(self,
+                                       auth_type,
+                                       expected_fault,
+                                       auth_context_2nd=2,
+                                       expected_call_id=None,
+                                       expected_context_id=None,
+                                       conc_mpx=False,
+                                       not_executed=False,
+                                       forced_call_id=None,
+                                       forced_context_id=None,
+                                       forced_opnum=None,
+                                       forced_auth_context_id=None,
+                                       forced_auth_type=None,
+                                       forced_auth_level=None):
+        pfc_flags_2nd = samba.dcerpc.dcerpc.DCERPC_PFC_FLAG_FIRST
+        return self._test_generic_auth_first_2nd(auth_type,
+                                                 pfc_flags_2nd,
+                                                 expected_fault,
+                                                 auth_context_2nd=auth_context_2nd,
+                                                 expected_call_id=expected_call_id,
+                                                 expected_context_id=expected_context_id,
+                                                 not_executed=not_executed,
+                                                 conc_mpx=conc_mpx,
+                                                 forced_call_id=forced_call_id,
+                                                 forced_context_id=forced_context_id,
+                                                 forced_opnum=forced_opnum,
+                                                 forced_auth_context_id=forced_auth_context_id,
+                                                 forced_auth_type=forced_auth_type,
+                                                 forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_firstSame2(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_FAULT_SEC_PKG_ERROR
+        auth_context_2nd = 2
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = None
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_firstNext2(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = 2
+        expected_call_id = 3
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = 4
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_firstSame111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = 1
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = None
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_firstSame111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = 1
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = None
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_firstNext111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = 1
+        expected_call_id = 3
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = 4
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_firstNext111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = 1
+        expected_call_id = 4
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = 4
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_firstSameNone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = None
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_firstSameNone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = None
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_firstNextNone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = 4
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_firstNextNone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = 4
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = 4
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_firstSameNone111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = None
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_firstSameNone111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = None
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_first1_firstNextNone111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = None
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = False
+        forced_call_id = 4
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_multi_auth_MPX_first1_firstNextNone111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        auth_context_2nd = None
+        expected_call_id = 4
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = True
+        forced_call_id = 4
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_first_first(auth_type,
+                                                   expected_fault,
+                                                   auth_context_2nd=auth_context_2nd,
+                                                   expected_call_id=expected_call_id,
+                                                   expected_context_id=expected_context_id,
+                                                   not_executed=not_executed,
+                                                   conc_mpx=conc_mpx,
+                                                   forced_call_id=forced_call_id,
+                                                   forced_context_id=forced_context_id,
+                                                   forced_opnum=forced_opnum,
+                                                   forced_auth_context_id=forced_auth_context_id,
+                                                   forced_auth_type=forced_auth_type,
+                                                   forced_auth_level=forced_auth_level)
+
+    def _test_generic_auth_middle(self,
+                                  auth_type,
+                                  expected_fault,
+                                  expected_context_id=None,
+                                  not_executed=False,
+                                  conc_mpx=False,
+                                  forced_context_id=None,
+                                  forced_opnum=None,
+                                  forced_auth_context_id=None,
+                                  forced_auth_type=None,
+                                  forced_auth_level=None):
+        auth_context_2nd = 1
+        skip_first = True
+        pfc_flags_2nd = 0
+        expected_call_id = None
+        forced_call_id = None
+        return self._test_generic_auth_first_2nd(auth_type,
+                                                 pfc_flags_2nd,
+                                                 expected_fault,
+                                                 auth_context_2nd=auth_context_2nd,
+                                                 skip_first=skip_first,
+                                                 expected_call_id=expected_call_id,
+                                                 expected_context_id=expected_context_id,
+                                                 not_executed=not_executed,
+                                                 conc_mpx=conc_mpx,
+                                                 forced_call_id=forced_call_id,
+                                                 forced_context_id=forced_context_id,
+                                                 forced_opnum=forced_opnum,
+                                                 forced_auth_context_id=forced_auth_context_id,
+                                                 forced_auth_type=forced_auth_type,
+                                                 forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_middle_alone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = False
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_MPX_middle_alone(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_middle_all_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = False
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_MPX_middle_all_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_UNKNOWN_IF
+        expected_context_id = 0
+        not_executed = True
+        conc_mpx = True
+        forced_context_id = 111
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_middle_auth_all_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = False
+        forced_context_id = None
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_MPX_middle_auth_all_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_FAULT_ACCESS_DENIED
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_context_id = None
+        forced_opnum = 111
+        forced_auth_context_id = 111
+        forced_auth_type = 111
+        forced_auth_level = 111
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_middle_auth_context_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = False
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = 111
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_MPX_middle_auth_context_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_FAULT_ACCESS_DENIED
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = 111
+        forced_auth_type = None
+        forced_auth_level = None
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_middle_auth_type_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = False
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = 111
+        forced_auth_level = None
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_MPX_middle_auth_type_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_FAULT_ACCESS_DENIED
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = 111
+        forced_auth_level = None
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_middle_auth_level_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_NCA_S_PROTO_ERROR
+        expected_context_id = 0
+        not_executed = False
+        conc_mpx = False
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = 111
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
+
+    def test_ntlmssp_auth_MPX_middle_auth_level_111(self):
+        auth_type = dcerpc.DCERPC_AUTH_TYPE_NTLMSSP
+        expected_fault = dcerpc.DCERPC_FAULT_ACCESS_DENIED
+        expected_context_id = None
+        not_executed = False
+        conc_mpx = True
+        forced_context_id = None
+        forced_opnum = None
+        forced_auth_context_id = None
+        forced_auth_type = None
+        forced_auth_level = 111
+        return self._test_generic_auth_middle(auth_type,
+                                              expected_fault,
+                                              expected_context_id=expected_context_id,
+                                              not_executed=not_executed,
+                                              conc_mpx=conc_mpx,
+                                              forced_context_id=forced_context_id,
+                                              forced_opnum=forced_opnum,
+                                              forced_auth_context_id=forced_auth_context_id,
+                                              forced_auth_type=forced_auth_type,
+                                              forced_auth_level=forced_auth_level)
 
     def _test_neg_xmit_check_values(self,
                                     req_xmit=None,
@@ -1709,7 +2982,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, rep_both)
         self.assertEqual(rep.u.max_recv_frag, rep_both)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -1761,7 +3034,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu(ndr_print=True, hexdump=True)
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1776,7 +3049,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1792,7 +3065,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We get a fault
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -1867,7 +3140,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         auth_length=0)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -1889,7 +3162,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1903,7 +3176,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1917,7 +3190,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -1995,7 +3268,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                 # We get a fault back
                 self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                                 auth_length=0)
-                self.assertNotEquals(rep.u.alloc_hint, 0)
+                self.assertNotEqual(rep.u.alloc_hint, 0)
                 self.assertEqual(rep.u.context_id, req.u.context_id)
                 self.assertEqual(rep.u.cancel_count, 0)
                 self.assertEqual(rep.u.flags, 0)
@@ -2015,7 +3288,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                 # We get a fault back
                 self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                                 auth_length=0)
-                self.assertNotEquals(rep.u.alloc_hint, 0)
+                self.assertNotEqual(rep.u.alloc_hint, 0)
                 self.assertEqual(rep.u.context_id, req.u.context_id)
                 self.assertEqual(rep.u.cancel_count, 0)
                 self.assertEqual(rep.u.flags, 0)
@@ -2037,7 +3310,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
             # We get a fault back
             self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                             auth_length=0)
-            self.assertNotEquals(rep.u.alloc_hint, 0)
+            self.assertNotEqual(rep.u.alloc_hint, 0)
             self.assertEqual(rep.u.context_id, req.u.context_id)
             self.assertEqual(rep.u.cancel_count, 0)
             self.assertEqual(rep.u.flags, 0)
@@ -2053,7 +3326,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2099,7 +3372,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
             # We get a fault back
             self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                             auth_length=0)
-            self.assertNotEquals(rep.u.alloc_hint, 0)
+            self.assertNotEqual(rep.u.alloc_hint, 0)
             self.assertEqual(rep.u.context_id, 0)
             self.assertEqual(rep.u.cancel_count, 0)
             self.assertEqual(rep.u.flags, 0)
@@ -2129,7 +3402,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
             # We get a fault back
             self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                             auth_length=0)
-            self.assertNotEquals(rep.u.alloc_hint, 0)
+            self.assertNotEqual(rep.u.alloc_hint, 0)
             self.assertEqual(rep.u.context_id, req.u.context_id)
             self.assertEqual(rep.u.cancel_count, 0)
             self.assertEqual(rep.u.flags, 0)
@@ -2196,7 +3469,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         dcerpc.DCERPC_PFC_FLAG_LAST |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -2244,7 +3517,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2278,7 +3551,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2314,7 +3587,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=dcerpc.DCERPC_PFC_FLAG_FIRST |
                         dcerpc.DCERPC_PFC_FLAG_LAST,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -2342,7 +3615,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2377,7 +3650,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2391,7 +3664,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2416,7 +3689,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2451,7 +3724,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2465,7 +3738,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2504,7 +3777,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2518,7 +3791,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2553,7 +3826,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req1.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req1.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -2601,7 +3874,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req2.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -2651,7 +3924,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -2661,7 +3934,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -2692,7 +3965,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -2708,7 +3981,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2728,7 +4001,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We don't get an auth_info back
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -2748,7 +4021,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We get a fault back
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -2806,7 +4079,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -2816,7 +4089,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -2847,7 +4120,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -2869,7 +4142,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We get a fault back
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -2927,7 +4200,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         assoc_group_id = rep.u.assoc_group_id
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
@@ -2938,7 +4211,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -2962,7 +4235,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3010,7 +4283,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3020,7 +4293,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3048,7 +4321,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We get a fault back
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3099,7 +4372,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3109,7 +4382,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3138,7 +4411,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3154,7 +4427,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -3174,7 +4447,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We don't get an auth_info back
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -3206,7 +4479,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3257,7 +4530,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3267,7 +4540,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3296,7 +4569,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3312,7 +4585,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -3332,7 +4605,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We don't get an auth_info back
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -3363,7 +4636,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3410,7 +4683,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3420,7 +4693,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3441,7 +4714,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3494,7 +4767,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3504,7 +4777,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3525,7 +4798,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3580,7 +4853,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3590,7 +4863,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3612,7 +4885,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3660,7 +4933,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3670,7 +4943,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3692,7 +4965,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3747,7 +5020,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3757,7 +5030,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3779,7 +5052,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3834,7 +5107,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3844,7 +5117,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3866,7 +5139,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -3931,7 +5204,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -3941,7 +5214,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -3985,7 +5258,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -4001,7 +5274,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -4021,7 +5294,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We don't get an auth_info back
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -4145,7 +5418,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -4155,7 +5428,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -4192,7 +5465,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -4257,7 +5530,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -4267,7 +5540,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -4296,7 +5569,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         rep = self.recv_pdu()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -4316,7 +5589,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         # We don't get an auth_info back
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -4376,7 +5649,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_BIND_ACK, req.call_id)
         self.assertEqual(rep.u.max_xmit_frag, req.u.max_xmit_frag)
         self.assertEqual(rep.u.max_recv_frag, req.u.max_recv_frag)
-        self.assertNotEquals(rep.u.assoc_group_id, req.u.assoc_group_id)
+        self.assertNotEqual(rep.u.assoc_group_id, req.u.assoc_group_id)
         self.assertEqual(rep.u.secondary_address_size, 4)
         self.assertEqual(rep.u.secondary_address, "%d" % self.tcp_port)
         self.assertPadding(rep.u._pad1, 2)
@@ -4386,7 +5659,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.assertEqual(rep.u.ctx_list[0].reason,
                           dcerpc.DCERPC_BIND_ACK_REASON_NOT_SPECIFIED)
         self.assertNDRSyntaxEquals(rep.u.ctx_list[0].syntax, ndr32)
-        self.assertNotEquals(len(rep.u.auth_info), 0)
+        self.assertNotEqual(len(rep.u.auth_info), 0)
         a = self.parse_auth(rep.u.auth_info)
 
         from_server = a.credentials
@@ -4407,7 +5680,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, 0)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -4522,7 +5795,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_FAULT, req.call_id,
                         pfc_flags=req.pfc_flags | response_fault_flags,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, ctx1.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -4689,7 +5962,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         (rep, rep_blob) = self.recv_pdu_raw()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=sig_size)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -4757,7 +6030,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
                         pfc_flags=req.pfc_flags |
                         dcerpc.DCERPC_PFC_FLAG_DID_NOT_EXECUTE,
                         auth_length=0)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, ctx1.context_id)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertEqual(rep.u.flags, 0)
@@ -4806,7 +6079,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         (rep, rep_blob) = self.recv_pdu_raw()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=sig_size)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
@@ -4871,7 +6144,7 @@ class TestDCERPC_BIND(RawDCERPCTest):
         (rep, rep_blob) = self.recv_pdu_raw()
         self.verify_pdu(rep, dcerpc.DCERPC_PKT_RESPONSE, req.call_id,
                         auth_length=sig_size)
-        self.assertNotEquals(rep.u.alloc_hint, 0)
+        self.assertNotEqual(rep.u.alloc_hint, 0)
         self.assertEqual(rep.u.context_id, req.u.context_id & 0xff)
         self.assertEqual(rep.u.cancel_count, 0)
         self.assertGreaterEqual(len(rep.u.stub_and_verifier), rep.u.alloc_hint)
