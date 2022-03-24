@@ -27,7 +27,6 @@
 #include "auth/kerberos/kerberos.h"
 #include "auth/credentials/credentials.h"
 #include "auth/credentials/credentials_internal.h"
-#include "auth/credentials/credentials_proto.h"
 #include "auth/credentials/credentials_krb5.h"
 #include "auth/kerberos/kerberos_credentials.h"
 #include "auth/kerberos/kerberos_srv_keytab.h"
@@ -38,6 +37,8 @@
 
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_AUTH
+
+#undef strncasecmp
 
 static void cli_credentials_invalidate_client_gss_creds(
 					struct cli_credentials *cred,
@@ -685,7 +686,7 @@ _PUBLIC_ int cli_credentials_get_named_ccache(struct cli_credentials *cred,
 		bool expired = false;
 		ret = smb_krb5_cc_get_lifetime(cred->ccache->smb_krb5_context->krb5_context,
 					       cred->ccache->ccache, &lifetime);
-		if (ret == KRB5_CC_END) {
+		if (ret == KRB5_CC_END || ret == ENOENT) {
 			/* If we have a particular ccache set, without
 			 * an initial ticket, then assume there is a
 			 * good reason */
@@ -872,7 +873,7 @@ _PUBLIC_ int cli_credentials_get_client_gss_creds(struct cli_credentials *cred,
 	ret = cli_credentials_get_ccache(cred, event_ctx, lp_ctx,
 					 &ccache, error_string);
 	if (ret) {
-		if (cli_credentials_get_kerberos_state(cred) == CRED_MUST_USE_KERBEROS) {
+		if (cli_credentials_get_kerberos_state(cred) == CRED_USE_KERBEROS_REQUIRED) {
 			DEBUG(1, ("Failed to get kerberos credentials (kerberos required): %s\n", *error_string));
 		} else {
 			DEBUG(4, ("Failed to get kerberos credentials: %s\n", *error_string));
@@ -1059,14 +1060,21 @@ static int cli_credentials_shallow_ccache(struct cli_credentials *cred)
 {
 	krb5_error_code ret;
 	const struct ccache_container *old_ccc = NULL;
+	enum credentials_obtained old_obtained;
 	struct ccache_container *ccc = NULL;
 	char *ccache_name = NULL;
 	krb5_principal princ;
 
+	old_obtained = cred->ccache_obtained;
 	old_ccc = cred->ccache;
 	if (old_ccc == NULL) {
 		return 0;
 	}
+
+	cred->ccache = NULL;
+	cred->ccache_obtained = CRED_UNINITIALISED;
+	cred->client_gss_creds = NULL;
+	cred->client_gss_creds_obtained = CRED_UNINITIALISED;
 
 	ret = krb5_cc_get_principal(
 		old_ccc->smb_krb5_context->krb5_context,
@@ -1076,7 +1084,6 @@ static int cli_credentials_shallow_ccache(struct cli_credentials *cred)
 		/*
 		 * This is an empty ccache. No point in copying anything.
 		 */
-		cred->ccache = NULL;
 		return 0;
 	}
 	krb5_free_principal(old_ccc->smb_krb5_context->krb5_context, princ);
@@ -1109,8 +1116,7 @@ static int cli_credentials_shallow_ccache(struct cli_credentials *cred)
 	}
 
 	cred->ccache = ccc;
-	cred->client_gss_creds = NULL;
-	cred->client_gss_creds_obtained = CRED_UNINITIALISED;
+	cred->ccache_obtained = old_obtained;
 	return ret;
 }
 
@@ -1432,7 +1438,9 @@ _PUBLIC_ void cli_credentials_set_impersonate_principal(struct cli_credentials *
 	cred->impersonate_principal = talloc_strdup(cred, principal);
 	talloc_free(cred->self_service);
 	cred->self_service = talloc_strdup(cred, self_service);
-	cli_credentials_set_kerberos_state(cred, CRED_MUST_USE_KERBEROS);
+	cli_credentials_set_kerberos_state(cred,
+					   CRED_USE_KERBEROS_REQUIRED,
+					   CRED_SPECIFIED);
 }
 
 /*

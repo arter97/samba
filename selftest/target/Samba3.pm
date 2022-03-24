@@ -27,7 +27,7 @@ sub return_alias_env
 sub have_ads($) {
         my ($self) = @_;
 	my $found_ads = 0;
-        my $smbd_build_options = Samba::bindir_path($self, "smbd") . " -b|";
+        my $smbd_build_options = Samba::bindir_path($self, "smbd") . " --configfile=/dev/null -b|";
         open(IN, $smbd_build_options) or die("Unable to run $smbd_build_options: $!");
 
         while (<IN>) {
@@ -97,44 +97,54 @@ sub teardown_env_samba($$)
 	my $smbdpid = $envvars->{SMBD_TL_PID};
 	my $nmbdpid = $envvars->{NMBD_TL_PID};
 	my $winbinddpid = $envvars->{WINBINDD_TL_PID};
+	my $samba_dcerpcdpid = $envvars->{SAMBA_DCERPCD_TL_PID};
 
 	# This should give it time to write out the gcov data
 	until ($count > 20) {
 	    my $smbdchild = Samba::cleanup_child($smbdpid, "smbd");
 	    my $nmbdchild = Samba::cleanup_child($nmbdpid, "nmbd");
 	    my $winbinddchild = Samba::cleanup_child($winbinddpid, "winbindd");
+	    my $samba_dcerpcdchild = Samba::cleanup_child(
+		$samba_dcerpcdpid, "samba-dcerpcd");
 	    if ($smbdchild == -1
 		&& $nmbdchild == -1
-		&& $winbinddchild == -1) {
+		&& $winbinddchild == -1
+		&& $samba_dcerpcdpid == -1) {
 		last;
 	    }
 	    sleep(1);
 	    $count++;
 	}
 
-	if ($count <= 20 && kill(0, $smbdpid, $nmbdpid, $winbinddpid) == 0) {
+	if ($count <= 20 &&
+	    kill(0, $smbdpid, $nmbdpid, $winbinddpid, $samba_dcerpcdpid) == 0) {
 	    return;
 	}
 
 	$self->stop_sig_term($smbdpid);
 	$self->stop_sig_term($nmbdpid);
 	$self->stop_sig_term($winbinddpid);
+	$self->stop_sig_term($samba_dcerpcdpid);
 
 	$count = 0;
 	until ($count > 10) {
 	    my $smbdchild = Samba::cleanup_child($smbdpid, "smbd");
 	    my $nmbdchild = Samba::cleanup_child($nmbdpid, "nmbd");
 	    my $winbinddchild = Samba::cleanup_child($winbinddpid, "winbindd");
+	    my $samba_dcerpcdpid = Samba::cleanup_child(
+		$samba_dcerpcdpid, "samba-dcerpcd");
 	    if ($smbdchild == -1
 		&& $nmbdchild == -1
-		&& $winbinddchild == -1) {
+		&& $winbinddchild == -1
+		&& $samba_dcerpcdpid == -1) {
 		last;
 	    }
 	    sleep(1);
 	    $count++;
 	}
 
-	if ($count <= 10 && kill(0, $smbdpid, $nmbdpid, $winbinddpid) == 0) {
+	if ($count <= 10 &&
+	    kill(0, $smbdpid, $nmbdpid, $winbinddpid, $samba_dcerpcdpid) == 0) {
 	    return;
 	}
 
@@ -142,6 +152,7 @@ sub teardown_env_samba($$)
 	$self->stop_sig_kill($smbdpid);
 	$self->stop_sig_kill($nmbdpid);
 	$self->stop_sig_kill($winbinddpid);
+	$self->stop_sig_kill($samba_dcerpcdpid);
 
 	return 0;
 }
@@ -188,7 +199,7 @@ sub getlog_env_app($$$)
 	close(LOG);
 
 	return "" if $out eq $title;
- 
+
 	return $out;
 }
 
@@ -238,9 +249,12 @@ sub check_env($$)
 	ad_member_idmap_rid => ["ad_dc"],
 	ad_member_idmap_ad  => ["fl2008r2dc"],
 	ad_member_fips      => ["ad_dc_fips"],
-	ad_member_no_nss_wb => ["ad_dc"],
+	ad_member_offlogon  => ["ad_dc"],
+	ad_member_oneway    => ["fl2000dc"],
+	ad_member_idmap_nss => ["ad_dc"],
+	ad_member_s3_join   => ["ad_dc"],
 
-	clusteredmember_smb1 => ["nt4_dc"],
+	clusteredmember => ["nt4_dc"],
 );
 
 %Samba3::ENV_DEPS_POST = ();
@@ -258,19 +272,8 @@ sub setup_nt4_dc
 	ntlm auth = yes
 	raw NTLMv2 auth = yes
 	server schannel = auto
+	rpc start on demand helpers = false
 
-	rpc_server:epmapper = external
-	rpc_server:spoolss = external
-	rpc_server:lsarpc = external
-	rpc_server:samr = external
-	rpc_server:netlogon = external
-	rpc_server:register_embedded_np = yes
-	rpc_server:FssagentRpc = external
-
-	rpc_daemon:epmd = fork
-	rpc_daemon:spoolssd = fork
-	rpc_daemon:lsasd = fork
-	rpc_daemon:fssd = fork
 	fss: sequence timeout = 1
 	check parent directory delete on close = yes
 ";
@@ -292,6 +295,7 @@ sub setup_nt4_dc
 
 	if (not $self->check_or_start(
 		env_vars => $vars,
+		samba_dcerpcd => "yes",
 		nmbd => "yes",
 		winbindd => "yes",
 		smbd => "yes")) {
@@ -336,17 +340,6 @@ sub setup_nt4_dc_schannel
 	domain master = yes
 	domain logons = yes
 	lanman auth = yes
-
-	rpc_server:epmapper = external
-	rpc_server:spoolss = external
-	rpc_server:lsarpc = external
-	rpc_server:samr = external
-	rpc_server:netlogon = external
-	rpc_server:register_embedded_np = yes
-
-	rpc_daemon:epmd = fork
-	rpc_daemon:spoolssd = fork
-	rpc_daemon:lsasd = fork
 
 	server schannel = yes
 	# used to reproduce bug #12772
@@ -466,7 +459,7 @@ sub setup_nt4_member
 	return $ret;
 }
 
-sub setup_clusteredmember_smb1
+sub setup_clusteredmember
 {
 	my ($self, $prefix, $nt4_dc_vars) = @_;
 	my $count = 0;
@@ -516,8 +509,7 @@ sub setup_clusteredmember_smb1
        server signing = on
        clustering = yes
        ctdbd socket = ${socket}
-       client min protocol = CORE
-       server min protocol = LANMAN1
+       include = registry
        dbwrap_tdb_mutexes:* = yes
        ${require_mutexes}
 ";
@@ -655,7 +647,13 @@ sub provision_ad_member
 	    $trustvars_e,
 	    $extra_member_options,
 	    $force_fips_mode,
+	    $offline_logon,
 	    $no_nss_winbind) = @_;
+
+	if (defined($offline_logon) && defined($no_nss_winbind)) {
+		warn ("Offline logon incompatible with no nss winbind\n");
+		return undef;
+	}
 
 	my $prefix_abs = abs_path($prefix);
 	my @dirs = ();
@@ -687,6 +685,10 @@ sub provision_ad_member
 	$substitution_path = "$share_dir/D_$dcvars->{DOMAIN}/u_$dcvars->{DOMAIN}/alice/g_$dcvars->{DOMAIN}/domain users";
 	push(@dirs, $substitution_path);
 
+	my $option_offline_logon = "no";
+	if (defined($offline_logon)) {
+		$option_offline_logon = "yes";
+	}
 
 	my $netbios_aliases = "";
 	if ($machine_account eq "LOCALADMEMBER") {
@@ -706,19 +708,11 @@ sub provision_ad_member
 	auth event notification = true
 	password server = $dcvars->{SERVER}
 	winbind scan trusted domains = no
-	winbind use krb5 enterprise principals = yes
+	winbind offline logon = $option_offline_logon
 
 	allow dcerpc auth level connect:lsarpc = yes
 	dcesrv:max auth states = 8
-
-	rpc_server:epmapper = external
-	rpc_server:lsarpc = external
-	rpc_server:samr = external
-	rpc_server:netlogon = disabled
-	rpc_server:register_embedded_np = yes
-
-	rpc_daemon:epmd = fork
-	rpc_daemon:lsasd = fork
+	rpc start on demand helpers = false
 
 	# Begin extra member options
 	$extra_member_options
@@ -736,6 +730,42 @@ sub provision_ad_member
 	path = $share_dir
 	valid users = ADDOMAIN/%U
 
+[sub_valid_users_domain]
+    path = $share_dir
+    valid users = %D/%U
+
+[sub_valid_users_group]
+    path = $share_dir
+    valid users = \@$dcvars->{DOMAIN}/%G
+
+[valid_users]
+    path = $share_dir
+    valid users = $dcvars->{DOMAIN}/$dcvars->{DC_USERNAME}
+
+[valid_users_group]
+    path = $share_dir
+    valid users = \"\@$dcvars->{DOMAIN}/domain users\"
+
+[valid_users_unix_group]
+    path = $share_dir
+    valid users = \"+$dcvars->{DOMAIN}/domain users\"
+
+[valid_users_unix_nis_group]
+    path = $share_dir
+    valid users = \"+&$dcvars->{DOMAIN}/domain users\"
+
+[valid_users_nis_unix_group]
+    path = $share_dir
+    valid users = \"&+$dcvars->{DOMAIN}/domain users\"
+
+[invalid_users]
+    path = $share_dir
+    invalid users = $dcvars->{DOMAIN}/$dcvars->{DC_USERNAME}
+
+[valid_and_invalid_users]
+    path = $share_dir
+    valid users = $dcvars->{DOMAIN}/$dcvars->{DC_USERNAME} $dcvars->{DOMAIN}/alice
+    invalid users = $dcvars->{DOMAIN}/$dcvars->{DC_USERNAME}
 ";
 
 	my $ret = $self->provision(
@@ -790,7 +820,7 @@ sub provision_ad_member
 	$cmd .= "KRB5_CONFIG=\"$ret->{KRB5_CONFIG}\" ";
 	$cmd .= "SELFTEST_WINBINDD_SOCKET_DIR=\"$ret->{SELFTEST_WINBINDD_SOCKET_DIR}\" ";
 	$cmd .= "$net join $ret->{CONFIGURATION}";
-	$cmd .= " -U$dcvars->{USERNAME}\%$dcvars->{PASSWORD} -k";
+	$cmd .= " -U$dcvars->{USERNAME}\%$dcvars->{PASSWORD} --use-kerberos=required";
 
 	if (system($cmd) != 0) {
 	    warn("Join failed\n$cmd");
@@ -802,17 +832,106 @@ sub provision_ad_member
 	# access the share for tests.
 	chmod 0777, "$prefix/share";
 
-        if (defined($no_nss_winbind)) {
-	        $ret->{NSS_WRAPPER_MODULE_SO_PATH} = "";
-	        $ret->{NSS_WRAPPER_MODULE_FN_PREFIX} = "";
-        }
+	if (defined($offline_logon)) {
+		my $wbinfo = Samba::bindir_path($self, "wbinfo");
 
-        if (not $self->check_or_start(
+		if (not $self->check_or_start(
 			env_vars => $ret,
+			winbindd => "yes")) {
+			return undef;
+		}
+
+		# Fill samlogoncache for alice
+		$cmd = "NSS_WRAPPER_PASSWD='$ret->{NSS_WRAPPER_PASSWD}' ";
+		$cmd .= "NSS_WRAPPER_GROUP='$ret->{NSS_WRAPPER_GROUP}' ";
+		$cmd .= "SELFTEST_WINBINDD_SOCKET_DIR=\"$ret->{SELFTEST_WINBINDD_SOCKET_DIR}\" ";
+		$cmd .= "$wbinfo --pam-logon=ADDOMAIN/alice%Secret007";
+		if (system($cmd) != 0) {
+			warn("Filling the cache failed\n$cmd");
+			return undef;
+		}
+
+		$cmd = "NSS_WRAPPER_PASSWD='$ret->{NSS_WRAPPER_PASSWD}' ";
+		$cmd .= "NSS_WRAPPER_GROUP='$ret->{NSS_WRAPPER_GROUP}' ";
+		$cmd .= "SELFTEST_WINBINDD_SOCKET_DIR=\"$ret->{SELFTEST_WINBINDD_SOCKET_DIR}\" ";
+		$cmd .= "$wbinfo --ccache-save=ADDOMAIN/alice%Secret007";
+		if (system($cmd) != 0) {
+			warn("Filling the cache failed\n$cmd");
+			return undef;
+		}
+
+		# Fill samlogoncache for bob
+		$cmd = "NSS_WRAPPER_PASSWD='$ret->{NSS_WRAPPER_PASSWD}' ";
+		$cmd .= "NSS_WRAPPER_GROUP='$ret->{NSS_WRAPPER_GROUP}' ";
+		$cmd .= "SELFTEST_WINBINDD_SOCKET_DIR=\"$ret->{SELFTEST_WINBINDD_SOCKET_DIR}\" ";
+		$cmd .= "$wbinfo --pam-logon=ADDOMAIN/bob%Secret007";
+		if (system($cmd) != 0) {
+			warn("Filling the cache failed\n$cmd");
+			return undef;
+		}
+
+		$cmd = "NSS_WRAPPER_PASSWD='$ret->{NSS_WRAPPER_PASSWD}' ";
+		$cmd .= "NSS_WRAPPER_GROUP='$ret->{NSS_WRAPPER_GROUP}' ";
+		$cmd .= "SELFTEST_WINBINDD_SOCKET_DIR=\"$ret->{SELFTEST_WINBINDD_SOCKET_DIR}\" ";
+		$cmd .= "$wbinfo --ccache-save=ADDOMAIN/bob%Secret007";
+		if (system($cmd) != 0) {
+			warn("Filling the cache failed\n$cmd");
+			return undef;
+		}
+
+		# Set windindd offline
+		my $smbcontrol = Samba::bindir_path($self, "smbcontrol");
+		$cmd = "NSS_WRAPPER_PASSWD='$ret->{NSS_WRAPPER_PASSWD}' ";
+		$cmd .= "NSS_WRAPPER_GROUP='$ret->{NSS_WRAPPER_GROUP}' ";
+		$cmd .= "UID_WRAPPER_ROOT='1' ";
+		$cmd .= "$smbcontrol $ret->{CONFIGURATION} winbindd offline";
+		if (system($cmd) != 0) {
+			warn("Setting winbindd offline failed\n$cmd");
+			return undef;
+		}
+
+		# Validate the offline cache
+		$cmd = "NSS_WRAPPER_PASSWD='$ret->{NSS_WRAPPER_PASSWD}' ";
+		$cmd .= "NSS_WRAPPER_GROUP='$ret->{NSS_WRAPPER_GROUP}' ";
+		$cmd .= "UID_WRAPPER_ROOT='1' ";
+		$cmd .= "$smbcontrol $ret->{CONFIGURATION} winbindd validate-cache";
+		if (system($cmd) != 0) {
+			warn("Validation of winbind credential cache failed\n$cmd");
+			teardown_env($self, $ret);
+			return undef;
+		}
+
+		# Shut down winbindd
+		teardown_env($self, $ret);
+
+		### Change SOCKET_WRAPPER_DIR so it can't connect to AD
+		my $swrap_env = $ENV{SOCKET_WRAPPER_DIR};
+		$ENV{SOCKET_WRAPPER_DIR} = "$prefix_abs";
+
+		# Start winbindd in offline mode
+		if (not $self->check_or_start(
+			env_vars => $ret,
+			winbindd => "offline")) {
+			return undef;
+		}
+
+		# Set socket dir again
+		$ENV{SOCKET_WRAPPER_DIR} = $swrap_env;
+
+	} else {
+		if (defined($no_nss_winbind)) {
+			$ret->{NSS_WRAPPER_MODULE_SO_PATH} = "";
+			$ret->{NSS_WRAPPER_MODULE_FN_PREFIX} = "";
+		}
+
+		if (not $self->check_or_start(
+			env_vars => $ret,
+			samba_dcerpcd => "yes",
 			nmbd => "yes",
 			winbindd => "yes",
 			smbd => "yes")) {
 			return undef;
+		}
 	}
 
 	$ret->{DC_SERVER} = $dcvars->{SERVER};
@@ -866,6 +985,28 @@ sub setup_ad_member
 					  $dcvars,
 					  $trustvars_f,
 					  $trustvars_e);
+}
+
+sub setup_ad_member_s3_join
+{
+        my ($self,
+            $prefix,
+            $dcvars,
+            $trustvars_f,
+            $trustvars_e) = @_;
+
+        # If we didn't build with ADS, pretend this env was never available
+        if (not $self->have_ads()) {
+                return "UNKNOWN";
+        }
+
+        print "PROVISIONING AD MEMBER...";
+
+        return $self->provision_ad_member($prefix,
+                                          "LOCALADMEMBER2",
+                                          $dcvars,
+                                          $trustvars_f,
+                                          $trustvars_e);
 }
 
 sub setup_ad_member_rfc2307
@@ -1086,6 +1227,8 @@ sub setup_ad_member_idmap_ad
 	idmap config * : range = 1000000-1999999
 	idmap config $dcvars->{DOMAIN} : backend = ad
 	idmap config $dcvars->{DOMAIN} : range = 2000000-2999999
+	idmap config $dcvars->{DOMAIN} : unix_primary_group = yes
+	idmap config $dcvars->{DOMAIN} : unix_nss_info = yes
 	idmap config $dcvars->{TRUST_DOMAIN} : backend = ad
 	idmap config $dcvars->{TRUST_DOMAIN} : range = 2000000-2999999
 	gensec_gssapi:requested_life_time = 5
@@ -1170,6 +1313,98 @@ sub setup_ad_member_idmap_ad
 	return $ret;
 }
 
+sub setup_ad_member_oneway
+{
+	my ($self, $prefix, $dcvars) = @_;
+
+	# If we didn't build with ADS, pretend this env was never available
+	if (not $self->have_ads()) {
+	        return "UNKNOWN";
+	}
+
+	print "PROVISIONING S3 AD MEMBER WITH one-way trust...";
+
+	my $member_options = "
+	security = ads
+	workgroup = $dcvars->{DOMAIN}
+	realm = $dcvars->{REALM}
+	password server = $dcvars->{SERVER}
+	idmap config * : backend = tdb
+	idmap config * : range = 1000000-1999999
+	gensec_gssapi:requested_life_time = 5
+";
+
+	my $ret = $self->provision(
+	    prefix => $prefix,
+	    domain => $dcvars->{DOMAIN},
+	    server => "S2KMEMBER",
+	    password => "loCalS2KMemberPass",
+	    extra_options => $member_options,
+	    resolv_conf => $dcvars->{RESOLV_CONF});
+
+	$ret or return undef;
+
+	$ret->{DOMAIN} = $dcvars->{DOMAIN};
+	$ret->{REALM} = $dcvars->{REALM};
+	$ret->{DOMSID} = $dcvars->{DOMSID};
+
+	my $ctx;
+	my $prefix_abs = abs_path($prefix);
+	$ctx = {};
+	$ctx->{krb5_conf} = "$prefix_abs/lib/krb5.conf";
+	$ctx->{domain} = $dcvars->{DOMAIN};
+	$ctx->{realm} = $dcvars->{REALM};
+	$ctx->{dnsname} = lc($dcvars->{REALM});
+	$ctx->{kdc_ipv4} = $dcvars->{SERVER_IP};
+	$ctx->{kdc_ipv6} = $dcvars->{SERVER_IPV6};
+	$ctx->{krb5_ccname} = "$prefix_abs/krb5cc_%{uid}";
+	Samba::mk_krb5_conf($ctx, "");
+
+	$ret->{KRB5_CONFIG} = $ctx->{krb5_conf};
+
+	my $net = Samba::bindir_path($self, "net");
+	# Add hosts file for name lookups
+	my $cmd = "NSS_WRAPPER_HOSTS='$ret->{NSS_WRAPPER_HOSTS}' ";
+	$cmd .= "SOCKET_WRAPPER_DEFAULT_IFACE=\"$ret->{SOCKET_WRAPPER_DEFAULT_IFACE}\" ";
+	if (defined($ret->{RESOLV_WRAPPER_CONF})) {
+		$cmd .= "RESOLV_WRAPPER_CONF=\"$ret->{RESOLV_WRAPPER_CONF}\" ";
+	} else {
+		$cmd .= "RESOLV_WRAPPER_HOSTS=\"$ret->{RESOLV_WRAPPER_HOSTS}\" ";
+	}
+	$cmd .= "RESOLV_CONF=\"$ret->{RESOLV_CONF}\" ";
+	$cmd .= "KRB5_CONFIG=\"$ret->{KRB5_CONFIG}\" ";
+	$cmd .= "SELFTEST_WINBINDD_SOCKET_DIR=\"$ret->{SELFTEST_WINBINDD_SOCKET_DIR}\" ";
+	$cmd .= "$net join $ret->{CONFIGURATION}";
+	$cmd .= " -U$dcvars->{USERNAME}\%$dcvars->{PASSWORD}";
+
+	if (system($cmd) != 0) {
+	    warn("Join failed\n$cmd");
+	    return undef;
+	}
+
+	if (not $self->check_or_start(
+		env_vars => $ret,
+		winbindd => "yes")) {
+		return undef;
+	}
+
+	$ret->{DC_SERVER} = $dcvars->{SERVER};
+	$ret->{DC_SERVER_IP} = $dcvars->{SERVER_IP};
+	$ret->{DC_SERVER_IPV6} = $dcvars->{SERVER_IPV6};
+	$ret->{DC_NETBIOSNAME} = $dcvars->{NETBIOSNAME};
+	$ret->{DC_USERNAME} = $dcvars->{USERNAME};
+	$ret->{DC_PASSWORD} = $dcvars->{PASSWORD};
+
+	$ret->{TRUST_SERVER} = $dcvars->{TRUST_SERVER};
+	$ret->{TRUST_USERNAME} = $dcvars->{TRUST_USERNAME};
+	$ret->{TRUST_PASSWORD} = $dcvars->{TRUST_PASSWORD};
+	$ret->{TRUST_DOMAIN} = $dcvars->{TRUST_DOMAIN};
+	$ret->{TRUST_REALM} = $dcvars->{TRUST_REALM};
+	$ret->{TRUST_DOMSID} = $dcvars->{TRUST_DOMSID};
+
+	return $ret;
+}
+
 sub setup_ad_member_fips
 {
 	my ($self,
@@ -1194,7 +1429,7 @@ sub setup_ad_member_fips
 					  1);
 }
 
-sub setup_ad_member_no_nss_wb
+sub setup_ad_member_offlogon
 {
 	my ($self,
 	    $prefix,
@@ -1207,24 +1442,60 @@ sub setup_ad_member_no_nss_wb
 	        return "UNKNOWN";
 	}
 
-	print "PROVISIONING AD MEMBER WITHOUT NSS WINBIND...";
+	print "PROVISIONING AD MEMBER OFFLINE LOGON...";
+
+	return $self->provision_ad_member($prefix,
+					  "OFFLINEADMEM",
+					  $dcvars,
+					  $trustvars_f,
+					  $trustvars_e,
+					  undef,
+					  undef,
+					  1);
+}
+
+sub setup_ad_member_idmap_nss
+{
+	my ($self,
+	    $prefix,
+	    $dcvars,
+	    $trustvars_f,
+	    $trustvars_e) = @_;
+
+	# If we didn't build with ADS, pretend this env was never available
+	if (not $self->have_ads()) {
+	        return "UNKNOWN";
+	}
+
+	print "PROVISIONING AD MEMBER WITHOUT NSS WINBIND WITH idmap_nss config...";
 
 	my $extra_member_options = "
+	# bob:x:65521:65531:localbob gecos:/:/bin/false
+	# jane:x:65520:65531:localjane gecos:/:/bin/false
+	idmap config $dcvars->{DOMAIN} : backend = nss
+	idmap config $dcvars->{DOMAIN} : range = 65520-65521
+
+	# Support SMB1 so that we can use posix_whoami().
+	client min protocol = CORE
+	server min protocol = LANMAN1
+
 	username map = $prefix/lib/username.map
 ";
 
 	my $ret = $self->provision_ad_member($prefix,
-					     "ADMEMNONSSWB",
+					     "ADMEMIDMAPNSS",
 					     $dcvars,
 					     $trustvars_f,
 					     $trustvars_e,
 					     $extra_member_options,
+					     undef,
 					     undef,
 					     1);
 
 	open(USERMAP, ">$prefix/lib/username.map") or die("Unable to open $prefix/lib/username.map");
 	print USERMAP "
 root = $dcvars->{DOMAIN}/root
+bob = $dcvars->{DOMAIN}/bob
 ";
 	close(USERMAP);
 
@@ -1238,20 +1509,25 @@ sub setup_simpleserver
 	print "PROVISIONING simple server...";
 
 	my $prefix_abs = abs_path($path);
+	mkdir($prefix_abs, 0777);
+
+	my $external_streams_depot="$prefix_abs/external_streams_depot";
+	remove_tree($external_streams_depot);
+	mkdir($external_streams_depot, 0777);
 
 	my $simpleserver_options = "
 	lanman auth = yes
 	ntlm auth = yes
 	vfs objects = xattr_tdb streams_depot
 	change notify = no
-	smb encrypt = off
+	server smb encrypt = off
 
 [vfs_aio_pthread]
 	path = $prefix_abs/share
 	read only = no
 	vfs objects = aio_pthread
 	aio_pthread:aio open = yes
-	smbd:async dosmode = no
+	smbd async dosmode = no
 
 [vfs_aio_pthread_async_dosmode_default1]
 	path = $prefix_abs/share
@@ -1259,7 +1535,7 @@ sub setup_simpleserver
 	vfs objects = aio_pthread
 	store dos attributes = yes
 	aio_pthread:aio open = yes
-	smbd:async dosmode = yes
+	smbd async dosmode = yes
 
 [vfs_aio_pthread_async_dosmode_default2]
 	path = $prefix_abs/share
@@ -1267,7 +1543,7 @@ sub setup_simpleserver
 	vfs objects = aio_pthread xattr_tdb
 	store dos attributes = yes
 	aio_pthread:aio open = yes
-	smbd:async dosmode = yes
+	smbd async dosmode = yes
 
 [vfs_aio_pthread_async_dosmode_force_sync1]
 	path = $prefix_abs/share
@@ -1275,7 +1551,7 @@ sub setup_simpleserver
 	vfs objects = aio_pthread
 	store dos attributes = yes
 	aio_pthread:aio open = yes
-	smbd:async dosmode = yes
+	smbd async dosmode = yes
 	# This simulates non linux systems
 	smbd:force sync user path safe threadpool = yes
 	smbd:force sync user chdir safe threadpool = yes
@@ -1288,7 +1564,7 @@ sub setup_simpleserver
 	vfs objects = aio_pthread xattr_tdb
 	store dos attributes = yes
 	aio_pthread:aio open = yes
-	smbd:async dosmode = yes
+	smbd async dosmode = yes
 	# This simulates non linux systems
 	smbd:force sync user path safe threadpool = yes
 	smbd:force sync user chdir safe threadpool = yes
@@ -1308,14 +1584,14 @@ sub setup_simpleserver
 	hide files = /hidefile/
 	hide dot files = yes
 
-[enc_desired]
-	path = $prefix_abs/share
-	vfs objects =
-	smb encrypt = desired
-
 [hidenewfiles]
 	path = $prefix_abs/share
 	hide new files timeout = 5
+
+[external_streams_depot]
+	path = $prefix_abs/share
+	read only = no
+	streams_depot:directory = $external_streams_depot
 ";
 
 	my $vars = $self->provision(
@@ -1415,10 +1691,15 @@ sub setup_fileserver
 	my $bad_iconv_sharedir="$share_dir/bad_iconv";
 	push(@dirs, $bad_iconv_sharedir);
 
+	my $veto_sharedir="$share_dir/veto";
+	push(@dirs,$veto_sharedir);
+
+	my $virusfilter_sharedir="$share_dir/virusfilter";
+	push(@dirs,$virusfilter_sharedir);
+
 	my $ip4 = Samba::get_ipv4_addr("FILESERVER");
 	my $fileserver_options = "
 	kernel change notify = yes
-	rpc_server:mdssvc = embedded
 	spotlight backend = elasticsearch
 	elasticsearch:address = $ip4
 	elasticsearch:port = 8080
@@ -1523,6 +1804,32 @@ sub setup_fileserver
 	comment = smb username is [%U]
 	vfs objects =
 
+[veto_files_nodelete]
+	path = $veto_sharedir
+	read only = no
+	msdfs root = yes
+	veto files = /veto_name*/
+	delete veto files = no
+
+[veto_files_delete]
+	path = $veto_sharedir
+	msdfs root = yes
+	veto files = /veto_name*/
+	delete veto files = yes
+
+[delete_veto_files_only]
+	path = $veto_sharedir
+	delete veto files = yes
+
+[virusfilter]
+	path = $virusfilter_sharedir
+	vfs objects = acl_xattr virusfilter
+	virusfilter:scanner = dummy
+	virusfilter:min file size = 0
+	virusfilter:infected files = *infected*
+	virusfilter:infected file action = rename
+	virusfilter:scan on close = yes
+
 [homes]
 	comment = Home directories
 	browseable = No
@@ -1620,7 +1927,7 @@ sub setup_fileserver_smb1
 	read only = no
 	vfs objects = aio_pthread
 	aio_pthread:aio open = yes
-	smbd:async dosmode = no
+	smbd async dosmode = no
 
 [vfs_aio_pthread_async_dosmode_default1]
 	path = $prefix_abs/share
@@ -1628,7 +1935,7 @@ sub setup_fileserver_smb1
 	vfs objects = aio_pthread
 	store dos attributes = yes
 	aio_pthread:aio open = yes
-	smbd:async dosmode = yes
+	smbd async dosmode = yes
 
 [vfs_aio_pthread_async_dosmode_default2]
 	path = $prefix_abs/share
@@ -1636,7 +1943,7 @@ sub setup_fileserver_smb1
 	vfs objects = aio_pthread xattr_tdb
 	store dos attributes = yes
 	aio_pthread:aio open = yes
-	smbd:async dosmode = yes
+	smbd async dosmode = yes
 
 [vfs_aio_pthread_async_dosmode_force_sync1]
 	path = $prefix_abs/share
@@ -1644,7 +1951,7 @@ sub setup_fileserver_smb1
 	vfs objects = aio_pthread
 	store dos attributes = yes
 	aio_pthread:aio open = yes
-	smbd:async dosmode = yes
+	smbd async dosmode = yes
 	# This simulates non linux systems
 	smbd:force sync user path safe threadpool = yes
 	smbd:force sync user chdir safe threadpool = yes
@@ -1657,7 +1964,7 @@ sub setup_fileserver_smb1
 	vfs objects = aio_pthread xattr_tdb
 	store dos attributes = yes
 	aio_pthread:aio open = yes
-	smbd:async dosmode = yes
+	smbd async dosmode = yes
 	# This simulates non linux systems
 	smbd:force sync user path safe threadpool = yes
 	smbd:force sync user chdir safe threadpool = yes
@@ -1801,6 +2108,7 @@ sub setup_maptoguest
 	my $options = "
 map to guest = bad user
 ntlm auth = yes
+server min protocol = LANMAN1
 
 [force_user_error_inject]
 	path = $share_dir
@@ -1862,7 +2170,7 @@ sub make_bin_cmd
 {
 	my ($self, $binary, $env_vars, $options, $valgrind, $dont_log_stdout) = @_;
 
-	my @optargs = ("-d0");
+	my @optargs = ();
 	if (defined($options)) {
 		@optargs = split(/ /, $options);
 	}
@@ -1872,11 +2180,11 @@ sub make_bin_cmd
 		@preargs = split(/ /, $valgrind);
 	}
 	my @args = ("-F", "--no-process-group",
-		    "-s", $env_vars->{SERVERCONFFILE},
+		    "--configfile=$env_vars->{SERVERCONFFILE}",
 		    "-l", $env_vars->{LOGDIR});
 
 	if (not defined($dont_log_stdout)) {
-		push(@args, "--log-stdout");
+		push(@args, "--debug-stdout");
 	}
 	return (@preargs, $binary, @args, @optargs);
 }
@@ -1887,6 +2195,7 @@ sub check_or_start($$) {
 	my $nmbd = $args{nmbd} // "no";
 	my $winbindd = $args{winbindd} // "no";
 	my $smbd = $args{smbd} // "no";
+	my $samba_dcerpcd = $args{samba_dcerpcd} // "no";
 	my $child_cleanup = $args{child_cleanup};
 
 	my $STDIN_READER;
@@ -1896,16 +2205,47 @@ sub check_or_start($$) {
 	# exit when the test script exits
 	pipe($STDIN_READER, $env_vars->{STDIN_PIPE});
 
-	my $binary = Samba::bindir_path($self, "nmbd");
-	my @full_cmd = $self->make_bin_cmd($binary, $env_vars,
-					   $ENV{NMBD_OPTIONS}, $ENV{NMBD_VALGRIND},
-					   $ENV{NMBD_DONT_LOG_STDOUT});
+	my $binary = Samba::bindir_path($self, "samba-dcerpcd");
+	my @full_cmd = $self->make_bin_cmd(
+	    $binary,
+	    $env_vars,
+	    $ENV{SAMBA_DCERPCD_OPTIONS},
+	    $ENV{SAMBA_DCERPCD_VALGRIND},
+	    $ENV{SAMBA_DCERPCD_DONT_LOG_STDOUT});
+	push(@full_cmd, '--libexec-rpcds');
+
+	my $samba_dcerpcd_envs = Samba::get_env_for_process(
+	    "samba_dcerpcd", $env_vars);
+
+	# fork and exec() samba_dcerpcd in the child process
+	my $daemon_ctx = {
+		NAME => "samba_dcerpcd",
+		BINARY_PATH => $binary,
+		FULL_CMD => [ @full_cmd ],
+		LOG_FILE => $env_vars->{SAMBA_DCERPCD_TEST_LOG},
+		PCAP_FILE => "env-$ENV{ENVNAME}-samba_dcerpcd",
+		ENV_VARS => $samba_dcerpcd_envs,
+	};
+	if ($samba_dcerpcd ne "yes") {
+		$daemon_ctx->{SKIP_DAEMON} = 1;
+	}
+
+	my $pid = Samba::fork_and_exec(
+	    $self, $env_vars, $daemon_ctx, $STDIN_READER, $child_cleanup);
+
+	$env_vars->{SAMBA_DCERPCD_TL_PID} = $pid;
+	write_pid($env_vars, "samba_dcerpcd", $pid);
+
+	$binary = Samba::bindir_path($self, "nmbd");
+	@full_cmd = $self->make_bin_cmd($binary, $env_vars,
+					$ENV{NMBD_OPTIONS}, $ENV{NMBD_VALGRIND},
+					$ENV{NMBD_DONT_LOG_STDOUT});
 	my $nmbd_envs = Samba::get_env_for_process("nmbd", $env_vars);
 	delete $nmbd_envs->{RESOLV_WRAPPER_CONF};
 	delete $nmbd_envs->{RESOLV_WRAPPER_HOSTS};
 
 	# fork and exec() nmbd in the child process
-	my $daemon_ctx = {
+	$daemon_ctx = {
 		NAME => "nmbd",
 		BINARY_PATH => $binary,
 		FULL_CMD => [ @full_cmd ],
@@ -1916,7 +2256,7 @@ sub check_or_start($$) {
 	if ($nmbd ne "yes") {
 		$daemon_ctx->{SKIP_DAEMON} = 1;
 	}
-	my $pid = Samba::fork_and_exec(
+	$pid = Samba::fork_and_exec(
 	    $self, $env_vars, $daemon_ctx, $STDIN_READER, $child_cleanup);
 
 	$env_vars->{NMBD_TL_PID} = $pid;
@@ -1924,11 +2264,9 @@ sub check_or_start($$) {
 
 	$binary = Samba::bindir_path($self, "winbindd");
 	@full_cmd = $self->make_bin_cmd($binary, $env_vars,
-					 $ENV{WINBINDD_OPTIONS}, $ENV{WINBINDD_VALGRIND}, "N/A");
-
-	if (not defined($ENV{WINBINDD_DONT_LOG_STDOUT})) {
-		push(@full_cmd, "--stdout");
-	}
+					 $ENV{WINBINDD_OPTIONS},
+					 $ENV{WINBINDD_VALGRIND},
+					 $ENV{WINBINDD_DONT_LOG_STDOUT});
 
 	# fork and exec() winbindd in the child process
 	$daemon_ctx = {
@@ -1974,7 +2312,11 @@ sub check_or_start($$) {
 	# close the parent's read-end of the pipe
 	close($STDIN_READER);
 
-	return $self->wait_for_start($env_vars, $nmbd, $winbindd, $smbd);
+	return $self->wait_for_start($env_vars,
+				$nmbd,
+				$winbindd,
+				$smbd,
+				$samba_dcerpcd);
 }
 
 sub createuser($$$$$)
@@ -2011,6 +2353,7 @@ sub provision($$)
 	my $resolv_conf = $args{resolv_conf};
 	my $no_delete_prefix= $args{no_delete_prefix};
 	my $netbios_name = $args{netbios_name} // $server;
+	my $server_log_level = $ENV{SERVER_LOG_LEVEL} || 1;
 
 	##
 	## setup the various environment variables we need
@@ -2091,14 +2434,17 @@ sub provision($$)
 	my $smbcacls_sharedir_dfs="$shrdir/smbcacls_sharedir_dfs";
 	push(@dirs,$smbcacls_sharedir_dfs);
 
+	my $smbcacls_share="$shrdir/smbcacls_share";
+	push(@dirs,$smbcacls_share);
+
+	my $smbcacls_share_testdir="$shrdir/smbcacls_share/smbcacls";
+	push(@dirs,$smbcacls_share_testdir);
+
 	my $badnames_shrdir="$shrdir/badnames";
 	push(@dirs,$badnames_shrdir);
 
-	my $lease1_shrdir="$shrdir/SMB2_10";
+	my $lease1_shrdir="$shrdir/dynamic";
 	push(@dirs,$lease1_shrdir);
-
-	my $lease2_shrdir="$shrdir/SMB3_00";
-	push(@dirs,$lease2_shrdir);
 
 	my $manglenames_shrdir="$shrdir/manglenames";
 	push(@dirs,$manglenames_shrdir);
@@ -2128,12 +2474,12 @@ sub provision($$)
 	push(@dirs,$local_symlinks_shrdir);
 
 	# this gets autocreated by winbindd
-	my $wbsockdir="$prefix_abs/winbindd";
+	my $wbsockdir="$prefix_abs/wbsock";
 
 	my $nmbdsockdir="$prefix_abs/nmbd";
 	unlink($nmbdsockdir);
 
-	## 
+	##
 	## create the test directory layout
 	##
 	die ("prefix_abs = ''") if $prefix_abs eq "";
@@ -2203,7 +2549,7 @@ sub provision($$)
 	create_file_chmod("$widelinks_target", 0666) or return undef;
 
 	##
-	## This link should get ACCESS_DENIED
+	## This link should get an error
 	##
 	symlink "$widelinks_target", "$widelinks_shrdir/source";
 	##
@@ -2246,6 +2592,8 @@ sub provision($$)
 	my ($uid_gooduser);
 	my ($uid_eviluser);
 	my ($uid_slashuser);
+	my ($uid_localbob);
+	my ($uid_localjane);
 
 	if ($unix_uid < 0xffff - 13) {
 		$max_uid = 0xffff;
@@ -2266,6 +2614,8 @@ sub provision($$)
 	$uid_gooduser = $max_uid - 11;
 	$uid_eviluser = $max_uid - 12;
 	$uid_slashuser = $max_uid - 13;
+	$uid_localbob = $max_uid - 14;
+	$uid_localjane = $max_uid - 15;
 
 	if ($unix_gids[0] < 0xffff - 8) {
 		$max_gid = 0xffff;
@@ -2306,6 +2656,8 @@ sub provision($$)
 	client min protocol = SMB2_02
 	server min protocol = SMB2_02
 
+	server multi channel support = yes
+
 	workgroup = $domain
 
 	private dir = $privatedir
@@ -2313,7 +2665,7 @@ sub provision($$)
 	pid directory = $piddir
 	lock directory = $lockdir
 	log file = $logdir/log.\%m
-	log level = 1
+	log level = $server_log_level
 	debug pid = yes
         max log size = 0
 
@@ -2419,6 +2771,11 @@ sub provision($$)
 	}
 
 	print CONF "
+[smbcacls_share]
+	path = $smbcacls_share
+        comment = smb username is [%U]
+	msdfs root = yes
+
 [smbcacls_sharedir_dfs]
 	path = $smbcacls_sharedir_dfs
         comment = smb username is [%U]
@@ -2432,7 +2789,7 @@ sub provision($$)
 [tmpenc]
 	path = $shrdir
 	comment = encrypt smb username is [%U]
-	smb encrypt = required
+	server smb encrypt = required
 	vfs objects = dirsort
 [tmpguest]
 	path = $shrdir
@@ -2505,6 +2862,11 @@ sub provision($$)
 [print3]
 	copy = print1
 	default devmode = no
+
+[print_var_exp]
+	copy = print1
+	print command = $self->{srcdir}/source3/script/tests/printing/printing_var_exp_lpr_cmd.sh \"Windows user: %U\" \"UNIX user: %u\" \"Domain: %D\"
+
 [lp]
 	copy = print1
 
@@ -2666,8 +3028,9 @@ sub provision($$)
 	guest ok = yes
 
 [dynamic_share]
-	path = $shrdir/%R
+	path = $shrdir/dynamic/%t
 	guest ok = yes
+	root preexec = mkdir %P
 
 [widelinks_share]
 	path = $widelinks_shrdir
@@ -2824,6 +3187,7 @@ sub provision($$)
 	aio write size = 0
 	error_inject:pwrite = EBADF
 	shadow:mountpoint = $shadow_tstdir
+	shadow:fixinodes = yes
 
 [dfq]
 	path = $shrdir/dfree
@@ -2914,7 +3278,26 @@ sub provision($$)
 [delete_readonly]
 	path = $prefix_abs/share
 	delete readonly = yes
+
+[enc_desired]
+	path = $prefix_abs/share
+	vfs objects =
+	server smb encrypt = desired
+
+[enc_off]
+	path = $prefix_abs/share
+	vfs objects =
+	server smb encrypt = off
+
+[notify_priv]
+	copy = tmp
+	honor change notify privilege = yes
+
+[acls_non_canonical]
+	copy = tmp
+	acl flag inherited canonicalization = no
 	";
+
 	close(CONF);
 
 	my $net = Samba::bindir_path($self, "net");
@@ -2960,7 +3343,7 @@ sub provision($$)
 	unless (open(PASSWD, ">$nss_wrapper_passwd")) {
            warn("Unable to open $nss_wrapper_passwd");
            return undef;
-        } 
+        }
 	print PASSWD "nobody:x:$uid_nobody:$gid_nobody:nobody gecos:$prefix_abs:/bin/false
 $unix_name:x:$unix_uid:$unix_gids[0]:$unix_name gecos:$prefix_abs:/bin/false
 pdbtest:x:$uid_pdbtest:$gid_nogroup:pdbtest gecos:$prefix_abs:/bin/false
@@ -2974,6 +3357,8 @@ user2:x:$uid_user2:$gid_nogroup:user2 gecos:$prefix_abs:/bin/false
 gooduser:x:$uid_gooduser:$gid_domusers:gooduser gecos:$prefix_abs:/bin/false
 eviluser:x:$uid_eviluser:$gid_domusers:eviluser gecos::/bin/false
 slashuser:x:$uid_slashuser:$gid_domusers:slashuser gecos:/:/bin/false
+bob:x:$uid_localbob:$gid_domusers:localbob gecos:/:/bin/false
+jane:x:$uid_localjane:$gid_domusers:localjane gecos:/:/bin/false
 ";
 	if ($unix_uid != 0) {
 		print PASSWD "root:x:$uid_root:$gid_root:root gecos:$prefix_abs:/bin/false
@@ -3048,6 +3433,8 @@ force_user:x:$gid_force_user:
 
 	$ret{SERVER_IP} = $server_ip;
 	$ret{SERVER_IPV6} = $server_ipv6;
+	$ret{SAMBA_DCERPCD_TEST_LOG} = "$prefix/samba_dcerpcd_test.log";
+	$ret{SAMBA_DCERPCD_LOG_POS} = 0;
 	$ret{NMBD_TEST_LOG} = "$prefix/nmbd_test.log";
 	$ret{NMBD_TEST_LOG_POS} = 0;
 	$ret{WINBINDD_TEST_LOG} = "$prefix/winbindd_test.log";
@@ -3056,7 +3443,7 @@ force_user:x:$gid_force_user:
 	$ret{SMBD_TEST_LOG_POS} = 0;
 	$ret{SERVERCONFFILE} = $conffile;
 	$ret{TESTENV_DIR} = $prefix_abs;
-	$ret{CONFIGURATION} ="-s $conffile";
+	$ret{CONFIGURATION} ="--configfile=$conffile";
 	$ret{LOCK_DIR} = $lockdir;
 	$ret{SERVER} = $server;
 	$ret{USERNAME} = $unix_name;
@@ -3100,10 +3487,32 @@ force_user:x:$gid_force_user:
 
 sub wait_for_start($$$$$)
 {
-	my ($self, $envvars, $nmbd, $winbindd, $smbd) = @_;
+	my ($self, $envvars, $nmbd, $winbindd, $smbd, $samba_dcerpcd) = @_;
 	my $cmd;
 	my $netcmd;
 	my $ret;
+
+	if ($samba_dcerpcd eq "yes") {
+	    my $count = 0;
+	    my $rpcclient = Samba::bindir_path($self, "rpcclient");
+
+	    print "checking for samba_dcerpcd\n";
+
+	    do {
+		$ret = system("$rpcclient $envvars->{CONFIGURATION} ncalrpc: -c epmmap");
+
+		if ($ret != 0) {
+		    sleep(1);
+		}
+		$count++
+	    } while ($ret != 0 && $count < 10);
+
+	    if ($count == 10) {
+		print "samba_dcerpcd not reachable after 10 retries\n";
+		teardown_env($self, $envvars);
+		return 0;
+	    }
+	}
 
 	if ($nmbd eq "yes") {
 		my $count = 0;
@@ -3453,20 +3862,13 @@ sub check_or_start_ctdb($$) {
 
 		my $cmd = "ctdb/tests/local_daemons.sh";
 		my @full_cmd = ("$cmd", "$prefix", "start", "$i");
-		# Dummy environment variables to avoid
-		# Samba3::get_env_for_process() from generating them
-		# and including UID_WRAPPER_ROOT=1, which causes
-		# "Unable to secure ctdb socket" error.
-		my $env_vars = {
-			CTDB_DUMMY => "1",
-		};
 		my $daemon_ctx = {
 			NAME => "ctdbd",
 			BINARY_PATH => $cmd,
 			FULL_CMD => [ @full_cmd ],
 			TEE_STDOUT => 1,
 			LOG_FILE => "/dev/null",
-			ENV_VARS => $env_vars,
+			ENV_VARS => {},
 		};
 
 		print "STARTING CTDBD (node ${i})\n";

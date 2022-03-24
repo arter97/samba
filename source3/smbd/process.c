@@ -23,6 +23,7 @@
 #include "system/filesys.h"
 #include "smbd/smbd.h"
 #include "smbd/globals.h"
+#include "smbd/smbXsrv_open.h"
 #include "librpc/gen_ndr/netlogon.h"
 #include "../lib/async_req/async_sock.h"
 #include "ctdbd_conn.h"
@@ -35,7 +36,6 @@
 #include "lib/messages_ctdb.h"
 #include "smbprofile.h"
 #include "rpc_server/spoolss/srv_spoolss_nt.h"
-#include "libsmb/libsmb.h"
 #include "../lib/util/tevent_ntstatus.h"
 #include "../libcli/security/dom_sid.h"
 #include "../libcli/security/security_token.h"
@@ -46,6 +46,8 @@
 #include "util_event.h"
 #include "libcli/smb/smbXcli_base.h"
 #include "lib/util/time_basic.h"
+#include "smb1_utils.h"
+#include "source3/lib/substitute.h"
 
 /* Internal message queue for deferred opens. */
 struct pending_message_list {
@@ -2776,6 +2778,30 @@ static int release_ip(struct tevent_context *ev,
 	return 0;
 }
 
+static int match_cluster_movable_ip(uint32_t total_ip_count,
+				    const struct sockaddr_storage *ip,
+				    bool is_movable_ip,
+				    void *private_data)
+{
+	const struct sockaddr_storage *srv = private_data;
+	struct samba_sockaddr pub_ip = {
+		.u = {
+			.ss = *ip,
+		},
+	};
+	struct samba_sockaddr srv_ip = {
+		.u = {
+			.ss = *srv,
+		},
+	};
+
+	if (is_movable_ip && sockaddr_equal(&pub_ip.u.sa, &srv_ip.u.sa)) {
+		return EADDRNOTAVAIL;
+	}
+
+	return 0;
+}
+
 static NTSTATUS smbd_register_ips(struct smbXsrv_connection *xconn,
 				  struct sockaddr_storage *srv,
 				  struct sockaddr_storage *clnt)
@@ -2803,21 +2829,17 @@ static NTSTATUS smbd_register_ips(struct smbXsrv_connection *xconn,
 	}
 
 	if (xconn->client->server_multi_channel_enabled) {
-		struct ctdb_public_ip_list_old *ips = NULL;
-
-		ret = ctdbd_control_get_public_ips(cconn,
-						   0, /* flags */
-						   state,
-						   &ips);
-		if (ret != 0) {
-			return NT_STATUS_INTERNAL_ERROR;
-		}
-
-		xconn->has_ctdb_public_ip = ctdbd_find_in_public_ips(ips, srv);
-		TALLOC_FREE(ips);
-		if (xconn->has_ctdb_public_ip) {
-			DBG_DEBUG("CTDB public ip on %s\n",
+		ret = ctdbd_public_ip_foreach(cconn,
+					      match_cluster_movable_ip,
+					      srv);
+		if (ret == EADDRNOTAVAIL) {
+			xconn->has_cluster_movable_ip = true;
+			DBG_DEBUG("cluster movable IP on %s\n",
 				  smbXsrv_connection_dbg(xconn));
+		} else if (ret != 0) {
+			DBG_ERR("failed to iterate cluster IPs: %s\n",
+				strerror(ret));
+			return NT_STATUS_INTERNAL_ERROR;
 		}
 	}
 
@@ -2925,9 +2947,6 @@ static bool housekeeping_fn(const struct timeval *now, void *private_data)
 	DEBUG(5, ("housekeeping\n"));
 
 	change_to_root_user();
-
-	/* update printer queue caches if necessary */
-	update_monitored_printq_cache(sconn->msg_ctx);
 
 	/* check if we need to reload services */
 	check_reload(sconn, time_mono(NULL));
@@ -3502,7 +3521,7 @@ static bool uid_in_use(struct auth_session_info *session_info,
 static bool gid_in_use(struct auth_session_info *session_info,
 		       gid_t gid)
 {
-	int i;
+	uint32_t i;
 	struct security_unix_token *utok = NULL;
 
 	utok = session_info->unix_token;
@@ -3725,17 +3744,30 @@ static void smbd_tevent_trace_callback(enum tevent_trace_point point,
 const char *smbXsrv_connection_dbg(const struct smbXsrv_connection *xconn)
 {
 	const char *ret;
-
+	char *addr;
 	/*
 	 * TODO: this can be improved later
 	 * maybe including the client guid or more
 	 */
-	ret = tsocket_address_string(xconn->remote_address, talloc_tos());
-	if (ret == NULL) {
+	addr = tsocket_address_string(xconn->remote_address, talloc_tos());
+	if (addr == NULL) {
 		return "<tsocket_address_string() failed>";
 	}
 
+	ret = talloc_asprintf(talloc_tos(), "ptr=%p,id=%llu,addr=%s",
+			      xconn, (unsigned long long)xconn->channel_id, addr);
+	TALLOC_FREE(addr);
+	if (ret == NULL) {
+		return "<talloc_asprintf() failed>";
+	}
+
 	return ret;
+}
+
+static int smbXsrv_connection_destructor(struct smbXsrv_connection *xconn)
+{
+	DBG_DEBUG("xconn[%s]\n", smbXsrv_connection_dbg(xconn));
+	return 0;
 }
 
 NTSTATUS smbd_add_connection(struct smbXsrv_client *client, int sock_fd,
@@ -3768,6 +3800,7 @@ NTSTATUS smbd_add_connection(struct smbXsrv_client *client, int sock_fd,
 		TALLOC_FREE(frame);
 		return NT_STATUS_NO_MEMORY;
 	}
+	talloc_set_destructor(xconn, smbXsrv_connection_destructor);
 	talloc_steal(frame, xconn);
 	xconn->client = client;
 	xconn->connect_time = now;
@@ -3950,7 +3983,6 @@ NTSTATUS smbd_add_connection(struct smbXsrv_client *client, int sock_fd,
 
 void smbd_process(struct tevent_context *ev_ctx,
 		  struct messaging_context *msg_ctx,
-		  struct dcesrv_context *dce_ctx,
 		  int sock_fd,
 		  bool interactive)
 {
@@ -3993,7 +4025,6 @@ void smbd_process(struct tevent_context *ev_ctx,
 
 	sconn->ev_ctx = ev_ctx;
 	sconn->msg_ctx = msg_ctx;
-	sconn->dce_ctx = dce_ctx;
 
 	ret = pthreadpool_tevent_init(sconn, lp_aio_max_threads(),
 				      &sconn->pool);

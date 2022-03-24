@@ -21,8 +21,7 @@
 #include <cmocka.h>
 #include <jansson.h>
 #include <talloc.h>
-#include "popt.h"
-#include "popt_common_cmdline.h"
+#include "lib/cmdline/cmdline.h"
 #include "libcli/util/ntstatus.h"
 #include "lib/util/samba_util.h"
 #include "lib/torture/torture.h"
@@ -162,6 +161,40 @@ static struct {
 	}
 };
 
+static struct {
+	const char *mds;
+	const char *es;
+} map_ignore_failures[] = {
+	{
+		"*==\"Samba\"||foo==\"bar\"",
+		"(Samba)" PATH_QUERY_SUBEXPR
+	}, {
+		"*==\"Samba\"&&foo==\"bar\"",
+		"(Samba)" PATH_QUERY_SUBEXPR
+	}, {
+		"*==\"Samba\"||kMDItemContentType==\"666\"",
+		"(Samba)" PATH_QUERY_SUBEXPR
+	}, {
+		"*==\"Samba\"&&kMDItemContentType==\"666\"",
+		"(Samba)" PATH_QUERY_SUBEXPR
+	}, {
+		"*==\"Samba\"||foo==\"bar\"||kMDItemContentType==\"666\"",
+		"(Samba)" PATH_QUERY_SUBEXPR
+	}, {
+		"*==\"Samba\"&&foo==\"bar\"&&kMDItemContentType==\"666\"",
+		"(Samba)" PATH_QUERY_SUBEXPR
+	}, {
+		"foo==\"bar\"||kMDItemContentType==\"666\"||*==\"Samba\"||x!=\"6\"",
+		"(Samba)" PATH_QUERY_SUBEXPR
+	}, {
+		"*==\"Samba\"||InRange(foo,1,2)",
+		"(Samba)" PATH_QUERY_SUBEXPR
+	}, {
+		"*==\"Samba\"||foo==$time.iso(2018-10-01T10:00:00Z)",
+		"(Samba)" PATH_QUERY_SUBEXPR
+	}
+};
+
 static void test_mdsparser_es(void **state)
 {
 	TALLOC_CTX *frame = talloc_stackframe();
@@ -193,13 +226,32 @@ static void test_mdsparser_es(void **state)
 		assert_string_equal(es_query, map[i].es);
 	}
 
+	if (!lp_parm_bool(GLOBAL_SECTION_SNUM,
+			  "elasticsearch",
+			  "test mapping failures",
+			  false))
+	{
+		goto done;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(map_ignore_failures); i++) {
+		DBG_DEBUG("Mapping: %s\n", map_ignore_failures[i].mds);
+		ok = map_spotlight_to_es_query(frame,
+					       mappings,
+					       path_scope,
+					       map_ignore_failures[i].mds,
+					       &es_query);
+		assert_true(ok);
+		assert_string_equal(es_query, map_ignore_failures[i].es);
+	}
+
+done:
 	json_decref(mappings);
 	TALLOC_FREE(frame);
 }
 
 int main(int argc, const char *argv[])
 {
-	const char **argv_const = discard_const_p(const char *, argv);
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_mdsparser_es),
 	};
@@ -210,12 +262,31 @@ int main(int argc, const char *argv[])
 	};
 	poptContext pc;
 	int opt;
+	bool ok;
+	TALLOC_CTX *frame = talloc_stackframe();
 
 	smb_init_locale();
-	setup_logging(argv[0], DEBUG_STDERR);
+
+	ok = samba_cmdline_init(frame,
+				SAMBA_CMDLINE_CONFIG_CLIENT,
+				false /* require_smbconf */);
+	if (!ok) {
+		DBG_ERR("Failed to init cmdline parser!\n");
+		TALLOC_FREE(frame);
+		exit(1);
+	}
 	lp_set_cmdline("log level", "1");
 
-	pc = poptGetContext(argv[0], argc, argv_const, long_options, 0);
+	pc = samba_popt_get_context(getprogname(),
+				    argc,
+				    argv,
+				    long_options,
+				    0);
+	if (pc == NULL) {
+		DBG_ERR("Failed to setup popt context!\n");
+		TALLOC_FREE(frame);
+		exit(1);
+	}
 
 	while ((opt = poptGetNextOpt(pc)) != -1) {
 		switch(opt) {
@@ -224,8 +295,6 @@ int main(int argc, const char *argv[])
 			    exit(1);
 		}
 	}
-
-	lp_load_global(get_dyn_CONFIGFILE());
 
 	cmocka_set_message_output(CM_OUTPUT_SUBUNIT);
 

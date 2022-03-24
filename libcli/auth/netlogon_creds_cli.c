@@ -39,6 +39,7 @@
 #include "libds/common/roles.h"
 #include "lib/crypto/md4.h"
 #include "auth/credentials/credentials.h"
+#include "lib/param/loadparm.h"
 
 struct netlogon_creds_cli_locked_state;
 
@@ -414,6 +415,17 @@ NTSTATUS netlogon_creds_cli_context_global(struct loadparm_context *lp_ctx,
 		required_flags |= NETLOGON_NEG_AUTHENTICATED_RPC;
 	}
 
+	/*
+	 * If weak crypto is disabled, do not announce that we support RC4 and
+	 * require AES.
+	 */
+	if (lpcfg_weak_crypto(lp_ctx) == SAMBA_WEAK_CRYPTO_DISALLOWED) {
+		required_flags &= ~NETLOGON_NEG_ARCFOUR;
+		required_flags |= NETLOGON_NEG_SUPPORTS_AES;
+		proposed_flags &= ~NETLOGON_NEG_ARCFOUR;
+		proposed_flags |= NETLOGON_NEG_SUPPORTS_AES;
+	}
+
 	proposed_flags |= required_flags;
 
 	if (seal_secure_channel) {
@@ -504,9 +516,33 @@ enum dcerpc_AuthLevel netlogon_creds_cli_auth_level(
 	return context->client.auth_level;
 }
 
+static bool netlogon_creds_cli_downgraded(uint32_t negotiated_flags,
+					  uint32_t proposed_flags,
+					  uint32_t required_flags)
+{
+	uint32_t req_flags = required_flags;
+	uint32_t tmp_flags;
+
+	req_flags = required_flags;
+	if ((negotiated_flags & NETLOGON_NEG_SUPPORTS_AES) &&
+	    (proposed_flags & NETLOGON_NEG_SUPPORTS_AES))
+	{
+		req_flags &= ~NETLOGON_NEG_ARCFOUR|NETLOGON_NEG_STRONG_KEYS;
+	}
+
+	tmp_flags = negotiated_flags;
+	tmp_flags &= req_flags;
+	if (tmp_flags != req_flags) {
+		return true;
+	}
+
+	return false;
+}
+
 struct netlogon_creds_cli_fetch_state {
 	TALLOC_CTX *mem_ctx;
 	struct netlogon_creds_CredentialState *creds;
+	uint32_t proposed_flags;
 	uint32_t required_flags;
 	NTSTATUS status;
 };
@@ -518,7 +554,7 @@ static void netlogon_creds_cli_fetch_parser(TDB_DATA key, TDB_DATA data,
 		(struct netlogon_creds_cli_fetch_state *)private_data;
 	enum ndr_err_code ndr_err;
 	DATA_BLOB blob;
-	uint32_t tmp_flags;
+	bool downgraded;
 
 	state->creds = talloc_zero(state->mem_ctx,
 				   struct netlogon_creds_CredentialState);
@@ -542,9 +578,11 @@ static void netlogon_creds_cli_fetch_parser(TDB_DATA key, TDB_DATA data,
 		NDR_PRINT_DEBUG(netlogon_creds_CredentialState, state->creds);
 	}
 
-	tmp_flags = state->creds->negotiate_flags;
-	tmp_flags &= state->required_flags;
-	if (tmp_flags != state->required_flags) {
+	downgraded = netlogon_creds_cli_downgraded(
+			state->creds->negotiate_flags,
+			state->proposed_flags,
+			state->required_flags);
+	if (downgraded) {
 		TALLOC_FREE(state->creds);
 		state->status = NT_STATUS_DOWNGRADE_DETECTED;
 		return;
@@ -815,6 +853,7 @@ static NTSTATUS netlogon_creds_cli_get_internal(
 {
 	struct netlogon_creds_cli_fetch_state fstate = {
 		.status = NT_STATUS_INTERNAL_ERROR,
+		.proposed_flags = context->client.proposed_flags,
 		.required_flags = context->client.required_flags,
 	};
 	NTSTATUS status;
@@ -1297,7 +1336,7 @@ static void netlogon_creds_cli_auth_srvauth_done(struct tevent_req *subreq)
 	enum ndr_err_code ndr_err;
 	DATA_BLOB blob;
 	TDB_DATA data;
-	uint32_t tmp_flags;
+	bool downgraded;
 
 	if (state->try_auth3) {
 		status = dcerpc_netr_ServerAuthenticate3_recv(subreq, state,
@@ -1344,9 +1383,11 @@ static void netlogon_creds_cli_auth_srvauth_done(struct tevent_req *subreq)
 		return;
 	}
 
-	tmp_flags = state->creds->negotiate_flags;
-	tmp_flags &= state->context->client.required_flags;
-	if (tmp_flags != state->context->client.required_flags) {
+	downgraded = netlogon_creds_cli_downgraded(
+			state->creds->negotiate_flags,
+			state->context->client.proposed_flags,
+			state->context->client.required_flags);
+	if (downgraded) {
 		if (NT_STATUS_IS_OK(result)) {
 			tevent_req_nterror(req, NT_STATUS_DOWNGRADE_DETECTED);
 			return;
@@ -1356,8 +1397,7 @@ static void netlogon_creds_cli_auth_srvauth_done(struct tevent_req *subreq)
 	}
 
 	if (NT_STATUS_EQUAL(result, NT_STATUS_ACCESS_DENIED)) {
-
-		tmp_flags = state->context->client.proposed_flags;
+		uint32_t tmp_flags = state->context->client.proposed_flags;
 		if ((state->current_flags == tmp_flags) &&
 		    (state->creds->negotiate_flags != tmp_flags))
 		{
@@ -3808,6 +3848,20 @@ static void netlogon_creds_cli_SendToSam_done(struct tevent_req *subreq)
 	tevent_req_done(req);
 }
 
+NTSTATUS netlogon_creds_cli_SendToSam_recv(struct tevent_req *req)
+{
+	NTSTATUS status;
+
+	if (tevent_req_is_nterror(req, &status)) {
+		netlogon_creds_cli_SendToSam_cleanup(req, status);
+		tevent_req_received(req);
+		return status;
+	}
+
+	tevent_req_received(req);
+	return NT_STATUS_OK;
+}
+
 NTSTATUS netlogon_creds_cli_SendToSam(struct netlogon_creds_cli_context *context,
 				      struct dcerpc_binding_handle *b,
 				      struct netr_SendToSamBase *message)
@@ -3815,7 +3869,7 @@ NTSTATUS netlogon_creds_cli_SendToSam(struct netlogon_creds_cli_context *context
 	TALLOC_CTX *frame = talloc_stackframe();
 	struct tevent_context *ev;
 	struct tevent_req *req;
-	NTSTATUS status = NT_STATUS_OK;
+	NTSTATUS status = NT_STATUS_NO_MEMORY;
 
 	ev = samba_tevent_context_init(frame);
 	if (ev == NULL) {
@@ -3828,8 +3882,7 @@ NTSTATUS netlogon_creds_cli_SendToSam(struct netlogon_creds_cli_context *context
 	if (!tevent_req_poll_ntstatus(req, ev, &status)) {
 		goto fail;
 	}
-
-	/* Ignore the result */
+	status = netlogon_creds_cli_SendToSam_recv(req);
  fail:
 	TALLOC_FREE(frame);
 	return status;

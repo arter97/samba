@@ -49,15 +49,19 @@ NTSTATUS rpccli_ncalrpc_bind_data(TALLOC_CTX *mem_ctx,
 NTSTATUS rpccli_anon_bind_data(TALLOC_CTX *mem_ctx,
 			       struct pipe_auth_data **presult);
 
-NTSTATUS rpc_pipe_open_tcp(TALLOC_CTX *mem_ctx,
-			   const char *host,
-			   const struct sockaddr_storage *ss_addr,
-			   const struct ndr_interface_table *table,
-			   struct rpc_pipe_client **presult);
-
-NTSTATUS rpc_pipe_open_ncalrpc(TALLOC_CTX *mem_ctx, const char *socket_path,
+NTSTATUS rpc_pipe_open_ncalrpc(TALLOC_CTX *mem_ctx,
 			       const struct ndr_interface_table *table,
 			       struct rpc_pipe_client **presult);
+
+NTSTATUS rpc_pipe_open_local_np(
+	TALLOC_CTX *mem_ctx,
+	const struct ndr_interface_table *table,
+	const char *remote_client_name,
+	const struct tsocket_address *remote_client_addr,
+	const char *local_server_name,
+	const struct tsocket_address *local_server_addr,
+	const struct auth_session_info *session_info,
+	struct rpc_pipe_client **presult);
 
 struct dcerpc_binding_handle *rpccli_bh_create(struct rpc_pipe_client *c,
 					const struct GUID *object,
@@ -70,6 +74,8 @@ NTSTATUS cli_rpc_pipe_open_noauth(struct cli_state *cli,
 NTSTATUS cli_rpc_pipe_open_noauth_transport(struct cli_state *cli,
 					    enum dcerpc_transport_t transport,
 					    const struct ndr_interface_table *table,
+					    const char *remote_name,
+					    const struct sockaddr_storage *remote_sockaddr,
 					    struct rpc_pipe_client **presult);
 
 /****************************************************************************
@@ -84,6 +90,7 @@ NTSTATUS cli_rpc_pipe_open_with_creds(struct cli_state *cli,
 				      enum dcerpc_AuthType auth_type,
 				      enum dcerpc_AuthLevel auth_level,
 				      const char *server,
+				      const struct sockaddr_storage *remote_sockaddr,
 				      struct cli_credentials *creds,
 				      struct rpc_pipe_client **presult);
 
@@ -92,11 +99,15 @@ NTSTATUS cli_rpc_pipe_open_bind_schannel(
 	const struct ndr_interface_table *table,
 	enum dcerpc_transport_t transport,
 	struct netlogon_creds_cli_context *netlogon_creds,
+	const char *remote_name,
+	const struct sockaddr_storage *remote_sockaddr,
 	struct rpc_pipe_client **_rpccli);
 NTSTATUS cli_rpc_pipe_open_schannel_with_creds(struct cli_state *cli,
 					       const struct ndr_interface_table *table,
 					       enum dcerpc_transport_t transport,
 					       struct netlogon_creds_cli_context *netlogon_creds,
+					       const char *remote_name,
+					       const struct sockaddr_storage *remote_sockaddr,
 					       struct rpc_pipe_client **_rpccli);
 
 NTSTATUS cli_rpc_pipe_open_schannel(struct cli_state *cli,
@@ -104,6 +115,8 @@ NTSTATUS cli_rpc_pipe_open_schannel(struct cli_state *cli,
 				    const struct ndr_interface_table *table,
 				    enum dcerpc_transport_t transport,
 				    const char *domain,
+				    const char *remote_name,
+				    const struct sockaddr_storage *remote_sockaddr,
 				    struct rpc_pipe_client **presult,
 				    TALLOC_CTX *mem_ctx,
 				    struct netlogon_creds_cli_context **pcreds);

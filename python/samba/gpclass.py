@@ -16,14 +16,16 @@
 
 
 import sys
-import os
+import os, shutil
 import errno
 import tdb
+import pwd
 sys.path.insert(0, "bin/python")
 from samba import NTSTATUSError
-from samba.compat import ConfigParser
-from samba.compat import StringIO
-from samba.compat import get_bytes
+from configparser import ConfigParser
+from io import StringIO
+import traceback
+from samba.common import get_bytes
 from abc import ABCMeta, abstractmethod
 import xml.etree.ElementTree as etree
 import re
@@ -38,6 +40,7 @@ from tempfile import NamedTemporaryFile
 from samba.dcerpc import preg
 from samba.dcerpc import misc
 from samba.ndr import ndr_pack, ndr_unpack
+from samba.credentials import SMB_SIGNING_REQUIRED
 
 try:
     from enum import Enum
@@ -292,11 +295,12 @@ class GPOStorage:
 class gp_ext(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, logger, lp, creds, store):
+    def __init__(self, logger, lp, creds, username, store):
         self.logger = logger
         self.lp = lp
         self.creds = creds
-        self.gp_db = store.get_gplog(creds.get_username())
+        self.username = username
+        self.gp_db = store.get_gplog(username)
 
     @abstractmethod
     def process_group_policy(self, deleted_gpo_list, changed_gpo_list):
@@ -317,46 +321,19 @@ class gp_ext(object):
     def __str__(self):
         pass
 
-
-class gp_ext_setter(object):
-    __metaclass__ = ABCMeta
-
-    def __init__(self, logger, gp_db, lp, creds, attribute, val):
-        self.logger = logger
-        self.attribute = attribute
-        self.val = val
-        self.lp = lp
-        self.creds = creds
-        self.gp_db = gp_db
-
-    def explicit(self):
-        return self.val
-
-    def update_samba(self):
-        (upd_sam, value) = self.mapper().get(self.attribute)
-        upd_sam(value())
-
     @abstractmethod
-    def mapper(self):
-        pass
-
-    def delete(self):
-        upd_sam, _ = self.mapper().get(self.attribute)
-        upd_sam(self.val)
-
-    @abstractmethod
-    def __str__(self):
-        pass
+    def rsop(self, gpo):
+        return {}
 
 
 class gp_inf_ext(gp_ext):
     def read(self, data_file):
-        policy = open(data_file, 'r').read()
-        inf_conf = ConfigParser()
+        policy = open(data_file, 'rb').read()
+        inf_conf = ConfigParser(interpolation=None)
         inf_conf.optionxform = str
         try:
-            inf_conf.readfp(StringIO(policy))
-        except:
+            inf_conf.readfp(StringIO(policy.decode()))
+        except UnicodeDecodeError:
             inf_conf.readfp(StringIO(policy.decode('utf-16')))
         return inf_conf
 
@@ -365,6 +342,15 @@ class gp_pol_ext(gp_ext):
     def read(self, data_file):
         raw = open(data_file, 'rb').read()
         return ndr_unpack(preg.file, raw)
+
+
+class gp_xml_ext(gp_ext):
+    def read(self, data_file):
+        raw = open(data_file, 'rb').read()
+        try:
+            return etree.fromstring(raw.decode())
+        except UnicodeDecodeError:
+            return etree.fromstring(raw.decode('utf-16'))
 
 
 ''' Fetch the hostname of a writable DC '''
@@ -380,11 +366,12 @@ def get_dc_hostname(creds, lp):
 ''' Fetch a list of GUIDs for applicable GPOs '''
 
 
-def get_gpo_list(dc_hostname, creds, lp):
+def get_gpo_list(dc_hostname, creds, lp, username):
     gpos = []
     ads = gpo.ADS_STRUCT(dc_hostname, lp, creds)
     if ads.connect():
-        gpos = ads.get_gpo_list(creds.get_username())
+        # username is DOM\\SAM, but get_gpo_list expects SAM
+        gpos = ads.get_gpo_list(username.split('\\')[-1])
     return gpos
 
 
@@ -410,8 +397,9 @@ def cache_gpo_dir(conn, cache, sub_dir):
 
 def check_safe_path(path):
     dirs = re.split('/|\\\\', path)
-    if 'sysvol' in path:
-        dirs = dirs[dirs.index('sysvol') + 1:]
+    if 'sysvol' in path.lower():
+        ldirs = re.split('/|\\\\', path.lower())
+        dirs = dirs[ldirs.index('sysvol') + 1:]
     if '..' not in dirs:
         return os.path.join(*dirs)
     raise OSError(path)
@@ -421,7 +409,13 @@ def check_refresh_gpo_list(dc_hostname, lp, creds, gpos):
     # the SMB bindings rely on having a s3 loadparm
     s3_lp = s3param.get_context()
     s3_lp.load(lp.configfile)
-    conn = libsmb.Conn(dc_hostname, 'sysvol', lp=s3_lp, creds=creds, sign=True)
+
+    # Force signing for the connection
+    saved_signing_state = creds.get_smb_signing()
+    creds.set_smb_signing(SMB_SIGNING_REQUIRED)
+    conn = libsmb.Conn(dc_hostname, 'sysvol', lp=s3_lp, creds=creds)
+    # Reset signing state
+    creds.set_smb_signing(saved_signing_state)
     cache_path = lp.cache_path('gpo_cache')
     for gpo in gpos:
         if not gpo.file_sys_path:
@@ -442,10 +436,10 @@ def gpo_version(lp, path):
     return int(gpo.gpo_get_sysvol_gpt_version(gpt_path)[1])
 
 
-def apply_gp(lp, creds, logger, store, gp_extensions, force=False):
-    gp_db = store.get_gplog(creds.get_username())
+def apply_gp(lp, creds, logger, store, gp_extensions, username, target, force=False):
+    gp_db = store.get_gplog(username)
     dc_hostname = get_dc_hostname(creds, lp)
-    gpos = get_gpo_list(dc_hostname, creds, lp)
+    gpos = get_gpo_list(dc_hostname, creds, lp, username)
     del_gpos = get_deleted_gpos_list(gp_db, gpos)
     try:
         check_refresh_gpo_list(dc_hostname, lp, creds, gpos)
@@ -473,10 +467,16 @@ def apply_gp(lp, creds, logger, store, gp_extensions, force=False):
     store.start()
     for ext in gp_extensions:
         try:
-            ext.process_group_policy(del_gpos, changed_gpos)
+            ext = ext(logger, lp, creds, username, store)
+            if target == 'Computer':
+                ext.process_group_policy(del_gpos, changed_gpos)
+            else:
+                drop_privileges(creds.get_principal(), ext.process_group_policy,
+                                del_gpos, changed_gpos)
         except Exception as e:
             logger.error('Failed to apply extension  %s' % str(ext))
-            logger.error('Message was: ' + str(e))
+            logger.error('Message was: %s: %s' % (type(e).__name__, str(e)))
+            logger.debug(traceback.format_exc())
             continue
     for gpo_obj in gpos:
         if not gpo_obj.file_sys_path:
@@ -488,20 +488,67 @@ def apply_gp(lp, creds, logger, store, gp_extensions, force=False):
     store.commit()
 
 
-def unapply_gp(lp, creds, logger, store, gp_extensions):
-    gp_db = store.get_gplog(creds.get_username())
+def unapply_gp(lp, creds, logger, store, gp_extensions, username, target):
+    gp_db = store.get_gplog(username)
     gp_db.state(GPOSTATE.UNAPPLY)
     # Treat all applied gpos as deleted
     del_gpos = gp_db.get_applied_settings(gp_db.get_applied_guids())
     store.start()
     for ext in gp_extensions:
         try:
-            ext.process_group_policy(del_gpos, [])
+            ext = ext(logger, lp, creds, username, store)
+            if target == 'Computer':
+                ext.process_group_policy(del_gpos, [])
+            else:
+                drop_privileges(username, ext.process_group_policy,
+                                del_gpos, [])
         except Exception as e:
             logger.error('Failed to unapply extension  %s' % str(ext))
             logger.error('Message was: ' + str(e))
             continue
     store.commit()
+
+
+def __rsop_vals(vals, level=4):
+    if type(vals) == dict:
+        ret = [' '*level + '[ %s ] = %s' % (k, __rsop_vals(v, level+2))
+                for k, v in vals.items()]
+        return '\n' + '\n'.join(ret)
+    elif type(vals) == list:
+        ret = [' '*level + '[ %s ]' % __rsop_vals(v, level+2) for v in vals]
+        return '\n' + '\n'.join(ret)
+    else:
+        return vals
+
+def rsop(lp, creds, logger, store, gp_extensions, username, target):
+    dc_hostname = get_dc_hostname(creds, lp)
+    gpos = get_gpo_list(dc_hostname, creds, lp, username)
+    check_refresh_gpo_list(dc_hostname, lp, creds, gpos)
+
+    print('Resultant Set of Policy')
+    print('%s Policy\n' % target)
+    term_width = shutil.get_terminal_size(fallback=(120, 50))[0]
+    for gpo in gpos:
+        if gpo.display_name.strip() == 'Local Policy':
+            continue # We never apply local policy
+        print('GPO: %s' % gpo.display_name)
+        print('='*term_width)
+        for ext in gp_extensions:
+            ext = ext(logger, lp, creds, username, store)
+            cse_name_m = re.findall("'([\w\.]+)'", str(type(ext)))
+            if len(cse_name_m) > 0:
+                cse_name = cse_name_m[-1].split('.')[-1]
+            else:
+                cse_name = ext.__module__.split('.')[-1]
+            print('  CSE: %s' % cse_name)
+            print('  ' + ('-'*int(term_width/2)))
+            for section, settings in ext.rsop(gpo).items():
+                print('    Policy Type: %s' % section)
+                print('    ' + ('-'*int(term_width/2)))
+                print(__rsop_vals(settings).lstrip('\n'))
+                print('    ' + ('-'*int(term_width/2)))
+            print('  ' + ('-'*int(term_width/2)))
+        print('%s\n' % ('='*term_width))
 
 
 def parse_gpext_conf(smb_conf):
@@ -511,7 +558,7 @@ def parse_gpext_conf(smb_conf):
     else:
         lp.load_default()
     ext_conf = lp.state_path('gpext.conf')
-    parser = ConfigParser()
+    parser = ConfigParser(interpolation=None)
     parser.read(ext_conf)
     return lp, parser
 
@@ -580,3 +627,45 @@ def unregister_gp_extension(guid, smb_conf=None):
     atomic_write_conf(lp, parser)
 
     return True
+
+
+def set_privileges(username, uid, gid):
+    '''
+    Set current process privileges
+    '''
+
+    os.setegid(gid)
+    os.seteuid(uid)
+
+
+def drop_privileges(username, func, *args):
+    '''
+    Run supplied function with privileges for specified username.
+    '''
+    current_uid = os.getuid()
+
+    if not current_uid == 0:
+        raise Exception('Not enough permissions to drop privileges')
+
+    user_uid = pwd.getpwnam(username).pw_uid
+    user_gid = pwd.getpwnam(username).pw_gid
+
+    # Drop privileges
+    set_privileges(username, user_uid, user_gid)
+
+    # We need to catch exception in order to be able to restore
+    # privileges later in this function
+    out = None
+    exc = None
+    try:
+        out = func(*args)
+    except Exception as e:
+        exc = e
+
+    # Restore privileges
+    set_privileges('root', current_uid, 0)
+
+    if exc:
+        raise exc
+
+    return out

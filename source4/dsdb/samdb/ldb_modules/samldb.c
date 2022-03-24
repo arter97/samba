@@ -45,6 +45,9 @@
 #include "libds/common/flag_mapping.h"
 #include "system/network.h"
 #include "librpc/gen_ndr/irpc.h"
+#include "lib/util/smb_strtox.h"
+
+#undef strcasecmp
 
 struct samldb_ctx;
 enum samldb_add_type {
@@ -1057,7 +1060,7 @@ static bool samldb_krbtgtnumber_available(struct samldb_ctx *ac,
 				 LDB_SCOPE_SUBTREE, no_attrs,
 				 DSDB_FLAG_NEXT_MODULE,
 				 ac->req,
-				 "(msDC-SecondaryKrbTgtNumber=%u)",
+				 "(msDS-SecondaryKrbTgtNumber=%u)",
 				 krbtgt_number);
 	if (ret == LDB_SUCCESS && res->count == 0) {
 		talloc_free(tmp_ctx);
@@ -1075,7 +1078,7 @@ static int samldb_rodc_add(struct samldb_ctx *ac)
 	int ret;
 	struct ldb_val newpass_utf16;
 
-	/* find a unused msDC-SecondaryKrbTgtNumber */
+	/* find a unused msDS-SecondaryKrbTgtNumber */
 	i_start = generate_random() & 0xFFFF;
 	if (i_start == 0) {
 		i_start = 1;
@@ -2312,7 +2315,8 @@ static int samldb_prim_group_trigger(struct samldb_ctx *ac)
 static int samldb_check_user_account_control_invariants(struct samldb_ctx *ac,
 						    uint32_t user_account_control)
 {
-	int i, ret = 0;
+	size_t i;
+	int ret = 0;
 	bool need_check = false;
 	const struct uac_to_guid {
 		uint32_t uac;
@@ -2553,7 +2557,8 @@ static int samldb_check_user_account_control_acl(struct samldb_ctx *ac,
 						 uint32_t user_account_control,
 						 uint32_t user_account_control_old)
 {
-	int i, ret = 0;
+	size_t i;
+	int ret = 0;
 	bool need_acl_check = false;
 	struct security_token *user_token;
 	struct security_descriptor *domain_sd;
@@ -4001,8 +4006,7 @@ static int samldb_spn_uniqueness_check(struct samldb_ctx *ac,
 						 ac->msg->dn);
 		if (ret == LDB_ERR_COMPARE_TRUE) {
 			DBG_INFO("SPN %s re-added to the same object\n", spn);
-			talloc_free(tmp_ctx);
-			return LDB_SUCCESS;
+			continue;
 		}
 		if (ret != LDB_SUCCESS) {
 			DBG_ERR("SPN %s failed direct uniqueness check\n", spn);
@@ -5697,7 +5701,7 @@ static int samldb_extended_create_own_rid_set(struct ldb_module *module, struct 
 
 	if (req->op.extended.data != NULL) {
 		ldb_set_errstring(ldb,
-				  "samldb_extended_allocate_rid_pool_for_us: invalid extended data (should be NULL)");
+				  "samldb_extended_create_own_rid_set: invalid extended data (should be NULL)");
 		return LDB_ERR_PROTOCOL_ERROR;
 	}
 

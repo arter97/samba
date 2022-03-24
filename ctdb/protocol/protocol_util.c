@@ -27,6 +27,7 @@
 #include "protocol.h"
 #include "protocol_util.h"
 #include "lib/util/util.h"
+#include "lib/util/smb_strtox.h"
 
 static struct {
 	enum ctdb_runstate runstate;
@@ -118,6 +119,7 @@ int ctdb_sock_addr_to_buf(char *buf, socklen_t buflen,
 			  ctdb_sock_addr *addr, bool with_port)
 {
 	const char *t;
+	size_t len = 0;
 
 	switch (addr->sa.sa_family) {
 	case AF_INET:
@@ -126,15 +128,36 @@ int ctdb_sock_addr_to_buf(char *buf, socklen_t buflen,
 		if (t == NULL) {
 			return errno;
 		}
+		if (with_port) {
+			len = strlen(buf);
+		}
 		break;
 
-	case AF_INET6:
-		t = inet_ntop(addr->ip6.sin6_family, &addr->ip6.sin6_addr,
-			      buf, buflen);
+	case AF_INET6: {
+		char tmp[INET6_ADDRSTRLEN];
+
+		t = inet_ntop(addr->ip6.sin6_family,
+			      &addr->ip6.sin6_addr,
+			      tmp,
+			      sizeof(tmp));
 		if (t == NULL) {
 			return errno;
 		}
+
+		if (with_port) {
+			int ret = snprintf(buf, buflen, "[%s]", tmp);
+			if (ret < 0) {
+				return ENOSPC;
+			}
+			len = (size_t)ret;
+		} else {
+			len = strlcpy(buf, tmp, buflen);
+		}
+		if (len >= buflen){
+			return ENOSPC;
+		}
 		break;
+	}
 
 	default:
 		return EAFNOSUPPORT;
@@ -142,7 +165,6 @@ int ctdb_sock_addr_to_buf(char *buf, socklen_t buflen,
 	}
 
 	if (with_port) {
-		size_t len = strlen(buf);
 		int ret;
 
 		ret = snprintf(buf+len, buflen-len,
@@ -229,16 +251,29 @@ static int ip_from_string(const char *str, ctdb_sock_addr *addr)
 
 	/* IPv4 or IPv6 address?
 	 *
-	 * Use rindex() because we need the right-most ':' below for
+	 * Use strrchr() because we need the right-most ':' below for
 	 * IPv4-mapped IPv6 addresses anyway...
 	 */
-	p = rindex(str, ':');
+	p = strrchr(str, ':');
 	if (p == NULL) {
 		ret = ipv4_from_string(str, &addr->ip);
 	} else {
-		uint8_t ipv4_mapped_prefix[12] = {
+		static const uint8_t ipv4_mapped_prefix[12] = {
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff
 		};
+		size_t len = strlen(str);
+		char s[64];
+
+		len = strlcpy(s, str, sizeof(s));
+		if (len >= sizeof(s)) {
+			return EINVAL;
+		}
+
+		if ((len >= 2) && (s[0] == '[') && (s[len-1] == ']')) {
+			s[len-1] = '\0';
+			str = s+1;
+			p = strrchr(str, ':');
+		}
 
 		ret = ipv6_from_string(str, &addr->ip6);
 		if (ret != 0) {
@@ -285,7 +320,7 @@ int ctdb_sock_addr_from_string(const char *str,
 		return EINVAL;
 	}
 
-	p = rindex(s, ':');
+	p = strrchr(s, ':');
 	if (p == NULL) {
 		return EINVAL;
 	}
@@ -323,7 +358,7 @@ int ctdb_sock_addr_mask_from_string(const char *str,
 		return EINVAL;
 	}
 
-	p = rindex(s, '/');
+	p = strrchr(s, '/');
 	if (p == NULL) {
 		return EINVAL;
 	}

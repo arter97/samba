@@ -39,6 +39,8 @@
 #include "lib/util/time_basic.h"
 #include "system/filesys.h"
 #include "lib/util/server_id.h"
+#include "share_mode_lock.h"
+#include "share_mode_lock_private.h"
 #include "locking/proto.h"
 #include "smbd/globals.h"
 #include "dbwrap/dbwrap.h"
@@ -88,6 +90,7 @@ void init_strict_lock_struct(files_struct *fsp,
 				br_off start,
 				br_off size,
 				enum brl_type lock_type,
+				enum brl_flavour lock_flav,
 				struct lock_struct *plock)
 {
 	SMB_ASSERT(lock_type == READ_LOCK || lock_type == WRITE_LOCK);
@@ -1069,7 +1072,7 @@ static bool file_has_open_streams_fn(
 	struct file_has_open_streams_state *state = private_data;
 
 	if ((e->private_options &
-	     NTCREATEX_OPTIONS_PRIVATE_STREAM_BASEOPEN) == 0) {
+	     NTCREATEX_FLAG_STREAM_BASEOPEN) == 0) {
 		return false;
 	}
 

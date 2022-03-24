@@ -5,8 +5,12 @@ services:
   image: docker:latest
   stage: images
   tags:
+    # We need to make sure we only use gitlab.com
+    # runners and not our own runners, as our current runners
+    # don't allow 'docker build ...' to run.
     - docker
     - gce
+    - shared
   variables:
     SAMBA_CI_IS_BROKEN_IMAGE: "no"
     SAMBA_CI_TEST_JOB: "samba-o3"
@@ -84,12 +88,6 @@ services:
       #
       - $SAMBA_CI_REBUILD_BROKEN_IMAGES == "yes"
 
-# This is ONLY for oss-fuzz, so we test a fuzz build not a real one
-ubuntu1604:
-  extends: .build_image_template
-  variables:
-    SAMBA_CI_TEST_JOB: "samba-fuzz"
-
 ubuntu1804:
   extends: .build_image_template
 
@@ -99,10 +97,13 @@ ubuntu2004:
 debian10:
   extends: .build_image_template
 
-fedora31:
+debian11:
   extends: .build_image_template
 
-fedora32:
+fedora34:
+  extends: .build_image_template
+
+fedora35:
   extends: .build_image_template
 
 centos8:
@@ -116,8 +117,8 @@ centos7:
     # We install a compat-gnutls34 package for GnuTLS >= 3.4.7
     PKG_CONFIG_PATH: /usr/lib64/compat-gnutls34/pkgconfig:/usr/lib64/compat-nettle32/pkgconfig
 
-opensuse150:
+opensuse151:
   extends: .build_image_template
 
-opensuse151:
+opensuse152:
   extends: .build_image_template

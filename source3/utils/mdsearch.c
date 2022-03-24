@@ -19,11 +19,9 @@
 
 #include "includes.h"
 #include "lib/util/debug.h"
-#include "popt_common.h"
-#include "popt_common_cmdline.h"
+#include "lib/cmdline/cmdline.h"
 #include "lib/cmdline_contexts.h"
 #include "param.h"
-#include "auth_info.h"
 #include "client.h"
 #include "libsmb/proto.h"
 #include "librpc/rpc/rpc_common.h"
@@ -34,33 +32,11 @@
 static char *opt_path;
 static int opt_live;
 
-static struct poptOption long_options[] = {
-	POPT_AUTOHELP
-	{
-		.longName  = "path",
-		.shortName = 'p',
-		.argInfo   = POPT_ARG_STRING,
-		.arg       = &opt_path,
-		.descrip   = "Server-relative search path",
-	},
-	{
-		.longName  = "live",
-		.shortName = 'L',
-		.argInfo   = POPT_ARG_NONE,
-		.arg       = &opt_live,
-		.descrip   = "live query",
-	},
-	POPT_COMMON_SAMBA
-	POPT_COMMON_CREDENTIALS
-	POPT_TABLEEND
-};
-
 int main(int argc, char **argv)
 {
 	const char **const_argv = discard_const_p(const char *, argv);
 	TALLOC_CTX *frame = talloc_stackframe();
 	struct tevent_context *ev = NULL;
-	struct user_auth_info *auth = NULL;
 	struct cli_credentials *creds = NULL;
 	struct rpc_pipe_client *rpccli = NULL;
 	struct mdscli_ctx *mdscli_ctx = NULL;
@@ -70,8 +46,7 @@ int main(int argc, char **argv)
 	const char *mds_query = NULL;
 	struct cli_state *cli = NULL;
 	char *basepath = NULL;
-	uint32_t flags = 0;
-	int signing_state = SMB_SIGNING_IPC_DEFAULT;
+	uint32_t flags = CLI_FULL_CONNECTION_IPC;
 	uint64_t *cnids = NULL;
 	size_t ncnids;
 	size_t i;
@@ -80,15 +55,46 @@ int main(int argc, char **argv)
 	NTSTATUS status;
 	bool ok;
 
-	setup_logging(argv[0], DEBUG_STDERR);
+	struct poptOption long_options[] = {
+		POPT_AUTOHELP
+		{
+			.longName  = "path",
+			.shortName = 'p',
+			.argInfo   = POPT_ARG_STRING,
+			.arg       = &opt_path,
+			.descrip   = "Server-relative search path",
+		},
+		{
+			.longName  = "live",
+			.shortName = 'L',
+			.argInfo   = POPT_ARG_NONE,
+			.arg       = &opt_live,
+			.descrip   = "live query",
+		},
+		POPT_COMMON_SAMBA
+		POPT_COMMON_CREDENTIALS
+		POPT_LEGACY_S3
+		POPT_COMMON_VERSION
+		POPT_TABLEEND
+	};
+
 	smb_init_locale();
+
+	ok = samba_cmdline_init(frame,
+				SAMBA_CMDLINE_CONFIG_CLIENT,
+				false /* require_smbconf */);
+	if (!ok) {
+		DBG_ERR("Failed to init cmdline parser!\n");
+		TALLOC_FREE(frame);
+		exit(1);
+	}
 	lp_set_cmdline("log level", "1");
 
-	pc = poptGetContext(argv[0],
-			    argc,
-			    const_argv,
-			    long_options,
-			    POPT_CONTEXT_KEEP_FIRST);
+	pc = samba_popt_get_context(getprogname(),
+				    argc,
+				    const_argv,
+				    long_options,
+				    POPT_CONTEXT_KEEP_FIRST);
 
 	poptSetOtherOptionHelp(pc, "mdsearch [OPTIONS] <server> <share> <query>\n");
 
@@ -110,25 +116,12 @@ int main(int argc, char **argv)
 		goto fail;
 	}
 
-	popt_burn_cmdline_password(argc, argv);
+	samba_cmdline_burn(argc, argv);
 
 	if ((server[0] == '/' && server[1] == '/') ||
 	    (server[0] == '\\' && server[1] ==  '\\'))
 	{
 		server += 2;
-	}
-
-	auth = popt_get_cmdline_auth_info();
-	creds = get_cmdline_auth_info_creds(auth);
-
-	signing_state = get_cmdline_auth_info_signing_state(auth);
-	switch (signing_state) {
-	case SMB_SIGNING_OFF:
-		lp_set_cmdline("client ipc signing", "no");
-		break;
-	case SMB_SIGNING_REQUIRED:
-		lp_set_cmdline("client ipc signing", "required");
-		break;
 	}
 
 	ev = samba_tevent_context_init(frame);
@@ -138,12 +131,7 @@ int main(int argc, char **argv)
 
 	cmdline_messaging_context(get_dyn_CONFIGFILE());
 
-	ok = lp_load_client(get_dyn_CONFIGFILE());
-	if (!ok) {
-		fprintf(stderr, "ERROR: Can't load %s\n",
-			get_dyn_CONFIGFILE());
-		exit(1);
-	}
+	creds = samba_cmdline_get_creds();
 
 	status = cli_full_connection_creds(&cli,
 					   lp_netbios_name(),
@@ -153,24 +141,13 @@ int main(int argc, char **argv)
 					   "IPC$",
 					   "IPC",
 					   creds,
-					   flags,
-					   SMB_SIGNING_IPC_DEFAULT);
+					   flags);
 	if (!NT_STATUS_IS_OK(status)) {
 		DBG_ERR("Cannot connect to server: %s\n", nt_errstr(status));
 		goto fail;
 	}
 
-	if (get_cmdline_auth_info_smb_encrypt(auth)) {
-		status = cli_cm_force_encryption_creds(cli, creds, "IPC$");
-		if (!NT_STATUS_IS_OK(status)) {
-			goto fail;
-		}
-	}
-
-	status = cli_rpc_pipe_open_noauth_transport(cli,
-						    NCACN_NP,
-						    &ndr_table_mdssvc,
-						    &rpccli);
+	status = cli_rpc_pipe_open_noauth(cli, &ndr_table_mdssvc, &rpccli);
 	if (!NT_STATUS_IS_OK(status)) {
 		goto fail;
 	}
@@ -259,6 +236,7 @@ int main(int argc, char **argv)
 		goto fail;
 	}
 
+	cmdline_messaging_context_free();
 	TALLOC_FREE(frame);
 	poptFreeContext(pc);
 	return 0;

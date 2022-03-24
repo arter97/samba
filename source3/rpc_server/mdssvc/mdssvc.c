@@ -36,6 +36,7 @@
 #ifdef HAVE_SPOTLIGHT_BACKEND_ES
 #include "mdssvc_es.h"
 #endif
+#include "lib/global_contexts.h"
 
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_RPC_SRV
@@ -522,17 +523,6 @@ bool mds_add_result(struct sl_query *slq, const char *path)
 	NTSTATUS status;
 	bool ok;
 
-	smb_fname = synthetic_smb_fname(talloc_tos(),
-					path,
-					NULL,
-					NULL,
-					0,
-					0);
-	if (smb_fname == NULL) {
-		DBG_ERR("synthetic_smb_fname() failed\n");
-		return false;
-	}
-
 	/*
 	 * We're in a tevent callback which means in the case of
 	 * running as external RPC service we're running as root and
@@ -554,21 +544,26 @@ bool mds_add_result(struct sl_query *slq, const char *path)
 	 * any function exit below must ensure we switch back
 	 */
 
-	result = SMB_VFS_STAT(slq->mds_ctx->conn, smb_fname);
-	if (result != 0) {
-		DBG_DEBUG("SMB_VFS_STAT [%s] failed: %s\n",
+	status = synthetic_pathref(talloc_tos(),
+				   slq->mds_ctx->conn->cwd_fsp,
+				   path,
+				   NULL,
+				   NULL,
+				   0,
+				   0,
+				   &smb_fname);
+	if (!NT_STATUS_IS_OK(status)) {
+		DBG_DEBUG("synthetic_pathref [%s]: %s\n",
 			  smb_fname_str_dbg(smb_fname),
-			  strerror(errno));
+			  nt_errstr(status));
 		unbecome_authenticated_pipe_user();
-		TALLOC_FREE(smb_fname);
 		return true;
 	}
 
-	status = smbd_check_access_rights(slq->mds_ctx->conn,
-					  slq->mds_ctx->conn->cwd_fsp,
-					  smb_fname,
-					  false,
-					  FILE_READ_DATA);
+	status = smbd_check_access_rights_fsp(slq->mds_ctx->conn->cwd_fsp,
+					      smb_fname->fsp,
+					      false,
+					      FILE_READ_DATA);
 	if (!NT_STATUS_IS_OK(status)) {
 		unbecome_authenticated_pipe_user();
 		TALLOC_FREE(smb_fname);
@@ -576,9 +571,9 @@ bool mds_add_result(struct sl_query *slq, const char *path)
 	}
 
 	/* This is needed to fetch the itime from the DOS attribute blob */
-	status = SMB_VFS_GET_DOS_ATTRIBUTES(slq->mds_ctx->conn,
-					    smb_fname,
-					    &attr);
+	status = SMB_VFS_FGET_DOS_ATTRIBUTES(slq->mds_ctx->conn,
+					     smb_fname->fsp,
+					     &attr);
 	if (!NT_STATUS_IS_OK(status)) {
 		/* Ignore the error, likely no DOS attr xattr */
 		DBG_DEBUG("SMB_VFS_FGET_DOS_ATTRIBUTES [%s]: %s\n",
@@ -588,7 +583,9 @@ bool mds_add_result(struct sl_query *slq, const char *path)
 
 	unbecome_authenticated_pipe_user();
 
+	smb_fname->st = smb_fname->fsp->fsp_name->st;
 	sb = smb_fname->st;
+	/* Done with smb_fname now. */
 	TALLOC_FREE(smb_fname);
 	ino64 = SMB_VFS_FS_FILE_ID(slq->mds_ctx->conn, &sb);
 
@@ -1341,20 +1338,26 @@ static bool slrpc_fetch_attributes(struct mds_ctx *mds_ctx,
 		elem = talloc_get_type_abort(p, struct sl_inode_path_map);
 		path = elem->path;
 
-		smb_fname = synthetic_smb_fname(talloc_tos(),
-						path,
-						NULL,
-						NULL,
-						0,
-						0);
-		if (smb_fname == NULL) {
-			DBG_ERR("synthetic_smb_fname() failed\n");
-			goto error;
+		status = synthetic_pathref(talloc_tos(),
+					   mds_ctx->conn->cwd_fsp,
+					   path,
+					   NULL,
+					   NULL,
+					   0,
+					   0,
+					   &smb_fname);
+		if (!NT_STATUS_IS_OK(status)) {
+			/* This is not an error, the user may lack permissions */
+			DBG_DEBUG("synthetic_pathref [%s]: %s\n",
+				  smb_fname_str_dbg(smb_fname),
+				  nt_errstr(status));
+			return true;
 		}
 
-		result = SMB_VFS_STAT(mds_ctx->conn, smb_fname);
+		result = SMB_VFS_FSTAT(smb_fname->fsp, &smb_fname->st);
 		if (result != 0) {
-			goto error;
+			TALLOC_FREE(smb_fname);
+			return true;
 		}
 
 		sp = &smb_fname->st;
@@ -1565,6 +1568,11 @@ static int mds_ctx_destructor_cb(struct mds_ctx *mds_ctx)
 		talloc_free(mds_ctx->query_list);
 	}
 	TALLOC_FREE(mds_ctx->ino_path_map);
+
+	if (mds_ctx->conn != NULL) {
+		SMB_VFS_DISCONNECT(mds_ctx->conn);
+		conn_free(mds_ctx->conn);
+	}
 
 	ZERO_STRUCTP(mds_ctx);
 

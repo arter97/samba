@@ -36,6 +36,7 @@ else
 fi
 
 setup_ctdb_base "$CTDB_TEST_TMP_DIR" "etc-ctdb" \
+		debug_locks.sh \
 		functions \
 		nfs-checks.d \
 		nfs-linux-kernel-callout \
@@ -281,6 +282,7 @@ setup_public_addresses ()
 
 	echo "Setting up public addresses in ${_f}"
 	cat >"$_f" <<EOF
+# This is a comment
 10.0.0.1/24 dev123
 10.0.0.2/24 dev123
 10.0.0.3/24 dev123
@@ -319,16 +321,6 @@ ctdb_get_1_interface ()
 {
     _t=$(ctdb_get_interfaces)
     echo ${_t%% *}
-}
-
-# Print all public addresses as: interface IP maskbits
-# Each line is suitable for passing to takeip/releaseip
-ctdb_get_all_public_addresses ()
-{
-    _f="${CTDB_BASE}/public_addresses"
-    while IFS="/$IFS" read _ip _maskbits _ifaces ; do
-	echo "$_ifaces $_ip $_maskbits"
-    done <"$_f"
 }
 
 # Print public addresses on this node as: interface IP maskbits
@@ -475,6 +467,7 @@ define_test ()
 		;;
 	*)
 		script="${_f%.*}"
+		script="$_f"
 		unset event
 		script_dir="${CTDB_BASE}"
 	esac
@@ -483,7 +476,11 @@ define_test ()
 	[ -r "$_s" ] || \
 		die "Internal error - unable to find script \"${_s}\""
 
-	script_short="${script%.script}"
+	case "$script" in
+	*.script) script_short="${script%.script}" ;;
+	*.sh) script_short="${script%.sh}" ;;
+	*) script_short="$script" ;;
+	esac
 
 	printf "%-17s %-10s %-4s - %s\n\n" \
 	       "$script_short" "$event" "$_num" "$desc"

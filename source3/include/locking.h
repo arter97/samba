@@ -67,12 +67,11 @@ struct smbd_lock_element {
 	struct GUID req_guid;
 	uint64_t smblctx;
 	enum brl_type brltype;
+	enum brl_flavour lock_flav;
 	uint64_t offset;
 	uint64_t count;
 };
 
-struct share_mode_lock {
-	struct share_mode_data *data;
-};
+struct share_mode_lock;
 
 #endif /* _LOCKING_H_ */

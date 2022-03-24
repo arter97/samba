@@ -26,6 +26,7 @@
 
 #include "librpc/rpc/rpc_common.h"
 #include "librpc/ndr/libndr.h"
+#include "librpc/gen_ndr/security.h"
 
 /* modules can use the following to determine if the interface has changed
  * please increment the version number after each interface change
@@ -115,7 +116,7 @@ struct dcesrv_call_state {
 	 * and skip the reply
 	 *
 	 * this is only allowed to the backend when DCESRV_CALL_STATE_FLAG_MAY_ASYNC
-	 * is alerady set by the frontend
+	 * is already set by the frontend
 	 *
 	 * the backend then needs to call dcesrv_reply() when it's
 	 * ready to send the reply
@@ -191,7 +192,7 @@ struct dcesrv_handle {
 	struct dcesrv_handle *next, *prev;
 	struct dcesrv_assoc_group *assoc_group;
 	struct policy_handle wire_handle;
-	struct dom_sid *sid;
+	struct dom_sid sid;
 	enum dcerpc_AuthLevel min_auth_level;
 	const struct dcesrv_interface *iface;
 	void *data;
@@ -349,7 +350,7 @@ struct dcesrv_endpoint_server {
 
 	/* this function can be used by other endpoint servers to
 	 * ask for a dcesrv_interface implementation
-	 * - iface must be reference to an already existeng struct !
+	 * - iface must be reference to an already existing struct !
 	 */
 	bool (*interface_by_name)(struct dcesrv_interface *iface, const char *);
 };
@@ -380,15 +381,24 @@ struct dcesrv_assoc_group {
 
 struct dcesrv_context_callbacks {
 	struct {
-		void (*successful_authz)(struct dcesrv_call_state *);
+		void (*successful_authz)(
+			struct dcesrv_call_state *call, void *private_data);
+		void *private_data;
 	} log;
 	struct {
-		NTSTATUS (*gensec_prepare)(TALLOC_CTX *mem_ctx,
-					struct dcesrv_call_state *call,
-					struct gensec_security **out);
+		NTSTATUS (*gensec_prepare)(
+			TALLOC_CTX *mem_ctx,
+			struct dcesrv_call_state *call,
+			struct gensec_security **out,
+			void *private_data);
+		void *private_data;
+		void (*become_root)(void);
+		void (*unbecome_root)(void);
 	} auth;
 	struct {
-		NTSTATUS (*find)(struct dcesrv_call_state *);
+		NTSTATUS (*find)(
+			struct dcesrv_call_state *call, void *private_data);
+		void *private_data;
 	} assoc_group;
 };
 
@@ -432,7 +442,7 @@ struct dcesrv_context {
 
 	struct dcesrv_connection *broken_connections;
 
-	struct dcesrv_context_callbacks callbacks;
+	struct dcesrv_context_callbacks *callbacks;
 };
 
 /* this structure is used by modules to determine the size of some critical types */
@@ -454,6 +464,11 @@ NTSTATUS dcesrv_interface_register(struct dcesrv_context *dce_ctx,
 				   const char *ncacn_np_secondary_endpoint,
 				   const struct dcesrv_interface *iface,
 				   const struct security_descriptor *sd);
+NTSTATUS dcesrv_interface_register_b(struct dcesrv_context *dce_ctx,
+				   struct dcerpc_binding *binding,
+				   struct dcerpc_binding *binding2,
+				   const struct dcesrv_interface *iface,
+				   const struct security_descriptor *sd);
 NTSTATUS dcerpc_register_ep_server(const struct dcesrv_endpoint_server *ep_server);
 NTSTATUS dcesrv_init_ep_servers(struct dcesrv_context *dce_ctx,
 				const char **ep_servers);
@@ -469,7 +484,9 @@ NTSTATUS dcesrv_init_context(TALLOC_CTX *mem_ctx,
 			     struct loadparm_context *lp_ctx,
 			     struct dcesrv_context_callbacks *cb,
 			     struct dcesrv_context **_dce_ctx);
-NTSTATUS dcesrv_reinit_context(struct dcesrv_context *dce_ctx);
+void dcesrv_context_set_callbacks(
+	struct dcesrv_context *dce_ctx,
+	struct dcesrv_context_callbacks *cb);
 
 NTSTATUS dcesrv_reply(struct dcesrv_call_state *call);
 struct dcesrv_handle *dcesrv_handle_create(struct dcesrv_call_state *call,
@@ -624,9 +641,16 @@ _PUBLIC_ void dcesrv_sock_report_output_data(struct dcesrv_connection *dce_conn)
 
 _PUBLIC_ NTSTATUS dcesrv_connection_loop_start(struct dcesrv_connection *conn);
 
-_PUBLIC_ const struct dcesrv_interface *find_interface_by_uuid(
-				const struct dcesrv_endpoint *endpoint,
-				const struct GUID *uuid, uint32_t if_version);
+_PUBLIC_ void dcesrv_loop_next_packet(
+	struct dcesrv_connection *dce_conn,
+	struct ncacn_packet *pkt,
+	DATA_BLOB buffer);
+
+_PUBLIC_ NTSTATUS dcesrv_call_dispatch_local(struct dcesrv_call_state *call);
+
+_PUBLIC_ const struct dcesrv_interface *find_interface_by_syntax_id(
+	const struct dcesrv_endpoint *endpoint,
+	const struct ndr_syntax_id *interface);
 
 void _dcesrv_save_ndr_fuzz_seed(DATA_BLOB call_blob,
 				struct dcesrv_call_state *call,

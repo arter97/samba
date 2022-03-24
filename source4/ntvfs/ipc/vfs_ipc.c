@@ -43,6 +43,8 @@
 #include "system/locale.h"
 #include "system/filesys.h"
 
+#undef strncasecmp
+
 /* this is the private structure used to keep the state of an open
    ipc$ connection. It needs to keep information about all open
    pipes */
@@ -328,6 +330,7 @@ static NTSTATUS ipc_open(struct ntvfs_module_context *ntvfs,
 					  ipriv->ntvfs->ctx->event_ctx,
 					  directory,
 					  fname,
+					  NCACN_NP,
 					  remote_client_addr,
 					  NULL,
 					  local_server_addr,

@@ -1,4 +1,4 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
    Parameter loading functions
    Copyright (C) Karl Auer 1993-1998
@@ -41,7 +41,7 @@
  * 3) add it to the list of available functions (eg: using FN_GLOBAL_STRING())
  * 4) If it's a global then initialise it in init_globals. If a local
  *    (ie. service) parameter then initialise it in the sDefault structure
- *  
+ *
  *
  * Notes:
  *   The configuration file is processed sequentially for speed. It is NOT
@@ -63,7 +63,7 @@
 #include "lib/smbconf/smbconf.h"
 #include "lib/smbconf/smbconf_init.h"
 
-#include "ads.h"
+#include "include/smb_ldap.h"
 #include "../librpc/gen_ndr/svcctl.h"
 #include "intl.h"
 #include "../libcli/smb/smb_signing.h"
@@ -74,6 +74,9 @@
 #include "source4/lib/tls/tls.h"
 #include "libcli/auth/ntlm_check.h"
 #include "lib/crypto/gnutls_helpers.h"
+#include "lib/util/string_wrappers.h"
+#include "auth/credentials/credentials.h"
+#include "source3/lib/substitute.h"
 
 #ifdef HAVE_SYS_SYSCTL_H
 #include <sys/sysctl.h>
@@ -195,6 +198,7 @@ static const struct loadparm_service _sDefault =
 	.map_hidden = false,
 	.map_archive = true,
 	.store_dos_attributes = true,
+	.smbd_max_xattr_size = 65536,
 	.dmapi_support = false,
 	.locking = true,
 	.strict_locking = Auto,
@@ -237,18 +241,20 @@ static const struct loadparm_service _sDefault =
 	.acl_map_full_control = true,
 	.acl_group_control = false,
 	.acl_allow_execute_always = false,
+	.acl_flag_inherited_canonicalization = true,
 	.aio_read_size = 1,
 	.aio_write_size = 1,
 	.map_readonly = MAP_READONLY_NO,
 	.directory_name_cache_size = 100,
-	.smb_encrypt = SMB_SIGNING_DEFAULT,
-	.kernel_share_modes = true,
+	.server_smb_encrypt = SMB_ENCRYPTION_DEFAULT,
+	.kernel_share_modes = false,
 	.durable_handles = true,
 	.check_parent_directory_delete_on_close = false,
 	.param_opt = NULL,
 	.smbd_search_ask_sharemode = true,
 	.smbd_getinfo_ask_sharemode = true,
 	.spotlight_backend = SPOTLIGHT_BACKEND_NOINDEX,
+	.honor_change_notify_privilege = false,
 	.dummy = ""
 };
 
@@ -670,6 +676,7 @@ static void init_globals(struct loadparm_context *lp_ctx, bool reinit_globals)
 	lpcfg_string_set(Globals.ctx, &Globals.log_level, "0");
 	Globals.debug_prefix_timestamp = false;
 	Globals.debug_hires_timestamp = true;
+	Globals.debug_syslog_format = false;
 	Globals.debug_pid = false;
 	Globals.debug_uid = false;
 	Globals.debug_class = false;
@@ -680,15 +687,6 @@ static void init_globals(struct loadparm_context *lp_ctx, bool reinit_globals)
 	Globals.machine_password_timeout = 60 * 60 * 24 * 7;	/* 7 days default. */
 	Globals.lm_announce = Auto;	/* = Auto: send only if LM clients found */
 	Globals.lm_interval = 60;
-#if (defined(HAVE_NETGROUP) && defined(WITH_AUTOMOUNT))
-	Globals.nis_homedir = false;
-#ifdef WITH_NISPLUS_HOME
-	lpcfg_string_set(Globals.ctx, &Globals.homedir_map,
-			 "auto_home.org_dir");
-#else
-	lpcfg_string_set(Globals.ctx, &Globals.homedir_map, "auto.home");
-#endif
-#endif
 	Globals.time_server = false;
 	Globals.bind_interfaces_only = false;
 	Globals.unix_password_sync = false;
@@ -757,8 +755,8 @@ static void init_globals(struct loadparm_context *lp_ctx, bool reinit_globals)
 	Globals.ldap_server_require_strong_auth =
 		LDAP_SERVER_REQUIRE_STRONG_AUTH_YES;
 
-	/* This is what we tell the afs client. in reality we set the token 
-	 * to never expire, though, when this runs out the afs client will 
+	/* This is what we tell the afs client. in reality we set the token
+	 * to never expire, though, when this runs out the afs client will
 	 * forget the token. Set to 0 to get NEVERDATE.*/
 	Globals.afs_token_lifetime = 604800;
 	Globals.cups_connection_timeout = CUPS_DEFAULT_CONNECTION_TIMEOUT;
@@ -821,7 +819,7 @@ static void init_globals(struct loadparm_context *lp_ctx, bool reinit_globals)
 	Globals.winbind_nss_info = str_list_make_v3_const(NULL, "template", NULL);
 	Globals.winbind_refresh_tickets = false;
 	Globals.winbind_offline_logon = false;
-	Globals.winbind_scan_trusted_domains = true;
+	Globals.winbind_scan_trusted_domains = false;
 
 	Globals.idmap_cache_time = 86400 * 7; /* a week by default */
 	Globals.idmap_negative_cache_time = 120; /* 2 minutes by default */
@@ -851,7 +849,7 @@ static void init_globals(struct loadparm_context *lp_ctx, bool reinit_globals)
 	lpcfg_string_set(Globals.ctx, &Globals.usershare_path, s);
 	TALLOC_FREE(s);
 	lpcfg_string_set(Globals.ctx, &Globals.usershare_template_share, "");
-	Globals.usershare_max_shares = 100;
+	Globals.usershare_max_shares = 0;
 	/* By default disallow sharing of directories not owned by the sharer. */
 	Globals.usershare_owner_only = true;
 	/* By default disallow guest access to usershares. */
@@ -871,6 +869,7 @@ static void init_globals(struct loadparm_context *lp_ctx, bool reinit_globals)
 	Globals.smb2_max_trans = DEFAULT_SMB2_MAX_TRANSACT;
 	Globals.smb2_max_credits = DEFAULT_SMB2_MAX_CREDITS;
 	Globals.smb2_leases = true;
+	Globals.server_multi_channel_support = true;
 
 	lpcfg_string_set(Globals.ctx, &Globals.ncalrpc_dir,
 			 get_dyn_NCALRPCDIR());
@@ -888,8 +887,6 @@ static void init_globals(struct loadparm_context *lp_ctx, bool reinit_globals)
 	lpcfg_string_set(Globals.ctx,
 			 &Globals.tls_priority,
 			 "NORMAL:-VERS-SSL3.0");
-
-	lpcfg_string_set(Globals.ctx, &Globals.share_backend, "classic");
 
 	Globals._preferred_master = Auto;
 
@@ -945,6 +942,8 @@ static void init_globals(struct loadparm_context *lp_ctx, bool reinit_globals)
 
 	Globals.kpasswd_port = 464;
 
+	Globals.kdc_enable_fast = true;
+
 	Globals.aio_max_threads = 100;
 
 	lpcfg_string_set(Globals.ctx,
@@ -960,7 +959,34 @@ static void init_globals(struct loadparm_context *lp_ctx, bool reinit_globals)
 	Globals.ldap_max_authenticated_request_size = 16777216;
 	Globals.ldap_max_search_request_size = 256000;
 
+	/* Async DNS query timeout (in seconds). */
+	Globals.async_dns_timeout = 10;
+
+	Globals.client_smb_encrypt = SMB_ENCRYPTION_DEFAULT;
+
+	Globals._client_use_kerberos = CRED_USE_KERBEROS_DESIRED;
+
+	Globals.client_protection = CRED_CLIENT_PROTECTION_DEFAULT;
+
+	Globals.winbind_use_krb5_enterprise_principals = true;
+
+	Globals.client_smb3_signing_algorithms =
+		str_list_make_v3_const(NULL, DEFAULT_SMB3_SIGNING_ALGORITHMS, NULL);
+	Globals.server_smb3_signing_algorithms =
+		str_list_make_v3_const(NULL, DEFAULT_SMB3_SIGNING_ALGORITHMS, NULL);
+
+	Globals.client_smb3_encryption_algorithms =
+		str_list_make_v3_const(NULL, DEFAULT_SMB3_ENCRYPTION_ALGORITHMS, NULL);
+	Globals.server_smb3_encryption_algorithms =
+		str_list_make_v3_const(NULL, DEFAULT_SMB3_ENCRYPTION_ALGORITHMS, NULL);
+
 	Globals.min_domain_uid = 1000;
+
+	/*
+	 * By default allow smbd and winbindd to start samba-dcerpcd as
+	 * a named-pipe helper.
+	 */
+	Globals.rpc_start_on_demand_helpers = true;
 
 	/* Now put back the settings that were set with lp_set_cmdline() */
 	apply_lp_set_cmdline();
@@ -1413,7 +1439,7 @@ static void free_service(struct loadparm_service *pservice)
 
 static void free_service_byindex(int idx)
 {
-	if ( !LP_SNUM_OK(idx) ) 
+	if ( !LP_SNUM_OK(idx) )
 		return;
 
 	ServicePtrs[idx]->valid = false;
@@ -1434,8 +1460,8 @@ static void free_service_byindex(int idx)
 }
 
 /***************************************************************************
- Add a new service to the services array initialising it with the given 
- service. 
+ Add a new service to the services array initialising it with the given
+ service.
 ***************************************************************************/
 
 static int add_a_service(const struct loadparm_service *pservice, const char *name)
@@ -1483,7 +1509,7 @@ static int add_a_service(const struct loadparm_service *pservice, const char *na
 		lpcfg_string_set(ServicePtrs[i], &ServicePtrs[i]->szService,
 				 name);
 
-	DEBUG(8,("add_a_service: Creating snum = %d for %s\n", 
+	DEBUG(8,("add_a_service: Creating snum = %d for %s\n",
 		i, ServicePtrs[i]->szService));
 
 	if (!hash_a_service(ServicePtrs[i]->szService, i)) {
@@ -1595,7 +1621,7 @@ bool lp_add_home(const char *pszHomename, int iDefaultService,
 
 	ServicePtrs[i]->autoloaded = true;
 
-	DEBUG(3, ("adding home's share [%s] for user '%s' at '%s'\n", pszHomename, 
+	DEBUG(3, ("adding home's share [%s] for user '%s' at '%s'\n", pszHomename,
 	       user, ServicePtrs[i]->path ));
 
 	return true;
@@ -3042,7 +3068,7 @@ void lp_killservice(int iServiceIn)
 }
 
 /***************************************************************************
- Save the curent values of all global and sDefault parameters into the 
+ Save the curent values of all global and sDefault parameters into the
  defaults union. This allows testparm to show only the
  changed (ie. non-default) parameters.
 ***************************************************************************/
@@ -4327,7 +4353,7 @@ int lp_servicenumber(const char *pszServiceName)
 }
 
 /*******************************************************************
- A useful volume label function. 
+ A useful volume label function.
 ********************************************************************/
 
 const char *volume_label(TALLOC_CTX *ctx, int snum)
@@ -4391,8 +4417,8 @@ int lp_default_server_announce(void)
 	default_server_announce |= SV_TYPE_SERVER;
 	default_server_announce |= SV_TYPE_SERVER_UNIX;
 
-	/* note that the flag should be set only if we have a 
-	   printer service but nmbd doesn't actually load the 
+	/* note that the flag should be set only if we have a
+	   printer service but nmbd doesn't actually load the
 	   services so we can't tell   --jerry */
 
 	default_server_announce |= SV_TYPE_PRINTQ_SERVER;
@@ -4716,6 +4742,16 @@ int lp_client_ipc_signing(void)
 	return client_ipc_signing;
 }
 
+enum credentials_use_kerberos lp_client_use_kerberos(void)
+{
+	if (lp_weak_crypto() == SAMBA_WEAK_CRYPTO_DISALLOWED) {
+		return CRED_USE_KERBEROS_REQUIRED;
+	}
+
+	return lp__client_use_kerberos();
+}
+
+
 int lp_rpc_low_port(void)
 {
 	return Globals.rpc_low_port;
@@ -4767,4 +4803,13 @@ enum samba_weak_crypto lp_weak_crypto()
 	}
 
 	return Globals.weak_crypto;
+}
+
+uint32_t lp_get_async_dns_timeout(void)
+{
+	/*
+	 * Clamp minimum async dns timeout to 1 second
+	 * as per the man page.
+	 */
+	return MAX(Globals.async_dns_timeout, 1);
 }

@@ -36,6 +36,7 @@
 #include "librpc/rpc/dcesrv_core.h"
 #include "librpc/gen_ndr/ndr_eventlog_scompat.h"
 #include "rpc_server/eventlog/srv_eventlog_reg.h"
+#include "lib/global_contexts.h"
 
 #undef  DBGC_CLASS
 #define DBGC_CLASS DBGC_RPC_SRV
@@ -104,17 +105,7 @@ static NTSTATUS get_nt_acl_no_snum(TALLOC_CTX *ctx,
 	TALLOC_CTX *frame = talloc_stackframe();
 	struct conn_struct_tos *c = NULL;
 	NTSTATUS status = NT_STATUS_OK;
-	struct smb_filename *smb_fname = synthetic_smb_fname(talloc_tos(),
-						fname,
-						NULL,
-						NULL,
-						0,
-						0);
-
-	if (smb_fname == NULL) {
-		TALLOC_FREE(frame);
-		return NT_STATUS_NO_MEMORY;
-	}
+	struct smb_filename *pathref_fname = NULL;
 
 	if (!posix_locking_init(false)) {
 		TALLOC_FREE(frame);
@@ -127,21 +118,33 @@ static NTSTATUS get_nt_acl_no_snum(TALLOC_CTX *ctx,
 					session_info,
 					&c);
 	if (!NT_STATUS_IS_OK(status)) {
-		DEBUG(0,("create_conn_struct returned %s.\n",
-			nt_errstr(status)));
+		DBG_ERR("create_conn_struct_tos() returned %s.\n",
+			nt_errstr(status));
 		TALLOC_FREE(frame);
 		return status;
 	}
 
-	status = SMB_VFS_GET_NT_ACL_AT(c->conn,
+	status = synthetic_pathref(talloc_tos(),
 				c->conn->cwd_fsp,
-				smb_fname,
+				fname,
+				NULL,
+				NULL,
+				0,
+				0,
+				&pathref_fname);
+	if (!NT_STATUS_IS_OK(status)) {
+		DBG_ERR("synthetic_pathref for file %s returned %s.\n",
+			  fname, nt_errstr(status));
+		TALLOC_FREE(frame);
+		return status;
+	}
+	status = SMB_VFS_FGET_NT_ACL(pathref_fname->fsp,
 				security_info_wanted,
 				ctx,
 				sd);
 	if (!NT_STATUS_IS_OK(status)) {
-		DEBUG(0, ("get_nt_acl_no_snum: SMB_VFS_GET_NT_ACL_AT returned %s.\n",
-			  nt_errstr(status)));
+		DBG_ERR("SMB_VFS_FGET_NT_ACL for file %s returned %s.\n",
+			  fname, nt_errstr(status));
 	}
 
 	TALLOC_FREE(frame);
@@ -285,6 +288,9 @@ static bool get_oldest_entry_hook( EVENTLOG_INFO * info )
 
 static NTSTATUS elog_open( struct pipes_struct * p, const char *logname, struct policy_handle *hnd )
 {
+	struct dcesrv_call_state *dce_call = p->dce_call;
+	struct auth_session_info *session_info =
+		dcesrv_call_session_info(dce_call);
 	EVENTLOG_INFO *elog;
 
 	/* first thing is to validate the eventlog name */
@@ -318,7 +324,7 @@ static NTSTATUS elog_open( struct pipes_struct * p, const char *logname, struct 
 			elog->logname = talloc_strdup( elog, ELOG_APPL );
 
 			/* do the access check */
-			if ( !elog_check_access( elog, p->session_info) ) {
+			if ( !elog_check_access( elog, session_info) ) {
 				TALLOC_FREE( elog );
 				return NT_STATUS_ACCESS_DENIED;
 			}
@@ -336,7 +342,7 @@ static NTSTATUS elog_open( struct pipes_struct * p, const char *logname, struct 
 
 	/* now do the access check.  Close the tdb if we fail here */
 
-	if ( !elog_check_access( elog, p->session_info) ) {
+	if ( !elog_check_access( elog, session_info) ) {
 		TALLOC_FREE( elog );
 		return NT_STATUS_ACCESS_DENIED;
 	}
@@ -1030,13 +1036,7 @@ static NTSTATUS eventlog_init_server(struct dcesrv_context *dce_ctx,
 		const struct dcesrv_endpoint_server *ep_server)
 {
 	struct messaging_context *msg_ctx = global_messaging_context();
-	NTSTATUS status;
 	bool ok;
-
-	status = dcesrv_init_ep_server(dce_ctx, "winreg");
-	if (!NT_STATUS_IS_OK(status)) {
-		return status;
-	}
 
 	ok = eventlog_init_winreg(msg_ctx);
 	if (!ok) {

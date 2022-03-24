@@ -22,10 +22,12 @@ bld.SAMBA3_BINARY('rpcclient',
                  cmd_witness.c
 		 cmd_iremotewinspool.c
                  cmd_spotlight.c
+                 cmd_unixinfo.c
 		 ''',
                  deps='''
                  talloc
-                 popt_samba3_cmdline
+                 CMDLINE_S3
+                 cmdline_contexts
                  pdb
                  libsmb
                  smbconf
@@ -55,4 +57,5 @@ bld.SAMBA3_BINARY('rpcclient',
                  RPC_NDR_WINSPOOL
                  mdssvc
                  RPC_NDR_MDSSVC
+                 RPC_NDR_UNIXINFO
                  ''')

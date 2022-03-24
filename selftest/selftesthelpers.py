@@ -18,7 +18,6 @@
 # by the name of the test, the environment it needs and the command to run, all
 # three separated by newlines. All other lines in the output are considered
 # comments.
-from __future__ import print_function
 
 import os
 import subprocess
@@ -202,7 +201,8 @@ def plansmbtorture4testsuite(name, env, options, target, modname=None, environ={
     cmdline = ""
     if environ:
         environ = dict(environ)
-        cmdline = ["%s=%s" % item for item in environ.items()]
+        cmdline_env = ["%s=%s" % item for item in environ.items()]
+        cmdline += " ".join(cmdline_env) + " "
     cmdline += " %s $LISTOPT $LOADLIST %s %s" % (valgrindify(smbtorture4), options, name)
     plantestsuite_loadlist(modname, env, cmdline)
 

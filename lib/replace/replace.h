@@ -465,7 +465,7 @@ int rep_dlclose(void *handle);
 #endif
 
 #ifndef _DEPRECATED_
-#ifdef HAVE___ATTRIBUTE__
+#if __has_attribute(deprecated) || (__GNUC__ >= 3)
 #define _DEPRECATED_ __attribute__ ((deprecated))
 #else
 #define _DEPRECATED_
@@ -964,6 +964,16 @@ int rep_memset_s(void *dest, size_t destsz, int ch, size_t count);
 const char *rep_getprogname(void);
 #endif
 
+#ifndef HAVE_COPY_FILE_RANGE
+#define copy_file_range rep_copy_file_range
+ssize_t rep_copy_file_range(int fd_in,
+			    loff_t *off_in,
+			    int fd_out,
+			    loff_t *off_out,
+			    size_t len,
+			    unsigned int flags);
+#endif /* HAVE_COPY_FILE_RANGE */
+
 #ifndef FALL_THROUGH
 # ifdef HAVE_FALLTHROUGH_ATTRIBUTE
 #  define FALL_THROUGH __attribute__ ((fallthrough))
@@ -972,10 +982,59 @@ const char *rep_getprogname(void);
 # endif /* HAVE_FALLTHROUGH_ATTRIBUTE */
 #endif /* FALL_THROUGH */
 
-bool nss_wrapper_enabled(void);
-bool nss_wrapper_hosts_enabled(void);
-bool socket_wrapper_enabled(void);
-bool uid_wrapper_enabled(void);
+struct __rep_cwrap_enabled_state {
+	const char *fnname;
+	bool cached;
+	bool retval;
+};
+
+static inline bool __rep_cwrap_enabled_fn(struct __rep_cwrap_enabled_state *state)
+{
+	bool (*__wrapper_enabled_fn)(void) = NULL;
+
+	if (state->cached) {
+		return state->retval;
+	}
+	state->retval = false;
+	state->cached = true;
+
+	__wrapper_enabled_fn = dlsym(RTLD_DEFAULT, state->fnname);
+	if (__wrapper_enabled_fn == NULL) {
+		return state->retval;
+	}
+
+	state->retval = __wrapper_enabled_fn();
+	return state->retval;
+}
+
+static inline bool nss_wrapper_enabled(void)
+{
+	struct __rep_cwrap_enabled_state state = {
+		.fnname = "nss_wrapper_enabled",
+	};
+	return __rep_cwrap_enabled_fn(&state);
+}
+static inline bool nss_wrapper_hosts_enabled(void)
+{
+	struct __rep_cwrap_enabled_state state = {
+		.fnname = "nss_wrapper_hosts_enabled",
+	};
+	return __rep_cwrap_enabled_fn(&state);
+}
+static inline bool socket_wrapper_enabled(void)
+{
+	struct __rep_cwrap_enabled_state state = {
+		.fnname = "socket_wrapper_enabled",
+	};
+	return __rep_cwrap_enabled_fn(&state);
+}
+static inline bool uid_wrapper_enabled(void)
+{
+	struct __rep_cwrap_enabled_state state = {
+		.fnname = "uid_wrapper_enabled",
+	};
+	return __rep_cwrap_enabled_fn(&state);
+}
 
 static inline bool _hexcharval(char c, uint8_t *val)
 {

@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from __future__ import print_function
 
 __docformat__ = "restructuredText"
 
@@ -33,7 +32,7 @@ from samba.provision import find_provision_key_parameters
 from samba.upgradehelpers import (get_paths, get_ldbs)
 from ldb import SCOPE_BASE, Message, MessageElement, Dn, FLAG_MOD_ADD
 
-parser = optparse.OptionParser("chgtdcpass [options]")
+parser = optparse.OptionParser("addlotscontacts [options]")
 sambaopts = options.SambaOptions(parser)
 parser.add_option_group(sambaopts)
 parser.add_option_group(options.VersionOptions(parser))

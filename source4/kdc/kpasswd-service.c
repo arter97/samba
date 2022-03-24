@@ -21,7 +21,7 @@
 */
 
 #include "includes.h"
-#include "smbd/service_task.h"
+#include "samba/service_task.h"
 #include "tsocket/tsocket.h"
 #include "auth/credentials/credentials.h"
 #include "auth/auth.h"
@@ -156,7 +156,10 @@ kdc_code kpasswd_process(struct kdc_server *kdc,
 		goto done;
 	}
 
-	cli_credentials_set_conf(server_credentials, kdc->task->lp_ctx);
+	ok = cli_credentials_set_conf(server_credentials, kdc->task->lp_ctx);
+	if (!ok) {
+		goto done;
+	}
 
 	ok = cli_credentials_set_username(server_credentials,
 					  "kadmin/changepw",

@@ -128,6 +128,9 @@ struct ctdb_call {
 /* SRVID to inform of election data */
 #define CTDB_SRVID_ELECTION	0xF100000000000000LL
 
+/* SRVID for broadcasting leader */
+#define CTDB_SRVID_LEADER 0xF101000000000000LL
+
 /* SRVID to inform clients that the cluster has been reconfigured */
 #define CTDB_SRVID_RECONFIGURE 0xF200000000000000LL
 
@@ -236,8 +239,8 @@ enum ctdb_controls {CTDB_CONTROL_PROCESS_EXISTS          = 0,
 		    CTDB_CONTROL_GET_NODEMAPv4           = 10, /* obsolete */
 		    CTDB_CONTROL_SET_DMASTER             = 11, /* obsolete */
 		    /* #12 removed */
-		    CTDB_CONTROL_PULL_DB                 = 13,
-		    CTDB_CONTROL_PUSH_DB                 = 14,
+		    CTDB_CONTROL_PULL_DB                 = 13, /* obsolete */
+		    CTDB_CONTROL_PUSH_DB                 = 14, /* obsolete */
 		    CTDB_CONTROL_GET_RECMODE             = 15,
 		    CTDB_CONTROL_SET_RECMODE             = 16,
 		    CTDB_CONTROL_STATISTICS_RESET        = 17,
@@ -254,8 +257,8 @@ enum ctdb_controls {CTDB_CONTROL_PROCESS_EXISTS          = 0,
 		    /* #28 removed */
 		    CTDB_CONTROL_DUMP_MEMORY             = 29,
 		    CTDB_CONTROL_GET_PID                 = 30,
-		    CTDB_CONTROL_GET_RECMASTER           = 31,
-		    CTDB_CONTROL_SET_RECMASTER           = 32,
+		    CTDB_CONTROL_GET_RECMASTER           = 31, /* obsolete */
+		    CTDB_CONTROL_SET_RECMASTER           = 32, /* obsolete */
 		    CTDB_CONTROL_FREEZE                  = 33,
 		    CTDB_CONTROL_THAW                    = 34, /* obsolete */
 		    CTDB_CONTROL_GET_PNN                 = 35,
@@ -998,7 +1001,7 @@ union ctdb_message_data {
 	uint32_t db_id;
 	/* SRVID_MEM_DUMP, SRVID_TAKEOVER_RUN */
 	struct ctdb_srvid_message *msg;
-	/* SRVID_BANNING, SRVID_REBALANCE_NODE */
+	/* SRVID_BANNING, SRVID_REBALANCE_NODE, SRVID_LEADER */
 	uint32_t pnn;
 	/* SRVID_DISABLE_TAKEOVER_RUNS, SRVID_DISABLE_RECOVERIES */
 	struct ctdb_disable_message *disable;

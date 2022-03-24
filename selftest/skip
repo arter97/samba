@@ -40,19 +40,8 @@
 ^samba3.smbtorture_s3.plain.DIR1\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
 ^samba3.smbtorture_s3.plain.DIR-CREATETIME\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
 ^samba3.smbtorture_s3.plain.DELETE-LN\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
 ^samba3.smbtorture_s3.plain.UID-REGRESSION-TEST\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
 ^samba3.smbtorture_s3.plain.SHORTNAME-TEST\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX-APPEND\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX-SYMLINK-ACL\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX-SYMLINK-EA\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX-OFD-LOCK\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX-STREAM-DELETE\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX-MKDIR\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX-ACL-OPLOCK\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX-ACL-SHAREROOT\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.POSIX-BLOCKING-LOCK\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
-^samba3.smbtorture_s3.plain.WINDOWS-BAD-SYMLINK\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
 ^samba3.smbtorture_s3.plain.RENAME-ACCESS\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
 ^samba3.smbtorture_s3.plain.OWNER-RIGHTS\(ad_dc_ntvfs\) # Don't test against the s4 ntvfs server anymore
 ^samba3.smbtorture_s3.plain.PIDHIGH\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
@@ -61,6 +50,8 @@
 ^samba3.smbtorture_s3.plain.BAD-NBT-SESSION\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
 ^samba3.smbtorture_s3.plain.SMB2-SESSION-REAUTH\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
 ^samba3.smbtorture_s3.plain.SMB2-SESSION-RECONNECT\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
+^samba3.smbtorture_s3.plain.SMB1-WILD-MANGLE-UNLINK\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
+^samba3.smbtorture_s3.plain.SMB1-WILD-MANGLE-RENAME\(ad_dc_ntvfs\) # Fails against the s4 ntvfs server
 ^samba3.*base.charset
 ^samba3.*raw.context
 ^samba3.*raw.ioctl
@@ -156,7 +147,6 @@ bench # don't run benchmarks in our selftest
 # ktutil might not be installed or from mit...
 # we should build a samba4ktutil and use that instead
 ^samba4.blackbox.ktpass # this test isn't portable ...
-^samba4.rpc.unixinfo # This contains a server-side getpwuid call which hangs the server when nss_winbindd is in use
 ^samba.tests.dcerpc.unix  # This contains a server-side getpwuid call which hangs the server when nss_winbindd is in use
 ^samba4.smb2.mangle.*\(ad_dc_ntvfs\)$ # Ignore ad_dc_ntvfs since this is a new test
 ^samba4.smb2.tcon.*\(ad_dc_ntvfs\)$ # Ignore ad_dc_ntvfs since this is a new test

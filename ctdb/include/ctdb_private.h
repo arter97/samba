@@ -299,7 +299,6 @@ struct ctdb_context {
 	struct ctdb_statistics statistics_history[MAX_STAT_HISTORY];
 	struct ctdb_vnn_map *vnn_map;
 	uint32_t num_clients;
-	uint32_t recovery_master;
 	struct ctdb_client_ip *client_ip_list;
 	bool do_checkpublicip;
 	bool do_setsched;
@@ -796,10 +795,6 @@ int ctdb_control_getnodemap(struct ctdb_context *ctdb, uint32_t opcode,
 
 int ctdb_control_reload_nodes_file(struct ctdb_context *ctdb, uint32_t opcode);
 
-int32_t ctdb_control_pull_db(struct ctdb_context *ctdb, TDB_DATA indata,
-			     TDB_DATA *outdata);
-int32_t ctdb_control_push_db(struct ctdb_context *ctdb, TDB_DATA indata);
-
 int32_t ctdb_control_db_pull(struct ctdb_context *ctdb,
 			     struct ctdb_req_control_old *c,
 			     TDB_DATA indata, TDB_DATA *outdata);
@@ -829,8 +824,6 @@ int32_t ctdb_control_get_capabilities(struct ctdb_context *ctdb,
 				      TDB_DATA *outdata);
 
 int32_t ctdb_control_recd_ping(struct ctdb_context *ctdb);
-int32_t ctdb_control_set_recmaster(struct ctdb_context *ctdb,
-				   uint32_t opcode, TDB_DATA indata);
 
 void ctdb_node_become_inactive(struct ctdb_context *ctdb);
 
@@ -1038,5 +1031,7 @@ int ctdb_event_script_args(struct ctdb_context *ctdb,
 
 int ctdb_event_script(struct ctdb_context *ctdb,
 		      enum ctdb_event call);
+
+void ctdb_event_reopen_logs(struct ctdb_context *ctdb);
 
 #endif

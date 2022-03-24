@@ -23,6 +23,7 @@
 
 #include "includes.h"
 #include "system/locale.h"
+#include "smb_strtox.h"
 #undef strncasecmp
 #undef strcasemp
 
@@ -304,37 +305,6 @@ _PUBLIC_ bool set_boolean(const char *boolean_string, bool *boolean)
 	return false;
 }
 
-/**
-return the number of bytes occupied by a buffer in CH_UTF16 format
-the result includes the null termination
-**/
-_PUBLIC_ size_t utf16_len(const void *buf)
-{
-	size_t len;
-
-	for (len = 0; SVAL(buf,len); len += 2) ;
-
-	return len + 2;
-}
-
-/**
-return the number of bytes occupied by a buffer in CH_UTF16 format
-the result includes the null termination
-limited by 'n' bytes
-**/
-_PUBLIC_ size_t utf16_len_n(const void *src, size_t n)
-{
-	size_t len;
-
-	for (len = 0; (len+2 < n) && SVAL(src, len); len += 2) ;
-
-	if (len+2 <= n) {
-		len += 2;
-	}
-
-	return len;
-}
-
 _PUBLIC_ int memcmp_const_time(const void *s1, const void *s2, size_t n)
 {
 	const uint8_t *p1 = s1, *p2 = s2;
@@ -345,4 +315,27 @@ _PUBLIC_ int memcmp_const_time(const void *s1, const void *s2, size_t n)
 	}
 
 	return sum != 0;
+}
+
+_PUBLIC_ void talloc_asprintf_addbuf(char **ps, const char *fmt, ...)
+{
+	va_list ap;
+	char *s = *ps;
+	char *t = NULL;
+
+	if (s == NULL) {
+		return;
+	}
+
+	va_start(ap, fmt);
+	t = talloc_vasprintf_append_buffer(s, fmt, ap);
+	va_end(ap);
+
+	if (t == NULL) {
+		/* signal failure to the next caller */
+		TALLOC_FREE(s);
+		*ps = NULL;
+	} else {
+		*ps = t;
+	}
 }

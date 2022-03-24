@@ -103,6 +103,8 @@ SMBC_open_ctx(SMBCCTX *context,
 	if (strlen(path) > 0 && path[strlen(path) - 1] == '\\') {
 		status = NT_STATUS_OBJECT_PATH_INVALID;
 	} else {
+		struct cli_credentials *creds = NULL;
+
 		file = SMB_MALLOC_P(SMBCFILE);
 		if (!file) {
 			errno = ENOMEM;
@@ -112,9 +114,11 @@ SMBC_open_ctx(SMBCCTX *context,
 
 		ZERO_STRUCTP(file);
 
+		creds = context->internal->creds;
 		/*d_printf(">>>open: resolving %s\n", path);*/
 		status = cli_resolve_path(
-			frame, "", context->internal->auth_info,
+			frame, "",
+			creds,
 			srv->cli, path, &targetcli, &targetpath);
 		if (!NT_STATUS_IS_OK(status)) {
 			d_printf("Could not resolve %s\n", path);
@@ -132,8 +136,8 @@ SMBC_open_ctx(SMBCCTX *context,
 			/* Handle the error ... */
 
 			SAFE_FREE(file);
-			errno = SMBC_errno(context, targetcli);
 			TALLOC_FREE(frame);
+			errno = cli_status_to_errno(status);
 			return NULL;
 		}
 
@@ -277,8 +281,8 @@ SMBC_read_ctx(SMBCCTX *context,
 	status = cli_read(file->targetcli, file->cli_fd, (char *)buf, offset,
 			  count, &ret);
 	if (!NT_STATUS_IS_OK(status)) {
-		errno = SMBC_errno(context, file->targetcli);
 		TALLOC_FREE(frame);
+		errno = cli_status_to_errno(status);
 		return -1;
 	}
 
@@ -325,8 +329,8 @@ SMBC_splice_ctx(SMBCCTX *context,
 			    count, srcfile->offset, dstfile->offset, &written,
 			    splice_cb, priv);
 	if (!NT_STATUS_IS_OK(status)) {
-		errno = SMBC_errno(context, srcfile->targetcli);
 		TALLOC_FREE(frame);
+		errno = cli_status_to_errno(status);
 		return -1;
 	}
 
@@ -461,6 +465,7 @@ SMBC_getatr(SMBCCTX * context,
 	struct timespec change_time_ts = {0};
 	time_t write_time = 0;
 	SMB_INO_T ino = 0;
+	struct cli_credentials *creds = NULL;
 	TALLOC_CTX *frame = talloc_stackframe();
 	NTSTATUS status;
 
@@ -490,7 +495,10 @@ SMBC_getatr(SMBCCTX * context,
 	}
 	DEBUG(4,("SMBC_getatr: sending qpathinfo\n"));
 
-	status = cli_resolve_path(frame, "", context->internal->auth_info,
+	creds = context->internal->creds;
+
+	status = cli_resolve_path(frame, "",
+				  creds,
 				  srv->cli, fixedpath,
 				  &targetcli, &targetpath);
 	if (!NT_STATUS_IS_OK(status)) {

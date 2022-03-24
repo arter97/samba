@@ -300,6 +300,7 @@ struct debug_settings {
 	bool timestamp_logs;
 	bool debug_prefix_timestamp;
 	bool debug_hires_timestamp;
+	bool debug_syslog_format;
 	bool debug_pid;
 	bool debug_uid;
 	bool debug_class;
@@ -315,11 +316,13 @@ void debug_set_logfile(const char *name);
 void debug_set_settings(struct debug_settings *settings,
 			const char *logging_param,
 			int syslog_level, bool syslog_only);
+void debug_set_hostname(const char *name);
 bool reopen_logs_internal( void );
 void force_check_log_size( void );
 bool need_to_check_log_size( void );
 void check_log_size( void );
 void dbgflush( void );
+enum debug_logtype debug_get_log_type(void);
 bool debug_get_output_is_stderr(void);
 bool debug_get_output_is_stdout(void);
 void debug_schedule_reopen_logs(void);

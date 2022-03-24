@@ -24,7 +24,7 @@ yum install -y \
     bison \
     ccache \
     chrpath \
-    compat-gnutls34-devel \
+    compat-gnutls37-devel \
     cups-devel \
     curl \
     dbus-devel \
@@ -45,6 +45,7 @@ yum install -y \
     keyutils-libs-devel \
     krb5-devel \
     krb5-server \
+    krb5-workstation \
     lcov \
     libacl-devel \
     libarchive-devel \
@@ -53,9 +54,7 @@ yum install -y \
     libbsd-devel \
     libcap-devel \
     libicu-devel \
-    libnsl2-devel \
     libpcap-devel \
-    libsemanage-python \
     libtasn1-devel \
     libtasn1-tools \
     libtirpc-devel \
@@ -72,6 +71,7 @@ yum install -y \
     patch \
     perl-Archive-Tar \
     perl-ExtUtils-MakeMaker \
+    perl-JSON \
     perl-JSON-Parse \
     perl-Parse-Yapp \
     perl-Test-Base \
@@ -79,16 +79,19 @@ yum install -y \
     perl-generators \
     perl-interpreter \
     pkgconfig \
-    policycoreutils-python \
     popt-devel \
     procps-ng \
     psmisc \
+    python3-libsemanage \
+    python3-policycoreutils \
     python36 \
     python36-cryptography \
     python36-devel \
     python36-dns \
+    python36-iso8601 \
     python36-markdown \
     python36-pyasn1 \
+    python36-setproctitle \
     quota-devel \
     readline-devel \
     redhat-lsb \

@@ -27,7 +27,11 @@
 
 struct iovec;
 
+off_t sys_block_align_truncate(off_t len, off_t align);
+off_t sys_block_align(off_t len, off_t align);
 bool sys_valid_io_range(off_t offset, size_t length);
+bool sys_io_ranges_overlap(size_t c1, off_t o1,
+			   size_t c2, off_t o2);
 ssize_t sys_read(int fd, void *buf, size_t count);
 void sys_read_v(int fd, void *buf, size_t count);
 ssize_t sys_write(int fd, const void *buf, size_t count);

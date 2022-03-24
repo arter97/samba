@@ -24,6 +24,7 @@
 
 #include "includes.h"
 #include "ntdomain.h"
+#include "librpc/rpc/dcesrv_core.h"
 #include "librpc/gen_ndr/libnet_join.h"
 #include "libnet/libnet_join.h"
 #include "../libcli/auth/libcli_auth.h"
@@ -65,7 +66,7 @@ static int usr_info_cmp(const struct usrinfo *usr1, const struct usrinfo *usr2)
  Get a list of the names of all users logged into this machine
  ********************************************************************/
 
-static char **get_logged_on_userlist(TALLOC_CTX *mem_ctx)
+static int get_logged_on_userlist(TALLOC_CTX *mem_ctx, char ***pusers)
 {
 	char **users;
 	int i, num_users = 0;
@@ -94,7 +95,7 @@ static char **get_logged_on_userlist(TALLOC_CTX *mem_ctx)
 		if (tmp == NULL) {
 			TALLOC_FREE(tmp);
 			endutxent();
-			return NULL;
+			return ENOMEM;
 		}
 		usr_infos = tmp;
 		usr_infos[num_users].name = talloc_strdup(usr_infos,
@@ -102,7 +103,7 @@ static char **get_logged_on_userlist(TALLOC_CTX *mem_ctx)
 		if (usr_infos[num_users].name == NULL) {
 			TALLOC_FREE(usr_infos);
 			endutxent();
-			return NULL;
+			return ENOMEM;
 		}
 		usr_infos[num_users].login_time.tv_sec = u->ut_tv.tv_sec;
 		usr_infos[num_users].login_time.tv_usec = u->ut_tv.tv_usec;
@@ -120,15 +121,16 @@ static char **get_logged_on_userlist(TALLOC_CTX *mem_ctx)
 	}
 	TALLOC_FREE(usr_infos);
 	endutxent();
-	errno = 0;
-	return users;
+	*pusers = users;
+	return 0;
 }
 
 #else
 
-static char **get_logged_on_userlist(TALLOC_CTX *mem_ctx)
+static int get_logged_on_userlist(TALLOC_CTX *mem_ctx, char ***pusers)
 {
-	return NULL;
+	*pusers = NULL;
+	return 0;
 }
 
 #endif
@@ -159,7 +161,7 @@ static int dom_user_cmp(const struct dom_usr *usr1, const struct dom_usr *usr2)
  in this list.
  ********************************************************************/
 
-static struct dom_usr *get_domain_userlist(TALLOC_CTX *mem_ctx)
+static int get_domain_userlist(TALLOC_CTX *mem_ctx, struct dom_usr **pusers)
 {
 	struct sessionid *session_list = NULL;
 	char *machine_name, *p, *nm;
@@ -174,14 +176,14 @@ static struct dom_usr *get_domain_userlist(TALLOC_CTX *mem_ctx)
 
 	num_sessions = list_sessions(mem_ctx, &session_list);
 	if (num_sessions == 0) {
-		errno = 0;
-		return NULL;
+		*pusers = NULL;
+		return 0;
 	}
 
 	users = talloc_array(mem_ctx, struct dom_usr, num_sessions);
 	if (users == NULL) {
 		TALLOC_FREE(session_list);
-		return NULL;
+		return ENOMEM;
 	}
 
 	for (i=num_users=0; i<num_sessions; i++) {
@@ -231,17 +233,24 @@ static struct dom_usr *get_domain_userlist(TALLOC_CTX *mem_ctx)
 	}
 	TALLOC_FREE(session_list);
 
+	if (num_users == 0) {
+		TALLOC_FREE(users);
+		*pusers = NULL;
+		return 0;
+	}
+
 	tmp = talloc_realloc(mem_ctx, users, struct dom_usr, num_users);
 	if (tmp == NULL) {
-		return NULL;
+		TALLOC_FREE(users);
+		return ENOMEM;
 	}
 	users = tmp;
 
 	/* Sort the user list by time, oldest first */
 	TYPESAFE_QSORT(users, num_users, dom_user_cmp);
 
-	errno = 0;
-	return users;
+	*pusers = users;
+	return 0;
 }
 
 /*******************************************************************
@@ -316,6 +325,7 @@ static struct wkssvc_NetWkstaInfo102 *create_wks_info_102(TALLOC_CTX *mem_ctx)
 {
 	struct wkssvc_NetWkstaInfo102 *info102;
 	char **users;
+	int ret;
 
 	info102 = talloc(mem_ctx, struct wkssvc_NetWkstaInfo102);
 	if (info102 == NULL) {
@@ -332,7 +342,12 @@ static struct wkssvc_NetWkstaInfo102 *create_wks_info_102(TALLOC_CTX *mem_ctx)
 		info102, "%s", lp_workgroup());
 	info102->lan_root = "";
 
-	users = get_logged_on_userlist(talloc_tos());
+	ret = get_logged_on_userlist(talloc_tos(), &users);
+	if (ret != 0) {
+		TALLOC_FREE(info102);
+		errno = ret;
+		return NULL;
+	}
 	info102->logged_on_users = talloc_array_length(users);
 
 	TALLOC_FREE(users);
@@ -347,6 +362,9 @@ static struct wkssvc_NetWkstaInfo102 *create_wks_info_102(TALLOC_CTX *mem_ctx)
 WERROR _wkssvc_NetWkstaGetInfo(struct pipes_struct *p,
 			       struct wkssvc_NetWkstaGetInfo *r)
 {
+	struct dcesrv_call_state *dce_call = p->dce_call;
+	struct auth_session_info *session_info =
+		dcesrv_call_session_info(dce_call);
 	struct dom_sid_buf buf;
 
 	switch (r->in.level) {
@@ -361,7 +379,7 @@ WERROR _wkssvc_NetWkstaGetInfo(struct pipes_struct *p,
 	case 101:
 		/* Level 101 can be allowed from any logged in user */
 		if (!nt_token_check_sid(&global_sid_Authenticated_Users,
-					p->session_info->security_token)) {
+					session_info->security_token)) {
 			DEBUG(1,("User not allowed for NetWkstaGetInfo level "
 				 "101\n"));
 			DEBUGADD(3,(" - does not have sid for Authenticated "
@@ -370,7 +388,7 @@ WERROR _wkssvc_NetWkstaGetInfo(struct pipes_struct *p,
 					    &global_sid_Authenticated_Users,
 					    &buf)));
 			security_token_debug(DBGC_CLASS, 3,
-					    p->session_info->security_token);
+					    session_info->security_token);
 			return WERR_ACCESS_DENIED;
 		}
 		r->out.info->info101 = create_wks_info_101(p->mem_ctx);
@@ -381,7 +399,7 @@ WERROR _wkssvc_NetWkstaGetInfo(struct pipes_struct *p,
 	case 102:
 		/* Level 102 Should only be allowed from a domain administrator */
 		if (!nt_token_check_sid(&global_sid_Builtin_Administrators,
-					p->session_info->security_token)) {
+					session_info->security_token)) {
 			DEBUG(1,("User not allowed for NetWkstaGetInfo level "
 				 "102\n"));
 			DEBUGADD(3,(" - does not have sid for Administrators "
@@ -390,7 +408,7 @@ WERROR _wkssvc_NetWkstaGetInfo(struct pipes_struct *p,
 					    &global_sid_Builtin_Administrators,
 					    &buf)));
 			security_token_debug(DBGC_CLASS, 3,
-					    p->session_info->security_token);
+					    session_info->security_token);
 			return WERR_ACCESS_DENIED;
 		}
 		r->out.info->info102 = create_wks_info_102(p->mem_ctx);
@@ -428,18 +446,20 @@ static struct wkssvc_NetWkstaEnumUsersCtr0 *create_enum_users0(
 {
 	struct wkssvc_NetWkstaEnumUsersCtr0 *ctr0;
 	char **users;
-	int i, num_users;
+	int i, num_users, ret;
 
 	ctr0 = talloc(mem_ctx, struct wkssvc_NetWkstaEnumUsersCtr0);
 	if (ctr0 == NULL) {
 		return NULL;
 	}
 
-	users = get_logged_on_userlist(talloc_tos());
-	if (users == NULL && errno != 0) {
-		DEBUG(1,("get_logged_on_userlist error %d: %s\n",
-			errno, strerror(errno)));
+	ret = get_logged_on_userlist(talloc_tos(), &users);
+	if (ret != 0) {
+		DBG_WARNING("get_logged_on_userlist error %d: %s\n",
+			    ret,
+			    strerror(ret));
 		TALLOC_FREE(ctr0);
+		errno = ret;
 		return NULL;
 	}
 
@@ -478,26 +498,29 @@ static struct wkssvc_NetWkstaEnumUsersCtr1 *create_enum_users1(
 	struct dom_usr *dom_users;
 	const char *pwd_server;
 	char *pwd_tmp;
-	int i, j, num_users, num_dom_users;
+	int i, j, num_users, num_dom_users, ret;
 
 	ctr1 = talloc(mem_ctx, struct wkssvc_NetWkstaEnumUsersCtr1);
 	if (ctr1 == NULL) {
 		return NULL;
 	}
 
-	users = get_logged_on_userlist(talloc_tos());
-	if (users == NULL && errno != 0) {
-		DEBUG(1,("get_logged_on_userlist error %d: %s\n",
-			errno, strerror(errno)));
+	ret = get_logged_on_userlist(talloc_tos(), &users);
+	if (ret != 0) {
+		DBG_WARNING("get_logged_on_userlist error %d: %s\n",
+			    ret,
+			    strerror(ret));
 		TALLOC_FREE(ctr1);
+		errno = ret;
 		return NULL;
 	}
 	num_users = talloc_array_length(users);
 
-	dom_users = get_domain_userlist(talloc_tos());
-	if (dom_users == NULL && errno != 0) {
+	ret = get_domain_userlist(talloc_tos(), &dom_users);
+	if (ret != 0) {
 		TALLOC_FREE(ctr1);
 		TALLOC_FREE(users);
+		errno = ret;
 		return NULL;
 	}
 	num_dom_users = talloc_array_length(dom_users);
@@ -508,6 +531,7 @@ static struct wkssvc_NetWkstaEnumUsersCtr1 *create_enum_users1(
 		TALLOC_FREE(ctr1);
 		TALLOC_FREE(users);
 		TALLOC_FREE(dom_users);
+		errno = ENOMEM;
 		return NULL;
 	}
 
@@ -567,9 +591,13 @@ static struct wkssvc_NetWkstaEnumUsersCtr1 *create_enum_users1(
 WERROR _wkssvc_NetWkstaEnumUsers(struct pipes_struct *p,
 				 struct wkssvc_NetWkstaEnumUsers *r)
 {
+	struct dcesrv_call_state *dce_call = p->dce_call;
+	struct auth_session_info *session_info =
+		dcesrv_call_session_info(dce_call);
+
 	/* This with any level should only be allowed from a domain administrator */
 	if (!nt_token_check_sid(&global_sid_Builtin_Administrators,
-				p->session_info->security_token)) {
+				session_info->security_token)) {
 		struct dom_sid_buf buf;
 		DEBUG(1,("User not allowed for NetWkstaEnumUsers\n"));
 		DEBUGADD(3,(" - does not have sid for Administrators group "
@@ -577,7 +605,8 @@ WERROR _wkssvc_NetWkstaEnumUsers(struct pipes_struct *p,
 			    dom_sid_str_buf(
 				    &global_sid_Builtin_Administrators,
 				    &buf)));
-		security_token_debug(DBGC_CLASS, 3, p->session_info->security_token);
+		security_token_debug(
+			DBGC_CLASS, 3, session_info->security_token);
 		return WERR_ACCESS_DENIED;
 	}
 
@@ -827,12 +856,15 @@ WERROR _wkssvc_NetrGetJoinableOus(struct pipes_struct *p,
 WERROR _wkssvc_NetrJoinDomain2(struct pipes_struct *p,
 			       struct wkssvc_NetrJoinDomain2 *r)
 {
+	struct dcesrv_call_state *dce_call = p->dce_call;
+	struct auth_session_info *session_info =
+		dcesrv_call_session_info(dce_call);
 	struct libnet_JoinCtx *j = NULL;
 	char *cleartext_pwd = NULL;
 	char *admin_domain = NULL;
 	char *admin_account = NULL;
 	WERROR werr;
-	struct security_token *token = p->session_info->security_token;
+	struct security_token *token = session_info->security_token;
 	NTSTATUS status;
 	DATA_BLOB session_key;
 	bool ok;
@@ -858,7 +890,7 @@ WERROR _wkssvc_NetrJoinDomain2(struct pipes_struct *p,
 		return WERR_NOT_SUPPORTED;
 	}
 
-	status = session_extract_session_key(p->session_info,
+	status = session_extract_session_key(session_info,
 					     &session_key,
 					     KEY_USE_16BYTES);
 	if(!NT_STATUS_IS_OK(status)) {
@@ -919,12 +951,15 @@ WERROR _wkssvc_NetrJoinDomain2(struct pipes_struct *p,
 WERROR _wkssvc_NetrUnjoinDomain2(struct pipes_struct *p,
 				 struct wkssvc_NetrUnjoinDomain2 *r)
 {
+	struct dcesrv_call_state *dce_call = p->dce_call;
+	struct auth_session_info *session_info =
+		dcesrv_call_session_info(dce_call);
 	struct libnet_UnjoinCtx *u = NULL;
 	char *cleartext_pwd = NULL;
 	char *admin_domain = NULL;
 	char *admin_account = NULL;
 	WERROR werr;
-	struct security_token *token = p->session_info->security_token;
+	struct security_token *token = session_info->security_token;
 	NTSTATUS status;
 	DATA_BLOB session_key;
 	bool ok;
@@ -941,7 +976,7 @@ WERROR _wkssvc_NetrUnjoinDomain2(struct pipes_struct *p,
 		return WERR_ACCESS_DENIED;
 	}
 
-	status = session_extract_session_key(p->session_info,
+	status = session_extract_session_key(session_info,
 					     &session_key,
 					     KEY_USE_16BYTES);
 	if (!NT_STATUS_IS_OK(status)) {

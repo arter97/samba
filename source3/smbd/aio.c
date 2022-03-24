@@ -207,9 +207,13 @@ NTSTATUS schedule_aio_read_and_X(connection_struct *conn,
 	SCVAL(aio_ex->outbuf.data,smb_vwv0,0xFF); /* Never a chained reply. */
 	SCVAL(smb_buf(aio_ex->outbuf.data), 0, 0); /* padding byte */
 
-	init_strict_lock_struct(fsp, (uint64_t)smbreq->smbpid,
-		(uint64_t)startpos, (uint64_t)smb_maxcnt, READ_LOCK,
-		&aio_ex->lock);
+	init_strict_lock_struct(fsp,
+			(uint64_t)smbreq->smbpid,
+			(uint64_t)startpos,
+			(uint64_t)smb_maxcnt,
+			READ_LOCK,
+			lp_posix_cifsu_locktype(fsp),
+			&aio_ex->lock);
 
 	/* Take the lock until the AIO completes. */
 	if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &aio_ex->lock)) {
@@ -282,8 +286,9 @@ static void aio_pread_smb1_done(struct tevent_req *req)
 	} else {
 		outsize = setup_readX_header(outbuf, nread);
 
-		aio_ex->fsp->fh->pos = aio_ex->offset + nread;
-		aio_ex->fsp->fh->position_information = aio_ex->fsp->fh->pos;
+		fh_set_pos(aio_ex->fsp->fh, aio_ex->offset + nread);
+		fh_set_position_information(aio_ex->fsp->fh,
+					    fh_get_pos(aio_ex->fsp->fh));
 
 		DEBUG( 3, ("handle_aio_read_complete file %s max=%d "
 			   "nread=%d\n", fsp_str_dbg(fsp),
@@ -471,9 +476,13 @@ NTSTATUS schedule_aio_write_and_X(connection_struct *conn,
 	srv_set_message((char *)aio_ex->outbuf.data, 6, 0, True);
 	SCVAL(aio_ex->outbuf.data,smb_vwv0,0xFF); /* Never a chained reply. */
 
-	init_strict_lock_struct(fsp, (uint64_t)smbreq->smbpid,
-		(uint64_t)startpos, (uint64_t)numtowrite, WRITE_LOCK,
-		&aio_ex->lock);
+	init_strict_lock_struct(fsp,
+			(uint64_t)smbreq->smbpid,
+			(uint64_t)startpos,
+			(uint64_t)numtowrite,
+			WRITE_LOCK,
+			lp_posix_cifsu_locktype(fsp),
+			&aio_ex->lock);
 
 	/* Take the lock until the AIO completes. */
 	if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &aio_ex->lock)) {
@@ -609,7 +618,7 @@ static void aio_pwrite_smb1_done(struct tevent_req *req)
 		DEBUG(3,("handle_aio_write: %s, num=%d wrote=%d\n",
 			 fsp_fnum_dbg(fsp), (int)numtowrite, (int)nwritten));
 
-		aio_ex->fsp->fh->pos = aio_ex->offset + nwritten;
+		fh_set_pos(aio_ex->fsp->fh, aio_ex->offset + nwritten);
 	}
 
 	show_msg(outbuf);
@@ -719,9 +728,13 @@ NTSTATUS schedule_smb2_aio_read(connection_struct *conn,
 		return NT_STATUS_NO_MEMORY;
 	}
 
-	init_strict_lock_struct(fsp, fsp->op->global->open_persistent_id,
-		(uint64_t)startpos, (uint64_t)smb_maxcnt, READ_LOCK,
-		&aio_ex->lock);
+	init_strict_lock_struct(fsp,
+			fsp->op->global->open_persistent_id,
+			(uint64_t)startpos,
+			(uint64_t)smb_maxcnt,
+			READ_LOCK,
+			lp_posix_cifsu_locktype(fsp),
+			&aio_ex->lock);
 
 	/* Take the lock until the AIO completes. */
 	if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &aio_ex->lock)) {
@@ -783,8 +796,9 @@ static void aio_pread_smb2_done(struct tevent_req *req)
 	status = smb2_read_complete(subreq, nread, vfs_aio_state.error);
 
 	if (nread > 0) {
-		fsp->fh->pos = aio_ex->offset + nread;
-		fsp->fh->position_information = fsp->fh->pos;
+		fh_set_pos(fsp->fh, aio_ex->offset + nread);
+		fh_set_position_information(fsp->fh,
+						fh_get_pos(fsp->fh));
 	}
 
 	DEBUG(10, ("smb2: scheduled aio_read completed "
@@ -855,9 +869,13 @@ NTSTATUS schedule_aio_smb2_write(connection_struct *conn,
 
 	aio_ex->write_through = write_through;
 
-	init_strict_lock_struct(fsp, fsp->op->global->open_persistent_id,
-		in_offset, (uint64_t)in_data.length, WRITE_LOCK,
-		&aio_ex->lock);
+	init_strict_lock_struct(fsp,
+			fsp->op->global->open_persistent_id,
+			in_offset,
+			(uint64_t)in_data.length,
+			WRITE_LOCK,
+			lp_posix_cifsu_locktype(fsp),
+			&aio_ex->lock);
 
 	/* Take the lock until the AIO completes. */
 	if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &aio_ex->lock)) {

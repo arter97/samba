@@ -22,8 +22,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from __future__ import print_function
-from __future__ import division
 import samba.getopt as options
 import ldb
 import os
@@ -40,6 +38,7 @@ from samba import NTSTATUSError
 from samba import werror
 from getpass import getpass
 from samba.net import Net, LIBNET_JOIN_AUTOMATIC
+from samba import enable_net_export_keytab
 import samba.ntacls
 from samba.join import join_RODC, join_DC
 from samba.auth import system_session
@@ -61,12 +60,18 @@ from samba.netcmd import (
 )
 from samba.netcmd.fsmo import get_fsmo_roleowner
 from samba.netcmd.common import netcmd_get_domain_infos_via_cldap
+from samba.netcmd.common import (NEVER_TIMESTAMP,
+                                 timestamp_to_mins,
+                                 timestamp_to_days)
 from samba.samba3 import Samba3
 from samba.samba3 import param as s3param
 from samba.upgrade import upgrade_from_samba3
 from samba.drs_utils import drsuapi_connect
 from samba import remove_dc, arcfour_encrypt, string_to_byte_array
 from samba.auth_util import system_session_unix
+from samba.net_s3 import Net as s3_Net
+from samba.param import default_path
+from samba import is_ad_dc_built
 
 from samba.dsdb import (
     DS_DOMAIN_FUNCTION_2000,
@@ -100,8 +105,9 @@ from samba.provision.common import (
 from samba.netcmd.pso import cmd_domain_passwordsettings_pso
 from samba.netcmd.domain_backup import cmd_domain_backup
 
-from samba.compat import binary_type
-from samba.compat import get_string
+from samba.common import get_string
+from samba.trust_utils import CreateTrustedDomainRelax
+from samba import dsdb
 
 string_version_to_constant = {
     "2008_R2": DS_DOMAIN_FUNCTION_2008_R2,
@@ -162,7 +168,7 @@ def get_testparm_var(testparm, smbconf, varname):
 
 
 try:
-    import samba.dckeytab
+    enable_net_export_keytab()
 except ImportError:
     cmd_domain_export_keytab = None
 else:
@@ -535,7 +541,7 @@ class cmd_domain_provision(Command):
     def _adminpass_issue(self, adminpass):
         """Returns error string for a bad administrator password,
         or None if acceptable"""
-        if isinstance(adminpass, binary_type):
+        if isinstance(adminpass, bytes):
             adminpass = adminpass.decode('utf8')
         if len(adminpass) < DEFAULT_MIN_PWD_LENGTH:
             return "Administrator password does not meet the default minimum" \
@@ -624,20 +630,32 @@ class cmd_domain_join(Command):
             action="store_true")
     ]
 
-    takes_options = []
+    selftest_options = [
+        Option("--experimental-s4-member", action="store_true",
+               help="Perform member joins using the s4 Net join_member. "
+                    "Don't choose this unless you know what you're doing")
+    ]
+
+    takes_options = [
+        Option("--no-dns-updates", action="store_true",
+               help="Disable DNS updates")
+    ]
     takes_options.extend(common_join_options)
     takes_options.extend(common_provision_join_options)
 
     if samba.is_ntvfs_fileserver_built():
         takes_options.extend(ntvfs_options)
 
+    if samba.is_selftest_enabled():
+        takes_options.extend(selftest_options)
+
     takes_args = ["domain", "role?"]
 
     def run(self, domain, role=None, sambaopts=None, credopts=None,
             versionopts=None, server=None, site=None, targetdir=None,
             domain_critical_only=False, machinepass=None,
-            use_ntvfs=False, dns_backend=None,
-            quiet=False, verbose=False,
+            use_ntvfs=False, experimental_s4_member=False, dns_backend=None,
+            quiet=False, verbose=False, no_dns_updates=False,
             plaintext_secrets=False,
             backend_store=None, backend_store_size=None):
         lp = sambaopts.get_loadparm()
@@ -652,12 +670,35 @@ class cmd_domain_join(Command):
             role = role.upper()
 
         if role is None or role == "MEMBER":
-            (join_password, sid, domain_name) = net.join_member(
-                domain, netbios_name, LIBNET_JOIN_AUTOMATIC,
-                machinepass=machinepass)
+            if experimental_s4_member:
+                (join_password, sid, domain_name) = net.join_member(
+                    domain, netbios_name, LIBNET_JOIN_AUTOMATIC,
+                    machinepass=machinepass)
+            else:
+                lp.set('realm', domain)
+                if lp.get('workgroup') == 'WORKGROUP':
+                    lp.set('workgroup', net.finddc(domain=domain,
+                        flags=(nbt.NBT_SERVER_LDAP |
+                               nbt.NBT_SERVER_DS)).domain_name)
+                lp.set('server role', 'member server')
+                smb_conf = lp.configfile if lp.configfile else default_path()
+                with tempfile.NamedTemporaryFile(delete=False,
+                        dir=os.path.dirname(smb_conf)) as f:
+                    lp.dump(False, f.name)
+                    if os.path.exists(smb_conf):
+                        mode = os.stat(smb_conf).st_mode
+                        os.chmod(f.name, mode)
+                    os.rename(f.name, smb_conf)
+                s3_lp = s3param.get_context()
+                s3_lp.load(smb_conf)
+                s3_net = s3_Net(creds, s3_lp, server=server)
+                (sid, domain_name) = s3_net.join_member(netbios_name,
+                                                        machinepass=machinepass,
+                                                        debug=verbose,
+                                                        noDnsUpdates=no_dns_updates)
 
             self.errf.write("Joined domain %s (%s)\n" % (domain_name, sid))
-        elif role == "DC":
+        elif role == "DC" and is_ad_dc_built():
             join_DC(logger=logger, server=server, creds=creds, lp=lp, domain=domain,
                     site=site, netbios_name=netbios_name, targetdir=targetdir,
                     domain_critical_only=domain_critical_only,
@@ -666,7 +707,7 @@ class cmd_domain_join(Command):
                     plaintext_secrets=plaintext_secrets,
                     backend_store=backend_store,
                     backend_store_size=backend_store_size)
-        elif role == "RODC":
+        elif role == "RODC" and is_ad_dc_built():
             join_RODC(logger=logger, server=server, creds=creds, lp=lp, domain=domain,
                       site=site, netbios_name=netbios_name, targetdir=targetdir,
                       domain_critical_only=domain_critical_only,
@@ -677,6 +718,36 @@ class cmd_domain_join(Command):
                       backend_store_size=backend_store_size)
         else:
             raise CommandError("Invalid role '%s' (possible values: MEMBER, DC, RODC)" % role)
+
+
+class cmd_domain_leave(Command):
+    """Cause a domain member to leave the joined domain."""
+
+    synopsis = "%prog [options]"
+
+    takes_optiongroups = {
+        "sambaopts": options.SambaOptions,
+        "versionopts": options.VersionOptions,
+        "credopts": options.CredentialsOptions,
+    }
+
+    takes_options = [
+        Option("--keep-account", action="store_true",
+               help="Disable the machine account instead of deleting it.")
+    ]
+
+    takes_args = []
+
+    def run(self, sambaopts=None, credopts=None, versionopts=None,
+            keep_account=False):
+        lp = sambaopts.get_loadparm()
+        creds = credopts.get_credentials(lp)
+
+        s3_lp = s3param.get_context()
+        smb_conf = lp.configfile if lp.configfile else default_path()
+        s3_lp.load(smb_conf)
+        s3_net = s3_Net(creds, s3_lp)
+        s3_net.leave(keep_account)
 
 
 class cmd_domain_demote(Command):
@@ -864,7 +935,9 @@ class cmd_domain_demote(Command):
         i = 0
         newrdn = str(rdn)
 
-        computer_dn = ldb.Dn(remote_samdb, "CN=Computers,%s" % str(remote_samdb.domain_dn()))
+        computer_dn = remote_samdb.get_wellknown_dn(
+            remote_samdb.get_default_basedn(),
+            dsdb.DS_GUID_COMPUTERS_CONTAINER)
         res = remote_samdb.search(base=computer_dn, expression=rdn, scope=ldb.SCOPE_ONELEVEL)
 
         if (len(res) != 0):
@@ -1207,26 +1280,6 @@ class cmd_domain_level(Command):
             self.message("\n".join(msgs))
         else:
             raise CommandError("invalid argument: '%s' (choose from 'show', 'raise')" % subcommand)
-
-
-# In MS AD, setting a timeout to '(never)' corresponds to this value
-NEVER_TIMESTAMP = int(-0x8000000000000000)
-
-
-def timestamp_to_mins(timestamp_str):
-    """Converts a timestamp in -100 nanosecond units to minutes"""
-    # treat a timestamp of 'never' the same as zero (this should work OK for
-    # most settings, and it displays better than trying to convert
-    # -0x8000000000000000 to minutes)
-    if int(timestamp_str) == NEVER_TIMESTAMP:
-        return 0
-    else:
-        return abs(int(timestamp_str)) / (1e7 * 60)
-
-
-def timestamp_to_days(timestamp_str):
-    """Converts a timestamp in -100 nanosecond units to days"""
-    return timestamp_to_mins(timestamp_str) / (60 * 24)
 
 
 class cmd_domain_passwordsettings_show(Command):
@@ -2528,54 +2581,20 @@ class cmd_domain_trust_create(DomainTrustCommand):
 
             return blob
 
-        def generate_AuthInfoInternal(session_key, incoming=None, outgoing=None):
-            confounder = [0] * 512
-            for i in range(len(confounder)):
-                confounder[i] = random.randint(0, 255)
-
-            trustpass = drsblobs.trustDomainPasswords()
-
-            trustpass.confounder = confounder
-            trustpass.outgoing = outgoing
-            trustpass.incoming = incoming
-
-            trustpass_blob = ndr_pack(trustpass)
-
-            encrypted_trustpass = arcfour_encrypt(session_key, trustpass_blob)
-
-            auth_blob = lsa.DATA_BUF2()
-            auth_blob.size = len(encrypted_trustpass)
-            auth_blob.data = string_to_byte_array(encrypted_trustpass)
-
-            auth_info = lsa.TrustDomainInfoAuthInfoInternal()
-            auth_info.auth_blob = auth_blob
-
-            return auth_info
-
         update_time = samba.current_unix_time()
         incoming_blob = generate_AuthInOutBlob(incoming_secret, update_time)
         outgoing_blob = generate_AuthInOutBlob(outgoing_secret, update_time)
-
-        local_tdo_handle = None
-        remote_tdo_handle = None
-
-        local_auth_info = generate_AuthInfoInternal(local_lsa.session_key,
-                                                    incoming=incoming_blob,
-                                                    outgoing=outgoing_blob)
-        if remote_trust_info:
-            remote_auth_info = generate_AuthInfoInternal(remote_lsa.session_key,
-                                                         incoming=outgoing_blob,
-                                                         outgoing=incoming_blob)
 
         try:
             if remote_trust_info:
                 self.outf.write("Creating remote TDO.\n")
                 current_request = {"location": "remote", "name": "CreateTrustedDomainEx2"}
-                remote_tdo_handle = \
-                    remote_lsa.CreateTrustedDomainEx2(remote_policy,
-                                                      remote_trust_info,
-                                                      remote_auth_info,
-                                                      lsa.LSA_TRUSTED_DOMAIN_ALL_ACCESS)
+                remote_tdo_handle = CreateTrustedDomainRelax(remote_lsa,
+                                                             remote_policy,
+                                                             remote_trust_info,
+                                                             lsa.LSA_TRUSTED_DOMAIN_ALL_ACCESS,
+                                                             outgoing_blob,
+                                                             incoming_blob)
                 self.outf.write("Remote TDO created.\n")
                 if enc_types:
                     self.outf.write("Setting supported encryption types on remote TDO.\n")
@@ -2586,10 +2605,12 @@ class cmd_domain_trust_create(DomainTrustCommand):
 
             self.outf.write("Creating local TDO.\n")
             current_request = {"location": "local", "name": "CreateTrustedDomainEx2"}
-            local_tdo_handle = local_lsa.CreateTrustedDomainEx2(local_policy,
-                                                                local_trust_info,
-                                                                local_auth_info,
-                                                                lsa.LSA_TRUSTED_DOMAIN_ALL_ACCESS)
+            local_tdo_handle = CreateTrustedDomainRelax(local_lsa,
+                                                        local_policy,
+                                                        local_trust_info,
+                                                        lsa.LSA_TRUSTED_DOMAIN_ALL_ACCESS,
+                                                        incoming_blob,
+                                                        outgoing_blob)
             self.outf.write("Local TDO created\n")
             if enc_types:
                 self.outf.write("Setting supported encryption types on local TDO.\n")
@@ -3870,6 +3891,13 @@ This command expunges tombstones from the database."""
         samdb = SamDB(url=H, session_info=system_session(),
                       credentials=creds, lp=lp)
 
+        if current_time_string is None and tombstone_lifetime is None:
+            print("Note: without --current-time or --tombstone-lifetime "
+                  "only tombstones already scheduled for deletion will "
+                  "be deleted.", file=self.outf)
+            print("To remove all tombstones, use --tombstone-lifetime=0.",
+                  file=self.outf)
+
         if current_time_string is not None:
             current_time_obj = time.strptime(current_time_string, "%Y-%m-%d")
             current_time = int(time.mktime(current_time_obj))
@@ -4190,7 +4218,8 @@ class cmd_domain_schema_upgrade(Command):
                                              stderr=subprocess.PIPE, cwd=temp_folder)
                     except (OSError, IOError):
                         shutil.rmtree(temp_folder)
-                        raise CommandError("Failed to upgrade schema. Check if 'patch' is installed.")
+                        raise CommandError("Failed to upgrade schema. "
+                                           "Is '/usr/bin/patch' missing?")
 
                     stdout, stderr = p.communicate()
 
@@ -4345,19 +4374,21 @@ class cmd_domain(SuperCommand):
     """Domain management."""
 
     subcommands = {}
-    subcommands["demote"] = cmd_domain_demote()
     if cmd_domain_export_keytab is not None:
         subcommands["exportkeytab"] = cmd_domain_export_keytab()
     subcommands["info"] = cmd_domain_info()
-    subcommands["provision"] = cmd_domain_provision()
     subcommands["join"] = cmd_domain_join()
-    subcommands["dcpromo"] = cmd_domain_dcpromo()
-    subcommands["level"] = cmd_domain_level()
-    subcommands["passwordsettings"] = cmd_domain_passwordsettings()
-    subcommands["classicupgrade"] = cmd_domain_classicupgrade()
-    subcommands["samba3upgrade"] = cmd_domain_samba3upgrade()
-    subcommands["trust"] = cmd_domain_trust()
-    subcommands["tombstones"] = cmd_domain_tombstones()
-    subcommands["schemaupgrade"] = cmd_domain_schema_upgrade()
-    subcommands["functionalprep"] = cmd_domain_functional_prep()
-    subcommands["backup"] = cmd_domain_backup()
+    subcommands["leave"] = cmd_domain_leave()
+    if is_ad_dc_built():
+        subcommands["demote"] = cmd_domain_demote()
+        subcommands["provision"] = cmd_domain_provision()
+        subcommands["dcpromo"] = cmd_domain_dcpromo()
+        subcommands["level"] = cmd_domain_level()
+        subcommands["passwordsettings"] = cmd_domain_passwordsettings()
+        subcommands["classicupgrade"] = cmd_domain_classicupgrade()
+        subcommands["samba3upgrade"] = cmd_domain_samba3upgrade()
+        subcommands["trust"] = cmd_domain_trust()
+        subcommands["tombstones"] = cmd_domain_tombstones()
+        subcommands["schemaupgrade"] = cmd_domain_schema_upgrade()
+        subcommands["functionalprep"] = cmd_domain_functional_prep()
+        subcommands["backup"] = cmd_domain_backup()

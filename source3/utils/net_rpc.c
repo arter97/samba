@@ -48,6 +48,7 @@
 #include "passdb.h"
 #include "../libcli/smb/smbXcli_base.h"
 #include "libsmb/dsgetdcname.h"
+#include "lib/util/string_wrappers.h"
 
 static int net_mode_share;
 static NTSTATUS sync_files(struct copy_clistate *cp_clistate, const char *mask);
@@ -110,17 +111,11 @@ NTSTATUS net_get_remote_domain_sid(struct cli_state *cli, TALLOC_CTX *mem_ctx,
 					    LSA_POLICY_INFO_ACCOUNT_DOMAIN,
 					    &info,
 					    &result);
-	if (!NT_STATUS_IS_OK(status)) {
+	if (any_nt_status_not_ok(status, result, &status)) {
 		d_fprintf(stderr, "lsaquery %s: %s\n",
 			  _("failed"),
 			  nt_errstr(status));
 		return status;
-	}
-	if (!NT_STATUS_IS_OK(result)) {
-		d_fprintf(stderr, "lsaquery %s: %s\n",
-			  _("failed"),
-			  nt_errstr(result));
-		return result;
 	}
 
 	*domain_name = info->account_domain.name.string;
@@ -193,11 +188,18 @@ int run_rpc_command(struct net_context *c,
 		if (lp_client_schannel()
 		    && (ndr_syntax_id_equal(&table->syntax_id,
 					    &ndr_table_netlogon.syntax_id))) {
+			const char *remote_name =
+				smbXcli_conn_remote_name(cli->conn);
+			const struct sockaddr_storage *remote_sockaddr =
+				smbXcli_conn_remote_sockaddr(cli->conn);
+
 			/* Always try and create an schannel netlogon pipe. */
 			TALLOC_FREE(c->netlogon_creds);
 			nt_status = cli_rpc_pipe_open_schannel(
 				cli, c->msg_ctx, table, NCACN_NP,
 				domain_name,
+				remote_name,
+				remote_sockaddr,
 				&pipe_hnd, c, &c->netlogon_creds);
 			if (!NT_STATUS_IS_OK(nt_status)) {
 				DEBUG(0, ("Could not initialise schannel netlogon pipe. Error was %s\n",
@@ -206,15 +208,6 @@ int run_rpc_command(struct net_context *c,
 			}
 		} else {
 			if (conn_flags & NET_FLAGS_SEAL) {
-				struct cli_credentials *creds = NULL;
-
-				creds = net_context_creds(c, mem_ctx);
-				if (creds == NULL) {
-					DBG_ERR("net_rpc_ntlm_creds() failed\n");
-					nt_status = NT_STATUS_INTERNAL_ERROR;
-					goto fail;
-				}
-
 				nt_status = cli_rpc_pipe_open_with_creds(
 					cli, table,
 					(conn_flags & NET_FLAGS_TCP) ?
@@ -222,7 +215,8 @@ int run_rpc_command(struct net_context *c,
 					DCERPC_AUTH_TYPE_NTLMSSP,
 					DCERPC_AUTH_LEVEL_PRIVACY,
 					smbXcli_conn_remote_name(cli->conn),
-					creds, &pipe_hnd);
+					smbXcli_conn_remote_sockaddr(cli->conn),
+					c->creds, &pipe_hnd);
 			} else {
 				nt_status = cli_rpc_pipe_open_noauth(
 					cli, table,
@@ -1148,7 +1142,7 @@ static int rpc_user_info(struct net_context *c, int argc, const char **argv)
 	struct GROUP_USERS_INFO_0 *u0 = NULL;
 	uint32_t entries_read = 0;
 	uint32_t total_entries = 0;
-	int i;
+	uint32_t i;
 
 
 	if (argc < 1 || c->display_usage) {
@@ -1312,10 +1306,10 @@ int net_rpc_user(struct net_context *c, int argc, const char **argv)
 	if (status != 0) {
 		return -1;
 	}
-	libnetapi_set_username(c->netapi_ctx, c->opt_user_name);
-	libnetapi_set_password(c->netapi_ctx, c->opt_password);
-	if (c->opt_kerberos) {
-		libnetapi_set_use_kerberos(c->netapi_ctx);
+
+	status = libnetapi_set_creds(c->netapi_ctx, c->creds);
+	if (status != 0) {
+		return -1;
 	}
 
 	if (argc == 0) {
@@ -1812,7 +1806,7 @@ static NTSTATUS rpc_group_delete_internals(struct net_context *c,
 	uint32_t group_rid;
 	struct samr_RidAttrArray *rids = NULL;
 	/* char **names; */
-	int i;
+	uint32_t i;
 	/* struct samr_RidWithAttribute *user_gids; */
 	struct dcerpc_binding_handle *b = pipe_hnd->binding_handle;
 
@@ -3057,7 +3051,7 @@ static NTSTATUS rpc_list_group_members(struct net_context *c,
 	NTSTATUS result, status;
 	struct policy_handle group_pol;
 	uint32_t num_members, *group_rids;
-	int i;
+	uint32_t i;
 	struct samr_RidAttrArray *rids = NULL;
 	struct lsa_Strings names;
 	struct samr_Ids types;
@@ -3091,7 +3085,7 @@ static NTSTATUS rpc_list_group_members(struct net_context *c,
 	group_rids = rids->rids;
 
 	while (num_members > 0) {
-		int this_time = 512;
+		uint32_t this_time = 512;
 
 		if (num_members < this_time)
 			this_time = num_members;
@@ -3159,7 +3153,7 @@ static NTSTATUS rpc_list_alias_members(struct net_context *c,
 	char **domains;
 	char **names;
 	enum lsa_SidType *types;
-	int i;
+	uint32_t i;
 	struct lsa_SidArray sid_array;
 	struct dcerpc_binding_handle *b = pipe_hnd->binding_handle;
 
@@ -3505,10 +3499,10 @@ int net_rpc_group(struct net_context *c, int argc, const char **argv)
 	if (status != 0) {
 		return -1;
 	}
-	libnetapi_set_username(c->netapi_ctx, c->opt_user_name);
-	libnetapi_set_password(c->netapi_ctx, c->opt_password);
-	if (c->opt_kerberos) {
-		libnetapi_set_use_kerberos(c->netapi_ctx);
+
+	status = libnetapi_set_creds(c->netapi_ctx, c->creds);
+	if (status != 0) {
+		return -1;
 	}
 
 	if (argc == 0) {
@@ -3972,7 +3966,7 @@ static int rpc_share_migrate_shares(struct net_context *c, int argc,
  * @param state	arg-pointer
  *
  **/
-static NTSTATUS copy_fn(const char *mnt, struct file_info *f,
+static NTSTATUS copy_fn(struct file_info *f,
 		    const char *mask, void *state)
 {
 	static NTSTATUS nt_status;
@@ -4714,7 +4708,7 @@ static NTSTATUS rpc_aliaslist_dump(struct net_context *c,
 				int argc,
 				const char **argv)
 {
-	int i;
+	uint32_t i;
 	NTSTATUS result;
 	struct policy_handle lsa_pol;
 	struct dcerpc_binding_handle *b = pipe_hnd->binding_handle;
@@ -4855,7 +4849,7 @@ struct user_token {
 
 static void dump_user_token(struct user_token *token)
 {
-	int i;
+	uint32_t i;
 
 	d_printf("%s\n", token->name);
 
@@ -4868,7 +4862,7 @@ static void dump_user_token(struct user_token *token)
 
 static bool is_alias_member(struct dom_sid *sid, struct full_alias *alias)
 {
-	int i;
+	uint32_t i;
 
 	for (i=0; i<alias->num_members; i++) {
 		if (dom_sid_equal(sid, &alias->members[i])) {
@@ -5476,11 +5470,12 @@ int net_rpc_share(struct net_context *c, int argc, const char **argv)
 	if (status != 0) {
 		return -1;
 	}
-	libnetapi_set_username(c->netapi_ctx, c->opt_user_name);
-	libnetapi_set_password(c->netapi_ctx, c->opt_password);
-	if (c->opt_kerberos) {
-		libnetapi_set_use_kerberos(c->netapi_ctx);
+
+	status = libnetapi_set_creds(c->netapi_ctx, c->creds);
+	if (status != 0) {
+		return -1;
 	}
+
 
 	if (argc == 0) {
 		if (c->display_usage) {
@@ -5758,10 +5753,10 @@ int net_rpc_file(struct net_context *c, int argc, const char **argv)
 	if (status != 0) {
 		return -1;
 	}
-	libnetapi_set_username(c->netapi_ctx, c->opt_user_name);
-	libnetapi_set_password(c->netapi_ctx, c->opt_password);
-	if (c->opt_kerberos) {
-		libnetapi_set_use_kerberos(c->netapi_ctx);
+
+	status = libnetapi_set_creds(c->netapi_ctx, c->creds);
+	if (status != 0) {
+		return -1;
 	}
 
 	if (argc == 0) {
@@ -6885,7 +6880,6 @@ static int rpc_trustdom_vampire(struct net_context *c, int argc,
 
 	/* trusted domains listing variables */
 	unsigned int enum_ctx = 0;
-	int i;
 	struct lsa_DomainList dom_list;
 	fstring pdc_name;
 	struct dcerpc_binding_handle *b;
@@ -6980,6 +6974,8 @@ static int rpc_trustdom_vampire(struct net_context *c, int argc,
 	d_printf(_("Vampire trusted domains:\n\n"));
 
 	do {
+		uint32_t i;
+
 		nt_status = dcerpc_lsa_EnumTrustDom(b, mem_ctx,
 						    &connect_hnd,
 						    &enum_ctx,
@@ -7059,7 +7055,7 @@ static int rpc_trustdom_list(struct net_context *c, int argc, const char **argv)
 
 	/* trusted domains listing variables */
 	unsigned int num_domains, enum_ctx = 0;
-	int i;
+	uint32_t i;
 	struct lsa_DomainList dom_list;
 	fstring pdc_name;
 	bool found_domain;
@@ -8369,13 +8365,10 @@ int net_rpc(struct net_context *c, int argc, const char **argv)
 	if (status != 0) {
 		return -1;
 	}
-	libnetapi_set_username(c->netapi_ctx, c->opt_user_name);
-	libnetapi_set_password(c->netapi_ctx, c->opt_password);
-	if (c->opt_kerberos) {
-		libnetapi_set_use_kerberos(c->netapi_ctx);
-	}
-	if (c->opt_ccache) {
-		libnetapi_set_use_ccache(c->netapi_ctx);
+
+	status = libnetapi_set_creds(c->netapi_ctx, c->creds);
+	if (status != 0) {
+		return -1;
 	}
 
 	return net_run_function(c, argc, argv, "net rpc", func);

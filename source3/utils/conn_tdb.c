@@ -26,11 +26,11 @@
 #include "messages.h"
 #include "conn_tdb.h"
 #include "util_tdb.h"
+#include "lib/util/string_wrappers.h"
 
 struct connections_forall_state {
 	struct db_context *session_by_pid;
-	int (*fn)(const struct connections_key *key,
-		  const struct connections_data *data,
+	int (*fn)(const struct connections_data *data,
 		  void *private_data);
 	void *private_data;
 	int count;
@@ -43,6 +43,7 @@ struct connections_forall_session {
 	fstring addr;
 	uint16_t cipher;
 	uint16_t dialect;
+	uint16_t signing;
 	uint8_t signing_flags;
 };
 
@@ -66,6 +67,7 @@ static int collect_sessions_fn(struct smbXsrv_session_global0 *global,
 	fstrcpy(sess.machine, global->channels[0].remote_name);
 	fstrcpy(sess.addr, global->channels[0].remote_address);
 	sess.cipher = global->channels[0].encryption_cipher;
+	sess.signing = global->channels[0].signing_algo;
 	sess.dialect = global->connection_dialect;
 	sess.signing_flags = global->signing_flags;
 
@@ -86,7 +88,6 @@ static int traverse_tcon_fn(struct smbXsrv_tcon_global0 *global,
 	struct connections_forall_state *state =
 		(struct connections_forall_state*)connections_forall_state;
 
-	struct connections_key key;
 	struct connections_data data;
 
 	uint32_t sess_id = global->session_global_id;
@@ -117,12 +118,10 @@ static int traverse_tcon_fn(struct smbXsrv_tcon_global0 *global,
 		memcpy((uint8_t *)&sess, val.dptr, val.dsize);
 	}
 
-	ZERO_STRUCT(key);
 	ZERO_STRUCT(data);
 
-	key.pid = data.pid = global->server_id;
-	key.cnum = data.cnum = global->tcon_global_id;
-	fstrcpy(key.name, global->share_name);
+	data.pid = global->server_id;
+	data.cnum = global->tcon_global_id;
 	fstrcpy(data.servicename, global->share_name);
 	data.uid = sess.uid;
 	data.gid = sess.gid;
@@ -132,15 +131,15 @@ static int traverse_tcon_fn(struct smbXsrv_tcon_global0 *global,
 	data.encryption_flags = global->encryption_flags;
 	data.cipher = sess.cipher;
 	data.dialect = sess.dialect;
+	data.signing = sess.signing;
 	data.signing_flags = global->signing_flags;
 
 	state->count++;
 
-	return state->fn(&key, &data, state->private_data);
+	return state->fn(&data, state->private_data);
 }
 
-int connections_forall_read(int (*fn)(const struct connections_key *key,
-				      const struct connections_data *data,
+int connections_forall_read(int (*fn)(const struct connections_data *data,
 				      void *private_data),
 			    void *private_data)
 {

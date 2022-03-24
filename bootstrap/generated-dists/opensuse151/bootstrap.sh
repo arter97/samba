@@ -40,6 +40,7 @@ zypper --non-interactive install \
     hostname \
     htop \
     keyutils-devel \
+    krb5-client \
     krb5-devel \
     krb5-server \
     lcov \
@@ -52,7 +53,6 @@ zypper --non-interactive install \
     libcephfs-devel \
     libicu-devel \
     libjansson-devel \
-    libnsl-devel \
     libpcap-devel \
     libtasn1-devel \
     libtirpc-devel \
@@ -70,11 +70,11 @@ zypper --non-interactive install \
     perl \
     perl-Archive-Tar-Wrapper \
     perl-ExtUtils-MakeMaker \
+    perl-JSON \
     perl-JSON-XS \
     perl-Parse-Yapp \
     perl-Test-Base \
     pkgconfig \
-    policycoreutils-python \
     popt-devel \
     procps \
     psmisc \
@@ -85,7 +85,10 @@ zypper --non-interactive install \
     python3-devel \
     python3-dnspython \
     python3-gpg \
+    python3-iso8601 \
+    python3-policycoreutils \
     python3-pyasn1 \
+    python3-setproctitle \
     readline-devel \
     rng-tools \
     rpcgen \
@@ -95,6 +98,7 @@ zypper --non-interactive install \
     sudo \
     systemd-devel \
     tar \
+    tracker-devel \
     tree \
     wget \
     which \

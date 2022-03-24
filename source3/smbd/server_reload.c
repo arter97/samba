@@ -26,6 +26,7 @@
 #include "smbd/globals.h"
 #include "nt_printing.h"
 #include "printing/pcap.h"
+#include "printing/printer_list.h"
 #include "printing/load.h"
 #include "auth.h"
 #include "messages.h"
@@ -57,10 +58,16 @@ void delete_and_reload_printers(void)
 	const char *pname;
 	bool ok;
 	time_t pcap_last_update;
-	TALLOC_CTX *frame = talloc_stackframe();
+	TALLOC_CTX *frame = NULL;
 	const struct loadparm_substitution *lp_sub =
 		loadparm_s3_global_substitution();
 
+	if (!lp_load_printers()) {
+		DBG_DEBUG("skipping printer reload: disabled\n");
+		return;
+	}
+
+	frame = talloc_stackframe();
 	ok = pcap_cache_loaded(&pcap_last_update);
 	if (!ok) {
 		DEBUG(1, ("pcap cache not loaded\n"));
@@ -101,7 +108,8 @@ void delete_and_reload_printers(void)
 		pname = lp_printername(frame, lp_sub, snum);
 
 		/* check printer, but avoid removing non-autoloaded printers */
-		if (lp_autoloaded(snum) && !pcap_printername_ok(pname)) {
+		if (lp_autoloaded(snum) &&
+		    !printer_list_printername_exists(pname)) {
 			lp_killservice(snum);
 		}
 	}

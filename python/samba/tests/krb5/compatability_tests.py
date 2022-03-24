@@ -89,16 +89,16 @@ class SimpleKerberosTests(KDCBaseTest):
         # RFC 6806 11. Negotiation of FAST and Detecting Modified Requests
         self.assertTrue(ENC_PA_REP_FLAG & flags)
 
-    def test_heimdal_EncASRepPart_FAST_support(self):
+    def test_heimdal_and_windows_EncASRepPart_FAST_support(self):
         creds = self.get_user_creds()
         (enc, _) = self.as_req(creds)
         self.assertEqual(HIEMDAL_ENC_AS_REP_PART_TYPE_TAG, enc[0])
         as_rep = self.der_decode(enc, asn1Spec=krb5_asn1.EncASRepPart())
         flags = as_rep['flags']
         flags = int(as_rep['flags'], base=2)
-        # Heimdal does not set enc-pa-rep, flag bit 15
+        # Heimdal and Windows does set enc-pa-rep, flag bit 15
         # RFC 6806 11. Negotiation of FAST and Detecting Modified Requests
-        self.assertFalse(ENC_PA_REP_FLAG & flags)
+        self.assertTrue(ENC_PA_REP_FLAG & flags)
 
     def test_mit_arcfour_salt(self):
         creds = self.get_user_creds()
@@ -132,13 +132,14 @@ class SimpleKerberosTests(KDCBaseTest):
         tgt = self.get_tgt(user_creds)
 
         # Ensure the PAC contains the expected checksums.
-        self.verify_ticket(tgt, key)
+        self.verify_ticket(tgt, key, service_ticket=False)
 
         # Get a service ticket from the DC.
         service_ticket = self.get_service_ticket(tgt, target_creds)
 
         # Ensure the PAC contains the expected checksums.
-        self.verify_ticket(service_ticket, key, expect_ticket_checksum=True)
+        self.verify_ticket(service_ticket, key, service_ticket=True,
+                           expect_ticket_checksum=True)
 
     def test_mit_ticket_signature(self):
         # Ensure that a DC does not issue tickets signed with its krbtgt key.
@@ -152,13 +153,14 @@ class SimpleKerberosTests(KDCBaseTest):
         tgt = self.get_tgt(user_creds)
 
         # Ensure the PAC contains the expected checksums.
-        self.verify_ticket(tgt, key)
+        self.verify_ticket(tgt, key, service_ticket=False)
 
         # Get a service ticket from the DC.
         service_ticket = self.get_service_ticket(tgt, target_creds)
 
         # Ensure the PAC does not contain the expected checksums.
-        self.verify_ticket(service_ticket, key, expect_ticket_checksum=False)
+        self.verify_ticket(service_ticket, key, service_ticket=True,
+                           expect_ticket_checksum=False)
 
     def as_pre_auth_req(self, creds, etypes):
         user = creds.get_username()

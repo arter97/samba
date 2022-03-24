@@ -46,9 +46,12 @@
 #include "librpc/gen_ndr/irpc.h"
 #include "libds/common/flag_mapping.h"
 #include "lib/util/access.h"
-#include "lib/util/util_str_hex.h"
 #include "lib/util/sys_rw_data.h"
 #include "libcli/util/ntstatus.h"
+#include "lib/util/smb_strtox.h"
+
+#undef strncasecmp
+#undef strcasecmp
 
 /*
  * This included to allow us to handle DSDB_FLAG_REPLICATED_UPDATE in
@@ -3836,6 +3839,21 @@ int dsdb_forest_functional_level(struct ldb_context *ldb)
 		return DS_DOMAIN_FUNCTION_2000;
 	}
 	return *forestFunctionality;
+}
+
+/*
+ * This detects and returns the DC functional level (DS_DOMAIN_FUNCTION_*)
+ */
+int dsdb_dc_functional_level(struct ldb_context *ldb)
+{
+	int *dcFunctionality =
+		talloc_get_type(ldb_get_opaque(ldb, "domainFunctionality"), int);
+	if (!dcFunctionality) {
+		/* this is expected during initial provision */
+		DEBUG(4,(__location__ ": WARNING: domainControllerFunctionality not setup\n"));
+		return DS_DOMAIN_FUNCTION_2008_R2;
+	}
+	return *dcFunctionality;
 }
 
 /*

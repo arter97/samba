@@ -126,7 +126,7 @@ def install_rpath(target):
     ret = set()
     if bld.env.RPATH_ON_INSTALL:
         ret.add(bld.EXPAND_VARIABLES(bld.env.LIBDIR))
-    if bld.env.RPATH_ON_INSTALL_PRIVATE:
+    if bld.env.RPATH_ON_INSTALL_PRIVATE and needs_private_lib(bld, target):
         ret.add(bld.EXPAND_VARIABLES(bld.env.PRIVATELIBDIR))
     return list(ret)
 
@@ -459,7 +459,13 @@ def RECURSE(ctx, directory):
         return
     visited_dirs.add(key)
     relpath = os.path.relpath(abspath, ctx.path.abspath())
-    if ctxclass in ['tmp', 'OptionsContext', 'ConfigurationContext', 'BuildContext']:
+    if ctxclass in ['OptionsContext',
+                    'ConfigurationContext',
+                    'BuildContext',
+                    'CleanContext',
+                    'InstallContext',
+                    'UninstallContext',
+                    'ListContext']:
         return ctx.recurse(relpath)
     if 'waflib.extras.compat15' in sys.modules:
         return ctx.recurse(relpath)
@@ -651,7 +657,7 @@ def get_tgt_list(bld):
     tgt_list = []
     for tgt in targets:
         type = targets[tgt]
-        if not type in ['SUBSYSTEM', 'MODULE', 'BINARY', 'LIBRARY', 'ASN1', 'PYTHON']:
+        if not type in ['SUBSYSTEM', 'BUILTIN', 'MODULE', 'BINARY', 'LIBRARY', 'PLUGIN', 'ASN1', 'PYTHON']:
             continue
         t = bld.get_tgen_by_name(tgt)
         if t is None:

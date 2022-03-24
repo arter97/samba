@@ -23,7 +23,9 @@
 #ifndef _NET_PROTO_H_
 #define _NET_PROTO_H_
 
+#include "ads.h"
 #include "libads/ads_status.h"
+#include "librpc/gen_ndr/libnet_join.h"
 
 /* The following definitions come from utils/net.c  */
 
@@ -45,6 +47,15 @@ int net_ads_keytab(struct net_context *c, int argc, const char **argv);
 int net_ads_kerberos(struct net_context *c, int argc, const char **argv);
 int net_ads_setspn(struct net_context *c, int argc, const char **argv);
 int net_ads(struct net_context *c, int argc, const char **argv);
+
+/* The following definitions come from utils/net_ads_join_dns.c  */
+void use_in_memory_ccache(void);
+NTSTATUS net_update_dns_ext(struct net_context *c,
+			    TALLOC_CTX *mem_ctx, ADS_STRUCT *ads,
+			    const char *hostname,
+			    struct sockaddr_storage *iplist,
+			    int num_addrs, bool remove_host);
+void net_ads_join_dns_updates(struct net_context *c, TALLOC_CTX *ctx, struct libnet_JoinCtx *r);
 
 /* The following definitions come from utils/net_ads_gpo.c  */
 
@@ -94,6 +105,15 @@ int net_idmap(struct net_context *c, int argc, const char **argv);
 
 int net_join_usage(struct net_context *c, int argc, const char **argv);
 int net_join(struct net_context *c, int argc, const char **argv);
+
+/* The following definitions come from source3/utils/net_offlinejoin.c  */
+
+int net_offlinejoin_usage(struct net_context *c, int argc, const char **argv);
+int net_offlinejoin(struct net_context *c, int argc, const char **argv);
+int net_offlinejoin_provision(struct net_context *c,
+			      int argc, const char **argv);
+int net_offlinejoin_requestodj(struct net_context *c,
+			       int argc, const char **argv);
 
 /* The following definitions come from utils/net_lookup.c  */
 
@@ -418,9 +438,6 @@ NTSTATUS net_make_ipc_connection_ex(struct net_context *c ,const char *domain,
 				    const struct sockaddr_storage *pss,
 				    unsigned flags, struct cli_state **pcli);
 const char *net_prompt_pass(struct net_context *c, const char *user);
-struct cli_credentials;
-struct cli_credentials *net_context_creds(struct net_context *c,
-					  TALLOC_CTX *mem_ctx);
 int net_run_function(struct net_context *c, int argc, const char **argv,
 		      const char *whoami, struct functable *table);
 void net_display_usage_from_functable(struct functable *table);

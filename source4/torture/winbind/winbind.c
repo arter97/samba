@@ -29,7 +29,7 @@
 #include "auth/kerberos/kerberos.h"
 #include "auth/credentials/credentials.h"
 #include "param/param.h"
-#include "lib/cmdline/popt_common.h"
+#include "lib/cmdline/cmdline.h"
 #include "auth/kerberos/pac_utils.h"
 #include "wbclient.h"
 
@@ -53,6 +53,11 @@ static NTSTATUS test_generate_session_info_pac(struct auth4_context *auth_ctx,
 	struct auth_user_info_dc *user_info_dc;
 	TALLOC_CTX *tmp_ctx;
 	struct pac_data *pac_data;
+
+	if (pac_blob == NULL) {
+		DBG_ERR("pac_blob missing\n");
+		return NT_STATUS_NO_IMPERSONATION_TOKEN;
+	}
 
 	tmp_ctx = talloc_named(mem_ctx, 0, "gensec_gssapi_session_info context");
 	NT_STATUS_HAVE_NO_MEMORY(tmp_ctx);
@@ -194,14 +199,10 @@ static bool torture_winbind_pac(struct torture_context *tctx,
 	TALLOC_CTX *tmp_ctx = talloc_new(tctx);
 	torture_assert(tctx, tmp_ctx != NULL, "talloc_new() failed");
 
-	machine_credentials = cli_credentials_init(tmp_ctx);
+	machine_credentials = cli_credentials_init_server(tmp_ctx,
+							  tctx->lp_ctx);
 	torture_assert(tctx, machine_credentials != NULL, "cli_credentials_init() failed");
 
-	cli_credentials_set_conf(machine_credentials, tctx->lp_ctx);
-
-	status = cli_credentials_set_machine_account(machine_credentials, tctx->lp_ctx);
-	torture_assert_ntstatus_ok(tctx, status, " cli_credentials_set_machine_account() (for server) failed");
-	
 	auth_context = talloc_zero(tmp_ctx, struct auth4_context);
 	torture_assert(tctx, auth_context != NULL, "talloc_new() failed");
 
@@ -215,7 +216,7 @@ static bool torture_winbind_pac(struct torture_context *tctx,
 	torture_assert_ntstatus_ok(tctx, status, "gensec_set_target_hostname (client) failed");
 
 	status = gensec_set_credentials(gensec_client_context,
-			popt_get_cmdline_credentials());
+			samba_cmdline_get_creds());
 	torture_assert_ntstatus_ok(tctx, status, "gensec_set_credentials (client) failed");
 
 	if (sasl_mech) {

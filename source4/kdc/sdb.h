@@ -64,19 +64,19 @@ struct SDBFlags {
 	unsigned int allow_kerberos4:1;
 	unsigned int allow_digest:1;
 	unsigned int locked_out:1;
-	unsigned int _unused18:1;
-	unsigned int _unused19:1;
-	unsigned int _unused20:1;
-	unsigned int _unused21:1;
-	unsigned int _unused22:1;
-	unsigned int _unused23:1;
+	unsigned int require_pwchange:1;
+	unsigned int materialize:1;
+	unsigned int virtual_keys:1;
+	unsigned int virtual:1;
+	unsigned int synthetic:1;
+	unsigned int no_auth_data_reqd:1;
 	unsigned int _unused24:1;
 	unsigned int _unused25:1;
 	unsigned int _unused26:1;
 	unsigned int _unused27:1;
 	unsigned int _unused28:1;
 	unsigned int _unused29:1;
-	unsigned int _unused30:1;
+	unsigned int force_canonicalize:1;
 	unsigned int do_not_store:1;
 };
 
@@ -104,6 +104,8 @@ struct sdb_entry_ex {
 #define SDB_ERR_NOT_FOUND_HERE 36150287
 #define SDB_ERR_WRONG_REALM 36150289
 
+/* These must match the values in hdb.h */
+
 #define SDB_F_DECRYPT		1	/* decrypt keys */
 #define SDB_F_GET_CLIENT	4	/* fetch client */
 #define SDB_F_GET_SERVER	8	/* fetch server */
@@ -114,6 +116,19 @@ struct sdb_entry_ex {
 #define SDB_F_KVNO_SPECIFIED	128	/* we want a particular KVNO */
 #define SDB_F_FOR_AS_REQ	4096	/* fetch is for a AS REQ */
 #define SDB_F_FOR_TGS_REQ	8192	/* fetch is for a TGS REQ */
+
+#define SDB_F_HDB_MASK		(SDB_F_DECRYPT | \
+				 SDB_F_GET_CLIENT| \
+				 SDB_F_GET_SERVER | \
+				 SDB_F_GET_KRBTGT | \
+				 SDB_F_CANON | \
+				 SDB_F_ADMIN_DATA | \
+				 SDB_F_KVNO_SPECIFIED | \
+				 SDB_F_FOR_AS_REQ | \
+				 SDB_F_FOR_TGS_REQ)
+
+/* This is not supported by HDB */
+#define SDB_F_FORCE_CANON	16384	/* force canonicalition */
 
 void sdb_free_entry(struct sdb_entry_ex *e);
 void free_sdb_entry(struct sdb_entry *s);

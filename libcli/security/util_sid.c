@@ -28,6 +28,9 @@
 #include "../librpc/gen_ndr/netlogon.h"
 #include "../libcli/security/security.h"
 
+#undef strcasecmp
+#undef strncasecmp
+
 /*
  * Some useful sids, more well known sids can be found at
  * http://support.microsoft.com/kb/243330/EN-US/
@@ -154,6 +157,10 @@ const struct dom_sid global_sid_Unix_NFS_Mode =			/* Unix mode */
 const struct dom_sid global_sid_Unix_NFS_Other =		/* Unix other, MS NFS and Apple style */
 { 1, 2, {0,0,0,0,0,5}, {88,4,0,0,0,0,0,0,0,0,0,0,0,0,0}};
 #endif
+
+/* Information passing via security token */
+const struct dom_sid global_sid_Samba_SMB3 =
+{1, 1, {0,0,0,0,0,22}, {1397571891, }};
 
 /* Unused, left here for documentary purposes */
 #if 0

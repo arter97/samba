@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import print_function
 __all__ = ['parse_results']
 
 import datetime
@@ -24,9 +23,14 @@ import sys
 import os
 from samba import subunit
 from samba.subunit.run import TestProtocolClient
-from samba.subunit import iso8601
 import unittest
-from samba.compat import binary_type
+try:
+    from dateutil.parser import isoparse as iso_parse_date
+except ImportError:
+    try:
+        from iso8601 import parse_date as iso_parse_date;
+    except ImportError:
+        print('Install either python-dateutil >= 2.7.1 or python-iso8601')
 
 
 VALID_RESULTS = set(['success', 'successful', 'failure', 'fail', 'skip',
@@ -46,10 +50,7 @@ def parse_results(msg_ops, statistics, fh):
     exitcode = 0
     open_tests = {}
 
-    while fh:
-        l = fh.readline()
-        if l == "":
-            break
+    for l in fh:
         parts = l.split(None, 1)
         if not len(parts) == 2 or not l.startswith(parts[0]):
             msg_ops.output_msg(l)
@@ -67,7 +68,7 @@ def parse_results(msg_ops, statistics, fh):
         elif command == "time":
             msg_ops.control_msg(l)
             try:
-                dt = iso8601.parse_date(arg.rstrip("\n"))
+                dt = iso_parse_date(arg.rstrip("\n"))
             except TypeError as e:
                 print("Unable to parse time line: %s" % arg.rstrip("\n"))
             else:
@@ -81,26 +82,23 @@ def parse_results(msg_ops, statistics, fh):
                 reason = ""
                 # reason may be specified in next lines
                 terminated = False
-                while fh:
-                    l = fh.readline()
-                    if l == "":
-                        break
+                for l in fh:
                     msg_ops.control_msg(l)
-                    if l[-2:] == "]\n":
-                        reason += l[:-2]
+                    if l == "]\n":
                         terminated = True
                         break
                     else:
                         reason += l
 
-                if isinstance(reason, binary_type):
+                if isinstance(reason, bytes):
                     remote_error = subunit.RemoteError(reason.decode("utf-8"))
                 else:
                     remote_error = subunit.RemoteError(reason)
 
                 if not terminated:
                     statistics['TESTS_ERROR'] += 1
-                    msg_ops.addError(subunit.RemotedTestCase(testname), subunit.RemoteError(u"reason (%s) interrupted" % result))
+                    msg_ops.addError(subunit.RemotedTestCase(testname),
+                                     subunit.RemoteError(u"result (%s) reason (%s) interrupted" % (result, reason)))
                     return 1
             else:
                 reason = None
@@ -251,8 +249,7 @@ def read_test_regexes(*names):
             files.append(name)
 
     for filename in files:
-        f = open(filename, 'r')
-        try:
+        with open(filename, 'r') as f:
             for l in f:
                 l = l.strip()
                 if l == "" or l[0] == "#":
@@ -262,8 +259,7 @@ def read_test_regexes(*names):
                     ret[regex.strip()] = reason.strip()
                 else:
                     ret[l] = None
-        finally:
-            f.close()
+
     return ret
 
 
@@ -316,6 +312,7 @@ class FilterOps(unittest.TestResult):
         self.error_added += 1
         self.total_error += 1
         self._ops.addError(test, err)
+        self._ops.writeOutcome(test)
         self.output = None
         if self.fail_immediately:
             raise ImmediateFail()
@@ -324,11 +321,13 @@ class FilterOps(unittest.TestResult):
         self.seen_output = True
         test = self._add_prefix(test)
         self._ops.addSkip(test, reason)
+        self._ops.writeOutcome(test)
         self.output = None
 
     def addExpectedFailure(self, test, err=None):
         test = self._add_prefix(test)
         self._ops.addExpectedFailure(test, err)
+        self._ops.writeOutcome(test)
         self.output = None
 
     def addUnexpectedSuccess(self, test):
@@ -336,6 +335,7 @@ class FilterOps(unittest.TestResult):
         self.uxsuccess_added += 1
         self.total_uxsuccess += 1
         self._ops.addUnexpectedSuccess(test)
+        self._ops.writeOutcome(test)
         if self.output:
             self._ops.output_msg(self.output)
         self.output = None
@@ -351,10 +351,12 @@ class FilterOps(unittest.TestResult):
             self.xfail_added += 1
             self.total_xfail += 1
             self._ops.addExpectedFailure(test, err)
+            self._ops.writeOutcome(test)
         else:
             self.fail_added += 1
             self.total_fail += 1
             self._ops.addFailure(test, err)
+            self._ops.writeOutcome(test)
             if self.output:
                 self._ops.output_msg(self.output)
             if self.fail_immediately:
@@ -368,12 +370,14 @@ class FilterOps(unittest.TestResult):
             self.uxsuccess_added += 1
             self.total_uxsuccess += 1
             self._ops.addUnexpectedSuccess(test)
+            self._ops.writeOutcome(test)
             if self.output:
                 self._ops.output_msg(self.output)
             if self.fail_immediately:
                 raise ImmediateFail()
         else:
             self._ops.addSuccess(test)
+            self._ops.writeOutcome(test)
         self.output = None
 
     def skip_testsuite(self, name, reason=None):

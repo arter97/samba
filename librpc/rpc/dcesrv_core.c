@@ -33,10 +33,17 @@
 #include "lib/tsocket/tsocket.h"
 #include "librpc/gen_ndr/ndr_dcerpc.h"
 #include "lib/util/tevent_ntstatus.h"
+#include "system/network.h"
 
+/**
+ * @file
+ * @brief DCERPC server
+ */
 
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_RPC_SRV
+
+#undef strcasecmp
 
 static NTSTATUS dcesrv_negotiate_contexts(struct dcesrv_call_state *call,
 				const struct dcerpc_bind *b,
@@ -105,16 +112,6 @@ static struct dcesrv_connection_context *dcesrv_find_context(struct dcesrv_conne
 }
 
 /*
-  see if a uuid and if_version match to an interface
-*/
-static bool interface_match(const struct dcesrv_interface *if1,
-							const struct dcesrv_interface *if2)
-{
-	return (if1->syntax_id.if_version == if2->syntax_id.if_version &&
-			GUID_equal(&if1->syntax_id.uuid, &if2->syntax_id.uuid));
-}
-
-/*
   find the interface operations on any endpoint with this binding
 */
 static const struct dcesrv_interface *find_interface_by_binding(struct dcesrv_context *dce_ctx,
@@ -124,11 +121,12 @@ static const struct dcesrv_interface *find_interface_by_binding(struct dcesrv_co
 	struct dcesrv_endpoint *ep;
 	for (ep=dce_ctx->endpoint_list; ep; ep=ep->next) {
 		if (endpoints_match(ep->ep_description, binding)) {
-			struct dcesrv_if_list *ifl;
-			for (ifl=ep->interface_list; ifl; ifl=ifl->next) {
-				if (interface_match(ifl->iface, iface)) {
-					return ifl->iface;
-				}
+			const struct dcesrv_interface *ret = NULL;
+
+			ret = find_interface_by_syntax_id(
+				ep, &iface->syntax_id);
+			if (ret != NULL) {
+				return ret;
 			}
 		}
 	}
@@ -136,24 +134,15 @@ static const struct dcesrv_interface *find_interface_by_binding(struct dcesrv_co
 }
 
 /*
-  see if a uuid and if_version match to an interface
-*/
-static bool interface_match_by_uuid(const struct dcesrv_interface *iface,
-				    const struct GUID *uuid, uint32_t if_version)
-{
-	return (iface->syntax_id.if_version == if_version &&
-			GUID_equal(&iface->syntax_id.uuid, uuid));
-}
-
-/*
   find the interface operations on an endpoint by uuid
 */
-_PUBLIC_ const struct dcesrv_interface *find_interface_by_uuid(const struct dcesrv_endpoint *endpoint,
-						      const struct GUID *uuid, uint32_t if_version)
+_PUBLIC_ const struct dcesrv_interface *find_interface_by_syntax_id(
+	const struct dcesrv_endpoint *endpoint,
+	const struct ndr_syntax_id *interface)
 {
 	struct dcesrv_if_list *ifl;
 	for (ifl=endpoint->interface_list; ifl; ifl=ifl->next) {
-		if (interface_match_by_uuid(ifl->iface, uuid, if_version)) {
+		if (ndr_syntax_id_equal(&ifl->iface->syntax_id, interface)) {
 			return ifl->iface;
 		}
 	}
@@ -161,7 +150,7 @@ _PUBLIC_ const struct dcesrv_interface *find_interface_by_uuid(const struct dces
 }
 
 /*
-  find the earlier parts of a fragmented call awaiting reassembily
+  find the earlier parts of a fragmented call awaiting reassembly
 */
 static struct dcesrv_call_state *dcesrv_find_fragmented_call(struct dcesrv_connection *dce_conn, uint32_t call_id)
 {
@@ -192,10 +181,46 @@ _PUBLIC_ NTSTATUS dcesrv_interface_register(struct dcesrv_context *dce_ctx,
 				   const struct dcesrv_interface *iface,
 				   const struct security_descriptor *sd)
 {
+	struct dcerpc_binding *binding = NULL;
+	struct dcerpc_binding *binding2 = NULL;
+	NTSTATUS ret;
+
+	ret = dcerpc_parse_binding(dce_ctx, ep_name, &binding);
+	if (NT_STATUS_IS_ERR(ret)) {
+		DBG_ERR("Trouble parsing binding string '%s'\n", ep_name);
+		goto out;
+	}
+
+	if (ncacn_np_secondary_endpoint != NULL) {
+		ret = dcerpc_parse_binding(dce_ctx,
+					   ncacn_np_secondary_endpoint,
+					   &binding2);
+		if (NT_STATUS_IS_ERR(ret)) {
+			DBG_ERR("Trouble parsing 2nd binding string '%s'\n",
+				ncacn_np_secondary_endpoint);
+			goto out;
+		}
+	}
+
+	ret = dcesrv_interface_register_b(dce_ctx,
+					  binding,
+					  binding2,
+					  iface,
+					  sd);
+out:
+	TALLOC_FREE(binding);
+	TALLOC_FREE(binding2);
+	return ret;
+}
+
+_PUBLIC_ NTSTATUS dcesrv_interface_register_b(struct dcesrv_context *dce_ctx,
+					struct dcerpc_binding *binding,
+					struct dcerpc_binding *binding2,
+					const struct dcesrv_interface *iface,
+					const struct security_descriptor *sd)
+{
 	struct dcesrv_endpoint *ep;
 	struct dcesrv_if_list *ifl;
-	struct dcerpc_binding *binding;
-	struct dcerpc_binding *binding2 = NULL;
 	bool add_ep = false;
 	NTSTATUS status;
 	enum dcerpc_transport_t transport;
@@ -216,17 +241,9 @@ _PUBLIC_ NTSTATUS dcesrv_interface_register(struct dcesrv_context *dce_ctx,
 		use_single_process = false;
 	}
 
-	status = dcerpc_parse_binding(dce_ctx, ep_name, &binding);
-
-	if (NT_STATUS_IS_ERR(status)) {
-		DEBUG(0, ("Trouble parsing binding string '%s'\n", ep_name));
-		return status;
-	}
-
 	transport = dcerpc_binding_get_transport(binding);
 	if (transport == NCACN_IP_TCP) {
 		int port;
-		char port_str[6];
 
 		/*
 		 * First check if there is already a port specified, eg
@@ -249,6 +266,7 @@ _PUBLIC_ NTSTATUS dcesrv_interface_register(struct dcesrv_context *dce_ctx,
 				port = lpcfg_rpc_server_port(dce_ctx->lp_ctx);
 			}
 			if (port != 0) {
+				char port_str[6];
 				snprintf(port_str, sizeof(port_str), "%u", port);
 				status = dcerpc_binding_set_string_option(binding,
 									  "endpoint",
@@ -260,17 +278,8 @@ _PUBLIC_ NTSTATUS dcesrv_interface_register(struct dcesrv_context *dce_ctx,
 		}
 	}
 
-	if (transport == NCACN_NP && ncacn_np_secondary_endpoint != NULL) {
+	if (transport == NCACN_NP && binding2 != NULL) {
 		enum dcerpc_transport_t transport2;
-
-		status = dcerpc_parse_binding(dce_ctx,
-					      ncacn_np_secondary_endpoint,
-					      &binding2);
-		if (!NT_STATUS_IS_OK(status)) {
-			DEBUG(0, ("Trouble parsing 2nd binding string '%s'\n",
-				  ncacn_np_secondary_endpoint));
-			return status;
-		}
 
 		transport2 = dcerpc_binding_get_transport(binding2);
 		SMB_ASSERT(transport2 == transport);
@@ -278,8 +287,10 @@ _PUBLIC_ NTSTATUS dcesrv_interface_register(struct dcesrv_context *dce_ctx,
 
 	/* see if the interface is already registered on the endpoint */
 	if (find_interface_by_binding(dce_ctx, binding, iface)!=NULL) {
-		DEBUG(0,("dcesrv_interface_register: interface '%s' already registered on endpoint '%s'\n",
-			 iface->name, ep_name));
+		char *binding_string = dcerpc_binding_string(dce_ctx, binding);
+		DBG_ERR("Interface '%s' already registered on endpoint '%s'\n",
+			iface->name, binding_string);
+		TALLOC_FREE(binding_string);
 		return NT_STATUS_OBJECT_NAME_COLLISION;
 	}
 
@@ -314,14 +325,17 @@ _PUBLIC_ NTSTATUS dcesrv_interface_register(struct dcesrv_context *dce_ctx,
 		if (!ep) {
 			return NT_STATUS_NO_MEMORY;
 		}
-		ZERO_STRUCTP(ep);
-		ep->ep_description = talloc_move(ep, &binding);
-		ep->ep_2nd_description = talloc_move(ep, &binding2);
+		ep->ep_description = dcerpc_binding_dup(ep, binding);
+		if (transport == NCACN_NP && binding2 != NULL) {
+			ep->ep_2nd_description =
+				dcerpc_binding_dup(ep, binding2);
+		}
 		add_ep = true;
 
 		/* add mgmt interface */
 		ifl = talloc_zero(ep, struct dcesrv_if_list);
 		if (!ifl) {
+			TALLOC_FREE(ep);
 			return NT_STATUS_NO_MEMORY;
 		}
 
@@ -382,9 +396,12 @@ _PUBLIC_ NTSTATUS dcesrv_interface_register(struct dcesrv_context *dce_ctx,
 		 * or there was already one on the endpoint
 		 */
 		if (ep->sd != NULL) {
-			DEBUG(0,("dcesrv_interface_register: interface '%s' failed to setup a security descriptor\n"
-			         "                           on endpoint '%s'\n",
-				iface->name, ep_name));
+			char *binding_string =
+				dcerpc_binding_string(dce_ctx, binding);
+			DBG_ERR("Interface '%s' failed to setup a security "
+				"descriptor on endpoint '%s'\n",
+				iface->name, binding_string);
+			TALLOC_FREE(binding_string);
 			if (add_ep) free(ep);
 			free(ifl);
 			return NT_STATUS_OBJECT_NAME_COLLISION;
@@ -532,14 +549,16 @@ _PUBLIC_ NTSTATUS dcesrv_endpoint_connect(struct dcesrv_context *dce_ctx,
 				struct dcesrv_connection **_p)
 {
 	struct dcesrv_auth *auth = NULL;
-	struct dcesrv_connection *p;
+	struct dcesrv_connection *p = NULL;
 
 	if (!session_info) {
 		return NT_STATUS_ACCESS_DENIED;
 	}
 
 	p = talloc_zero(mem_ctx, struct dcesrv_connection);
-	NT_STATUS_HAVE_NO_MEMORY(p);
+	if (p == NULL) {
+		goto nomem;
+	}
 
 	p->dce_ctx = dce_ctx;
 	p->endpoint = ep;
@@ -567,14 +586,12 @@ _PUBLIC_ NTSTATUS dcesrv_endpoint_connect(struct dcesrv_context *dce_ctx,
 
 	auth = dcesrv_auth_create(p);
 	if (auth == NULL) {
-		talloc_free(p);
-		return NT_STATUS_NO_MEMORY;
+		goto nomem;
 	}
 
 	auth->session_info = talloc_reference(auth, session_info);
 	if (auth->session_info == NULL) {
-		talloc_free(p);
-		return NT_STATUS_NO_MEMORY;
+		goto nomem;
 	}
 
 	p->default_auth_state = auth;
@@ -586,6 +603,9 @@ _PUBLIC_ NTSTATUS dcesrv_endpoint_connect(struct dcesrv_context *dce_ctx,
 
 	*_p = p;
 	return NT_STATUS_OK;
+nomem:
+	TALLOC_FREE(p);
+	return NT_STATUS_NO_MEMORY;
 }
 
 /*
@@ -941,6 +961,7 @@ static void dcesrv_bind_done(struct tevent_req *subreq);
 static NTSTATUS dcesrv_bind(struct dcesrv_call_state *call)
 {
 	struct dcesrv_connection *conn = call->conn;
+	struct dcesrv_context *dce_ctx = conn->dce_ctx;
 	struct ncacn_packet *pkt = &call->ack_pkt;
 	NTSTATUS status;
 	uint32_t extra_flags = 0;
@@ -949,6 +970,7 @@ static NTSTATUS dcesrv_bind(struct dcesrv_call_state *call)
 	struct dcerpc_binding *ep_2nd_description = NULL;
 	const char *endpoint = NULL;
 	struct dcesrv_auth *auth = call->auth_state;
+	struct dcesrv_context_callbacks *cb = call->conn->dce_ctx->callbacks;
 	struct dcerpc_ack_ctx *ack_ctx_list = NULL;
 	struct dcerpc_ack_ctx *ack_features = NULL;
 	struct tevent_req *subreq = NULL;
@@ -979,15 +1001,16 @@ static NTSTATUS dcesrv_bind(struct dcesrv_call_state *call)
 	 * via ncacn_ip_tcp on port 135.
 	 */
 	max_req = MAX(2048, max_req);
-	max_rep = MIN(max_req, call->conn->max_recv_frag);
+	max_rep = MIN(max_req, conn->max_recv_frag);
 	/* They are truncated to an 8 byte boundary. */
 	max_rep &= 0xFFF8;
 
 	/* max_recv_frag and max_xmit_frag result always in the same value! */
-	call->conn->max_recv_frag = max_rep;
-	call->conn->max_xmit_frag = max_rep;
+	conn->max_recv_frag = max_rep;
+	conn->max_xmit_frag = max_rep;
 
-	status = call->conn->dce_ctx->callbacks.assoc_group.find(call);
+	status = dce_ctx->callbacks->assoc_group.find(
+		call, dce_ctx->callbacks->assoc_group.private_data);
 	if (!NT_STATUS_IS_OK(status)) {
 		DBG_NOTICE("Failed to find assoc_group 0x%08x: %s\n",
 			   call->pkt.u.bind.assoc_group_id, nt_errstr(status));
@@ -1043,7 +1066,7 @@ static NTSTATUS dcesrv_bind(struct dcesrv_call_state *call)
 		a->result = DCERPC_BIND_ACK_RESULT_NEGOTIATE_ACK;
 		a->reason.negotiate = 0;
 		if (features & DCERPC_BIND_TIME_SECURITY_CONTEXT_MULTIPLEXING) {
-			if (call->conn->max_auth_states != 0) {
+			if (conn->max_auth_states != 0) {
 				a->reason.negotiate |=
 				DCERPC_BIND_TIME_SECURITY_CONTEXT_MULTIPLEXING;
 			}
@@ -1053,7 +1076,7 @@ static NTSTATUS dcesrv_bind(struct dcesrv_call_state *call)
 				DCERPC_BIND_TIME_KEEP_CONNECTION_ON_ORPHAN;
 		}
 
-		call->conn->assoc_group->bind_time_features = a->reason.negotiate;
+		conn->assoc_group->bind_time_features = a->reason.negotiate;
 	}
 
 	/*
@@ -1091,7 +1114,7 @@ static NTSTATUS dcesrv_bind(struct dcesrv_call_state *call)
 	}
 
 	if (call->state_flags & DCESRV_CALL_STATE_FLAG_PROCESS_PENDING_CALL) {
-		call->conn->state_flags |= DCESRV_CALL_STATE_FLAG_PROCESS_PENDING_CALL;
+		conn->state_flags |= DCESRV_CALL_STATE_FLAG_PROCESS_PENDING_CALL;
 	}
 
 	/*
@@ -1118,18 +1141,18 @@ static NTSTATUS dcesrv_bind(struct dcesrv_call_state *call)
 	}
 
 	/* setup a bind_ack */
-	dcesrv_init_hdr(pkt, lpcfg_rpc_big_endian(call->conn->dce_ctx->lp_ctx));
+	dcesrv_init_hdr(pkt, lpcfg_rpc_big_endian(dce_ctx->lp_ctx));
 	pkt->auth_length = 0;
 	pkt->call_id = call->pkt.call_id;
 	pkt->ptype = DCERPC_PKT_BIND_ACK;
 	pkt->pfc_flags = DCERPC_PFC_FLAG_FIRST | DCERPC_PFC_FLAG_LAST | extra_flags;
-	pkt->u.bind_ack.max_xmit_frag = call->conn->max_xmit_frag;
-	pkt->u.bind_ack.max_recv_frag = call->conn->max_recv_frag;
-	pkt->u.bind_ack.assoc_group_id = call->conn->assoc_group->id;
+	pkt->u.bind_ack.max_xmit_frag = conn->max_xmit_frag;
+	pkt->u.bind_ack.max_recv_frag = conn->max_recv_frag;
+	pkt->u.bind_ack.assoc_group_id = conn->assoc_group->id;
 
-	ep_2nd_description = call->conn->endpoint->ep_2nd_description;
+	ep_2nd_description = conn->endpoint->ep_2nd_description;
 	if (ep_2nd_description == NULL) {
-		ep_2nd_description = call->conn->endpoint->ep_description;
+		ep_2nd_description = conn->endpoint->ep_description;
 	}
 
 	endpoint = dcerpc_binding_get_string_option(
@@ -1153,9 +1176,11 @@ static NTSTATUS dcesrv_bind(struct dcesrv_call_state *call)
 		return dcesrv_auth_reply(call);
 	}
 
+	cb->auth.become_root();
 	subreq = gensec_update_send(call, call->event_ctx,
 				    auth->gensec_security,
 				    call->in_auth_info.credentials);
+	cb->auth.unbecome_root();
 	if (subreq == NULL) {
 		return NT_STATUS_NO_MEMORY;
 	}
@@ -1170,10 +1195,13 @@ static void dcesrv_bind_done(struct tevent_req *subreq)
 		tevent_req_callback_data(subreq,
 		struct dcesrv_call_state);
 	struct dcesrv_connection *conn = call->conn;
+	struct dcesrv_context_callbacks *cb = call->conn->dce_ctx->callbacks;
 	NTSTATUS status;
 
+	cb->auth.become_root();
 	status = gensec_update_recv(subreq, call,
 				    &call->out_auth_info->credentials);
+	cb->auth.unbecome_root();
 	TALLOC_FREE(subreq);
 
 	status = dcesrv_auth_complete(call, status);
@@ -1231,6 +1259,7 @@ static NTSTATUS dcesrv_auth3(struct dcesrv_call_state *call)
 {
 	struct dcesrv_connection *conn = call->conn;
 	struct dcesrv_auth *auth = call->auth_state;
+	struct dcesrv_context_callbacks *cb = call->conn->dce_ctx->callbacks;
 	struct tevent_req *subreq = NULL;
 	NTSTATUS status;
 
@@ -1275,9 +1304,11 @@ static NTSTATUS dcesrv_auth3(struct dcesrv_call_state *call)
 		return NT_STATUS_OK;
 	}
 
+	cb->auth.become_root();
 	subreq = gensec_update_send(call, call->event_ctx,
 				    auth->gensec_security,
 				    call->in_auth_info.credentials);
+	cb->auth.unbecome_root();
 	if (subreq == NULL) {
 		return NT_STATUS_NO_MEMORY;
 	}
@@ -1293,10 +1324,13 @@ static void dcesrv_auth3_done(struct tevent_req *subreq)
 		struct dcesrv_call_state);
 	struct dcesrv_connection *conn = call->conn;
 	struct dcesrv_auth *auth = call->auth_state;
+	struct dcesrv_context_callbacks *cb = call->conn->dce_ctx->callbacks;
 	NTSTATUS status;
 
+	cb->auth.become_root();
 	status = gensec_update_recv(subreq, call,
 				    &call->out_auth_info->credentials);
+	cb->auth.unbecome_root();
 	TALLOC_FREE(subreq);
 
 	status = dcesrv_auth_complete(call, status);
@@ -1335,10 +1369,8 @@ static NTSTATUS dcesrv_check_or_create_context(struct dcesrv_call_state *call,
 				bool validate_only,
 				const struct ndr_syntax_id *supported_transfer)
 {
-	uint32_t if_version;
 	struct dcesrv_connection_context *context;
 	const struct dcesrv_interface *iface;
-	struct GUID uuid;
 	NTSTATUS status;
 	const struct ndr_syntax_id *selected_transfer = NULL;
 	size_t i;
@@ -1374,14 +1406,13 @@ static NTSTATUS dcesrv_check_or_create_context(struct dcesrv_call_state *call,
 	ack->result = DCERPC_BIND_ACK_RESULT_PROVIDER_REJECTION;
 	ack->reason.value = DCERPC_BIND_ACK_REASON_ABSTRACT_SYNTAX_NOT_SUPPORTED;
 
-	if_version = ctx->abstract_syntax.if_version;
-	uuid = ctx->abstract_syntax.uuid;
-
-	iface = find_interface_by_uuid(call->conn->endpoint, &uuid, if_version);
+	iface = find_interface_by_syntax_id(
+		call->conn->endpoint, &ctx->abstract_syntax);
 	if (iface == NULL) {
-		char *uuid_str = GUID_string(call, &uuid);
-		DEBUG(2,("Request for unknown dcerpc interface %s/%d\n", uuid_str, if_version));
-		talloc_free(uuid_str);
+		struct ndr_syntax_id_buf buf;
+		DBG_NOTICE("Request for unknown dcerpc interface %s\n",
+			   ndr_syntax_id_buf_string(
+				   &ctx->abstract_syntax, &buf));
 		/*
 		 * We report this only via ack->result
 		 */
@@ -1568,6 +1599,7 @@ static NTSTATUS dcesrv_alter(struct dcesrv_call_state *call)
 	struct ncacn_packet *pkt = &call->ack_pkt;
 	uint32_t extra_flags = 0;
 	struct dcesrv_auth *auth = call->auth_state;
+	struct dcesrv_context_callbacks *cb = call->conn->dce_ctx->callbacks;
 	struct dcerpc_ack_ctx *ack_ctx_list = NULL;
 	struct tevent_req *subreq = NULL;
 	size_t i;
@@ -1679,9 +1711,11 @@ static NTSTATUS dcesrv_alter(struct dcesrv_call_state *call)
 		return dcesrv_auth_reply(call);
 	}
 
+	cb->auth.become_root();
 	subreq = gensec_update_send(call, call->event_ctx,
 				    auth->gensec_security,
 				    call->in_auth_info.credentials);
+	cb->auth.unbecome_root();
 	if (subreq == NULL) {
 		return NT_STATUS_NO_MEMORY;
 	}
@@ -1696,10 +1730,13 @@ static void dcesrv_alter_done(struct tevent_req *subreq)
 		tevent_req_callback_data(subreq,
 		struct dcesrv_call_state);
 	struct dcesrv_connection *conn = call->conn;
+	struct dcesrv_context_callbacks *cb = call->conn->dce_ctx->callbacks;
 	NTSTATUS status;
 
+	cb->auth.become_root();
 	status = gensec_update_recv(subreq, call,
 				    &call->out_auth_info->credentials);
+	cb->auth.unbecome_root();
 	TALLOC_FREE(subreq);
 
 	status = dcesrv_auth_complete(call, status);
@@ -2380,6 +2417,10 @@ _PUBLIC_ NTSTATUS dcesrv_init_context(TALLOC_CTX *mem_ctx,
 {
 	struct dcesrv_context *dce_ctx;
 
+	if (cb == NULL) {
+		return NT_STATUS_INVALID_PARAMETER;
+	}
+
 	dce_ctx = talloc_zero(mem_ctx, struct dcesrv_context);
 	NT_STATUS_HAVE_NO_MEMORY(dce_ctx);
 
@@ -2394,43 +2435,31 @@ _PUBLIC_ NTSTATUS dcesrv_init_context(TALLOC_CTX *mem_ctx,
 	dce_ctx->endpoint_list	= NULL;
 	dce_ctx->lp_ctx = lp_ctx;
 	dce_ctx->assoc_groups_idr = idr_init(dce_ctx);
-	NT_STATUS_HAVE_NO_MEMORY(dce_ctx->assoc_groups_idr);
-	dce_ctx->broken_connections = NULL;
-	if (cb != NULL) {
-		dce_ctx->callbacks = *cb;
+	if (dce_ctx->assoc_groups_idr == NULL) {
+		TALLOC_FREE(dce_ctx);
+		return NT_STATUS_NO_MEMORY;
 	}
+	dce_ctx->broken_connections = NULL;
+	dce_ctx->callbacks = cb;
 
 	*_dce_ctx = dce_ctx;
 	return NT_STATUS_OK;
 }
 
-_PUBLIC_ NTSTATUS dcesrv_reinit_context(struct dcesrv_context *dce_ctx)
+/**
+ * @brief Set callback functions on an existing dcesrv_context
+ *
+ * This allows to reset callbacks initially set via
+ * dcesrv_init_context()
+ *
+ * @param[in] dce_ctx The context to set the callbacks on
+ * @param[in] cb The callbacks to set on dce_ctx
+ */
+_PUBLIC_ void dcesrv_context_set_callbacks(
+	struct dcesrv_context *dce_ctx,
+	struct dcesrv_context_callbacks *cb)
 {
-	NTSTATUS status;
-
-	status = dcesrv_shutdown_registered_ep_servers(dce_ctx);
-	if (!NT_STATUS_IS_OK(status)) {
-		return status;
-	}
-
-	/* Clear endpoints */
-	while (dce_ctx->endpoint_list != NULL) {
-		struct dcesrv_endpoint *e = dce_ctx->endpoint_list;
-		DLIST_REMOVE(dce_ctx->endpoint_list, e);
-		TALLOC_FREE(e);
-	}
-
-	/* Remove broken connections */
-	dcesrv_cleanup_broken_connections(dce_ctx);
-
-	/* Reinit assoc group idr */
-	TALLOC_FREE(dce_ctx->assoc_groups_idr);
-	dce_ctx->assoc_groups_idr = idr_init(dce_ctx);
-	if (dce_ctx->assoc_groups_idr == NULL) {
-		return NT_STATUS_NO_MEMORY;
-	}
-
-	return NT_STATUS_OK;
+	dce_ctx->callbacks = cb;
 }
 
 _PUBLIC_ NTSTATUS dcesrv_init_ep_servers(struct dcesrv_context *dce_ctx,
@@ -2697,16 +2726,6 @@ _PUBLIC_ void dcesrv_cleanup_broken_connections(struct dcesrv_context *dce_ctx)
 	}
 }
 
-/* We need this include to be able to compile on some plateforms
- * (ie. freebsd 7.2) as it seems that <sys/uio.h> is not included
- * correctly.
- * It has to be that deep because otherwise we have a conflict on
- * const struct dcesrv_interface declaration.
- * This is mostly due to socket_wrapper defining #define bind swrap_bind
- * which conflict with the bind used before.
- */
-#include "system/network.h"
-
 struct dcesrv_sock_reply_state {
 	struct dcesrv_connection *dce_conn;
 	struct dcesrv_call_state *call;
@@ -2879,6 +2898,28 @@ static void dcesrv_read_fragment_done(struct tevent_req *subreq)
 		return;
 	}
 
+	dcesrv_loop_next_packet(dce_conn, pkt, buffer);
+}
+
+/**
+ * @brief Start the dcesrv loop, inducing the bind as a blob
+ *
+ * Like dcesrv_connection_loop_start() but used from connections
+ * where the caller has already read the dcerpc bind packet from
+ * the socket and is available as a DATA_BLOB.
+ *
+ * @param[in] dce_conn The connection to start
+ * @param[in] pkt The parsed bind packet
+ * @param[in] buffer The full binary bind including auth data
+ */
+void dcesrv_loop_next_packet(
+	struct dcesrv_connection *dce_conn,
+	struct ncacn_packet *pkt,
+	DATA_BLOB buffer)
+{
+	struct tevent_req *subreq = NULL;
+	NTSTATUS status;
+
 	status = dcesrv_process_ncacn_packet(dce_conn, pkt, buffer);
 	if (!NT_STATUS_IS_OK(status)) {
 		dcesrv_terminate_connection(dce_conn, nt_errstr(status));
@@ -3021,6 +3062,82 @@ _PUBLIC_ NTSTATUS dcesrv_connection_loop_start(struct dcesrv_connection *conn)
 		return NT_STATUS_NO_MEMORY;
 	}
 	tevent_req_set_callback(subreq, dcesrv_read_fragment_done, conn);
+
+	return NT_STATUS_OK;
+}
+
+_PUBLIC_ NTSTATUS dcesrv_call_dispatch_local(struct dcesrv_call_state *call)
+{
+	NTSTATUS status;
+	struct ndr_pull *pull = NULL;
+	struct ndr_push *push = NULL;
+	struct data_blob_list_item *rep = NULL;
+
+	pull = ndr_pull_init_blob(&call->pkt.u.request.stub_and_verifier,
+				  call);
+	if (pull == NULL) {
+		return NT_STATUS_NO_MEMORY;
+	}
+
+	pull->flags |= LIBNDR_FLAG_REF_ALLOC;
+
+	call->ndr_pull = pull;
+
+	/* unravel the NDR for the packet */
+	status = call->context->iface->ndr_pull(call, call, pull, &call->r);
+	if (!NT_STATUS_IS_OK(status)) {
+		DBG_INFO("DCE/RPC fault in call %s:%02X - %s\n",
+			 call->context->iface->name,
+			 call->pkt.u.request.opnum,
+			 dcerpc_errstr(call, call->fault_code));
+		return dcerpc_fault_to_nt_status(call->fault_code);
+	}
+
+	status = call->context->iface->local(call, call, call->r);
+	if (!NT_STATUS_IS_OK(status)) {
+		DBG_INFO("DCE/RPC fault in call %s:%02X - %s\n",
+			 call->context->iface->name,
+			 call->pkt.u.request.opnum,
+			 dcerpc_errstr(call, call->fault_code));
+		return dcerpc_fault_to_nt_status(call->fault_code);
+	}
+
+	/* This can never go async for now! */
+	SMB_ASSERT(!(call->state_flags & DCESRV_CALL_STATE_FLAG_ASYNC));
+
+	/* call the reply function */
+	status = call->context->iface->reply(call, call, call->r);
+	if (!NT_STATUS_IS_OK(status)) {
+		DBG_INFO("DCE/RPC fault in call %s:%02X - %s\n",
+			 call->context->iface->name,
+			 call->pkt.u.request.opnum,
+			 dcerpc_errstr(call, call->fault_code));
+		return dcerpc_fault_to_nt_status(call->fault_code);
+	}
+
+	push = ndr_push_init_ctx(call);
+	if (push == NULL) {
+		return NT_STATUS_NO_MEMORY;
+	}
+
+	push->ptr_count = call->ndr_pull->ptr_count;
+
+	status = call->context->iface->ndr_push(call, call, push, call->r);
+	if (!NT_STATUS_IS_OK(status)) {
+		DBG_INFO("DCE/RPC fault in call %s:%02X - %s\n",
+			 call->context->iface->name,
+			 call->pkt.u.request.opnum,
+			 dcerpc_errstr(call, call->fault_code));
+		return dcerpc_fault_to_nt_status(call->fault_code);
+	}
+
+	rep = talloc_zero(call, struct data_blob_list_item);
+	if (rep == NULL) {
+		return NT_STATUS_NO_MEMORY;
+	}
+
+	rep->blob = ndr_push_blob(push);
+	DLIST_ADD_END(call->replies, rep);
 
 	return NT_STATUS_OK;
 }

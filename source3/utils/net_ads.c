@@ -41,6 +41,7 @@
 #include "lib/param/loadparm.h"
 #include "utils/net_dns.h"
 #include "auth/kerberos/pac_utils.h"
+#include "lib/util/string_wrappers.h"
 
 #ifdef HAVE_JANSSON
 #include <jansson.h>
@@ -590,12 +591,6 @@ static int net_ads_info(struct net_context *c, int argc, const char **argv)
 	return 0;
 }
 
-static void use_in_memory_ccache(void) {
-	/* Use in-memory credentials cache so we do not interfere with
-	 * existing credentials */
-	setenv(KRB5_ENV_CCNAME, "MEMORY:net_ads", 1);
-}
-
 static ADS_STATUS ads_startup_int(struct net_context *c, bool only_own_domain,
 				  uint32_t auth_flags, ADS_STRUCT **ads_ret)
 {
@@ -606,6 +601,8 @@ static ADS_STATUS ads_startup_int(struct net_context *c, bool only_own_domain,
 	char *cp;
 	const char *realm = NULL;
 	bool tried_closest_dc = false;
+	enum credentials_use_kerberos krb5_state =
+		CRED_USE_KERBEROS_DISABLED;
 
 	/* lp_realm() should be handled by a command line param,
 	   However, the join requires that realm be set in smb.conf
@@ -649,9 +646,27 @@ retry:
 		ads->auth.password = smb_xstrdup(c->opt_password);
 	}
 
-	ads->auth.flags |= auth_flags;
 	SAFE_FREE(ads->auth.user_name);
 	ads->auth.user_name = smb_xstrdup(c->opt_user_name);
+
+	ads->auth.flags |= auth_flags;
+
+	/* The ADS code will handle FIPS mode */
+	krb5_state = cli_credentials_get_kerberos_state(c->creds);
+	switch (krb5_state) {
+	case CRED_USE_KERBEROS_REQUIRED:
+		ads->auth.flags &= ~ADS_AUTH_DISABLE_KERBEROS;
+		ads->auth.flags &= ~ADS_AUTH_ALLOW_NTLMSSP;
+		break;
+	case CRED_USE_KERBEROS_DESIRED:
+		ads->auth.flags &= ~ADS_AUTH_DISABLE_KERBEROS;
+		ads->auth.flags |= ADS_AUTH_ALLOW_NTLMSSP;
+		break;
+	case CRED_USE_KERBEROS_DISABLED:
+		ads->auth.flags |= ADS_AUTH_DISABLE_KERBEROS;
+		ads->auth.flags |= ADS_AUTH_ALLOW_NTLMSSP;
+		break;
+	}
 
        /*
         * If the username is of the form "name@realm",
@@ -1502,209 +1517,6 @@ static WERROR check_ads_config( void )
 }
 
 /*******************************************************************
- Send a DNS update request
-*******************************************************************/
-
-#if defined(WITH_DNS_UPDATES)
-#include "../lib/addns/dns.h"
-
-static NTSTATUS net_update_dns_internal(struct net_context *c,
-					TALLOC_CTX *ctx, ADS_STRUCT *ads,
-					const char *machine_name,
-					const struct sockaddr_storage *addrs,
-					int num_addrs, bool remove_host)
-{
-	struct dns_rr_ns *nameservers = NULL;
-	int ns_count = 0, i;
-	NTSTATUS status = NT_STATUS_UNSUCCESSFUL;
-	DNS_ERROR dns_err;
-	fstring dns_server;
-	const char *dnsdomain = NULL;
-	char *root_domain = NULL;
-
-	if ( (dnsdomain = strchr_m( machine_name, '.')) == NULL ) {
-		d_printf(_("No DNS domain configured for %s. "
-			   "Unable to perform DNS Update.\n"), machine_name);
-		status = NT_STATUS_INVALID_PARAMETER;
-		goto done;
-	}
-	dnsdomain++;
-
-	status = ads_dns_lookup_ns(ctx,
-				   dnsdomain,
-				   &nameservers,
-				   &ns_count);
-	if ( !NT_STATUS_IS_OK(status) || (ns_count == 0)) {
-		/* Child domains often do not have NS records.  Look
-		   for the NS record for the forest root domain
-		   (rootDomainNamingContext in therootDSE) */
-
-		const char *rootname_attrs[] = 	{ "rootDomainNamingContext", NULL };
-		LDAPMessage *msg = NULL;
-		char *root_dn;
-		ADS_STATUS ads_status;
-
-		if ( !ads->ldap.ld ) {
-			ads_status = ads_connect( ads );
-			if ( !ADS_ERR_OK(ads_status) ) {
-				DEBUG(0,("net_update_dns_internal: Failed to connect to our DC!\n"));
-				goto done;
-			}
-		}
-
-		ads_status = ads_do_search(ads, "", LDAP_SCOPE_BASE,
-				       "(objectclass=*)", rootname_attrs, &msg);
-		if (!ADS_ERR_OK(ads_status)) {
-			goto done;
-		}
-
-		root_dn = ads_pull_string(ads, ctx, msg,  "rootDomainNamingContext");
-		if ( !root_dn ) {
-			ads_msgfree( ads, msg );
-			goto done;
-		}
-
-		root_domain = ads_build_domain( root_dn );
-
-		/* cleanup */
-		ads_msgfree( ads, msg );
-
-		/* try again for NS servers */
-
-		status = ads_dns_lookup_ns(ctx,
-					   root_domain,
-					   &nameservers,
-					   &ns_count);
-
-		if ( !NT_STATUS_IS_OK(status) || (ns_count == 0)) {
-			DEBUG(3,("net_update_dns_internal: Failed to find name server for the %s "
-			 "realm\n", ads->config.realm));
-			if (ns_count == 0) {
-				status = NT_STATUS_UNSUCCESSFUL;
-			}
-			goto done;
-		}
-
-		dnsdomain = root_domain;
-
-	}
-
-	for (i=0; i < ns_count; i++) {
-
-		uint32_t flags = DNS_UPDATE_SIGNED |
-				 DNS_UPDATE_UNSIGNED |
-				 DNS_UPDATE_UNSIGNED_SUFFICIENT |
-				 DNS_UPDATE_PROBE |
-				 DNS_UPDATE_PROBE_SUFFICIENT;
-
-		if (c->opt_force) {
-			flags &= ~DNS_UPDATE_PROBE_SUFFICIENT;
-			flags &= ~DNS_UPDATE_UNSIGNED_SUFFICIENT;
-		}
-
-		/*
-		 *  Do not return after PROBE completion if this function
-		 *  is called for DNS removal.
-		 */
-		if (remove_host) {
-			flags &= ~DNS_UPDATE_PROBE_SUFFICIENT;
-		}
-
-		status = NT_STATUS_UNSUCCESSFUL;
-
-		/* Now perform the dns update - we'll try non-secure and if we fail,
-		   we'll follow it up with a secure update */
-
-		fstrcpy( dns_server, nameservers[i].hostname );
-
-		dns_err = DoDNSUpdate(dns_server,
-				      dnsdomain,
-				      machine_name,
-		                      addrs,
-				      num_addrs,
-				      flags,
-				      remove_host);
-		if (ERR_DNS_IS_OK(dns_err)) {
-			status = NT_STATUS_OK;
-			goto done;
-		}
-
-		if (ERR_DNS_EQUAL(dns_err, ERROR_DNS_INVALID_NAME_SERVER) ||
-		    ERR_DNS_EQUAL(dns_err, ERROR_DNS_CONNECTION_FAILED) ||
-		    ERR_DNS_EQUAL(dns_err, ERROR_DNS_SOCKET_ERROR)) {
-			DEBUG(1,("retrying DNS update with next nameserver after receiving %s\n",
-				dns_errstr(dns_err)));
-			continue;
-		}
-
-		d_printf(_("DNS Update for %s failed: %s\n"),
-			machine_name, dns_errstr(dns_err));
-		status = NT_STATUS_UNSUCCESSFUL;
-		goto done;
-	}
-
-done:
-
-	SAFE_FREE( root_domain );
-
-	return status;
-}
-
-static NTSTATUS net_update_dns_ext(struct net_context *c,
-				   TALLOC_CTX *mem_ctx, ADS_STRUCT *ads,
-				   const char *hostname,
-				   struct sockaddr_storage *iplist,
-				   int num_addrs, bool remove_host)
-{
-	struct sockaddr_storage *iplist_alloc = NULL;
-	fstring machine_name;
-	NTSTATUS status;
-
-	if (hostname) {
-		fstrcpy(machine_name, hostname);
-	} else {
-		name_to_fqdn( machine_name, lp_netbios_name() );
-	}
-	if (!strlower_m( machine_name )) {
-		return NT_STATUS_INVALID_PARAMETER;
-	}
-
-	/*
-	 * If remove_host is true, then remove all IP addresses associated with
-	 * this hostname from the AD server.
-	 */
-	if (!remove_host && (num_addrs == 0 || iplist == NULL)) {
-		/*
-		 * Get our ip address
-		 * (not the 127.0.0.x address but a real ip address)
-		 */
-		num_addrs = get_my_ip_address(&iplist_alloc);
-		if ( num_addrs <= 0 ) {
-			DEBUG(4, ("net_update_dns_ext: Failed to find my "
-				  "non-loopback IP addresses!\n"));
-			return NT_STATUS_INVALID_PARAMETER;
-		}
-		iplist = iplist_alloc;
-	}
-
-	status = net_update_dns_internal(c, mem_ctx, ads, machine_name,
-					 iplist, num_addrs, remove_host);
-
-	SAFE_FREE(iplist_alloc);
-	return status;
-}
-
-static NTSTATUS net_update_dns(struct net_context *c, TALLOC_CTX *mem_ctx, ADS_STRUCT *ads, const char *hostname)
-{
-	NTSTATUS status;
-
-	status = net_update_dns_ext(c, mem_ctx, ads, hostname, NULL, 0, false);
-	return status;
-}
-#endif
-
-
-/*******************************************************************
  ********************************************************************/
 
 static int net_ads_join_usage(struct net_context *c, int argc, const char **argv)
@@ -1735,94 +1547,6 @@ static int net_ads_join_usage(struct net_context *c, int argc, const char **argv
 		   "                         NB: If not specified then by default the samba\n"
 		   "                             version string is used instead.\n"));
 	return -1;
-}
-
-
-static void _net_ads_join_dns_updates(struct net_context *c, TALLOC_CTX *ctx, struct libnet_JoinCtx *r)
-{
-#if defined(WITH_DNS_UPDATES)
-	ADS_STRUCT *ads_dns = NULL;
-	int ret;
-	NTSTATUS status;
-
-	/*
-	 * In a clustered environment, don't do dynamic dns updates:
-	 * Registering the set of ip addresses that are assigned to
-	 * the interfaces of the node that performs the join does usually
-	 * not have the desired effect, since the local interfaces do not
-	 * carry the complete set of the cluster's public IP addresses.
-	 * And it can also contain internal addresses that should not
-	 * be visible to the outside at all.
-	 * In order to do dns updates in a clustererd setup, use
-	 * net ads dns register.
-	 */
-	if (lp_clustering()) {
-		d_fprintf(stderr, _("Not doing automatic DNS update in a "
-				    "clustered setup.\n"));
-		return;
-	}
-
-	if (!r->out.domain_is_ad) {
-		return;
-	}
-
-	/*
-	 * We enter this block with user creds.
-	 * kinit with the machine password to do dns update.
-	 */
-
-	ads_dns = ads_init(lp_realm(), NULL, r->in.dc_name, ADS_SASL_PLAIN);
-
-	if (ads_dns == NULL) {
-		d_fprintf(stderr, _("DNS update failed: out of memory!\n"));
-		goto done;
-	}
-
-	use_in_memory_ccache();
-
-	ret = asprintf(&ads_dns->auth.user_name, "%s$", lp_netbios_name());
-	if (ret == -1) {
-		d_fprintf(stderr, _("DNS update failed: out of memory\n"));
-		goto done;
-	}
-
-	ads_dns->auth.password = secrets_fetch_machine_password(
-		r->out.netbios_domain_name, NULL, NULL);
-	if (ads_dns->auth.password == NULL) {
-		d_fprintf(stderr, _("DNS update failed: out of memory\n"));
-		goto done;
-	}
-
-	ads_dns->auth.realm = SMB_STRDUP(r->out.dns_domain_name);
-	if (ads_dns->auth.realm == NULL) {
-		d_fprintf(stderr, _("DNS update failed: out of memory\n"));
-		goto done;
-	}
-
-	if (!strupper_m(ads_dns->auth.realm)) {
-		d_fprintf(stderr, _("strupper_m %s failed\n"), ads_dns->auth.realm);
-		goto done;
-	}
-
-	ret = ads_kinit_password(ads_dns);
-	if (ret != 0) {
-		d_fprintf(stderr,
-			  _("DNS update failed: kinit failed: %s\n"),
-			  error_message(ret));
-		goto done;
-	}
-
-	status = net_update_dns(c, ctx, ads_dns, NULL);
-	if (!NT_STATUS_IS_OK(status)) {
-		d_fprintf( stderr, _("DNS update failed: %s\n"),
-			  nt_errstr(status));
-	}
-
-done:
-	ads_destroy(&ads_dns);
-#endif
-
-	return;
 }
 
 
@@ -2006,7 +1730,7 @@ int net_ads_join(struct net_context *c, int argc, const char **argv)
 	 * operation as succeeded if we came this far.
 	 */
 	if (!c->opt_no_dns_updates) {
-		_net_ads_join_dns_updates(c, ctx, r);
+		net_ads_join_dns_updates(c, ctx, r);
 	}
 
 	TALLOC_FREE(r);
@@ -2029,7 +1753,7 @@ fail:
 
 static int net_ads_dns_register(struct net_context *c, int argc, const char **argv)
 {
-#if defined(WITH_DNS_UPDATES)
+#if defined(HAVE_KRB5)
 	ADS_STRUCT *ads;
 	ADS_STATUS status;
 	NTSTATUS ntstatus;
@@ -2128,7 +1852,7 @@ static int net_ads_dns_unregister(struct net_context *c,
 				  int argc,
 				  const char **argv)
 {
-#if defined(WITH_DNS_UPDATES)
+#if defined(HAVE_KRB5)
 	ADS_STRUCT *ads;
 	ADS_STATUS status;
 	NTSTATUS ntstatus;
@@ -2189,35 +1913,80 @@ static int net_ads_dns_unregister(struct net_context *c,
 #endif
 }
 
-static int net_ads_dns_gethostbyname(struct net_context *c, int argc, const char **argv)
+
+static int net_ads_dns_async(struct net_context *c, int argc, const char **argv)
 {
-#if defined(WITH_DNS_UPDATES)
-	DNS_ERROR err;
+	size_t num_names = 0;
+	char **hostnames = NULL;
+	size_t i = 0;
+	struct samba_sockaddr *addrs = NULL;
+	NTSTATUS status;
 
-#ifdef DEVELOPER
-	talloc_enable_leak_report();
-#endif
-
-	if (argc != 2 || c->display_usage) {
+	if (argc != 1 || c->display_usage) {
 		d_printf(  "%s\n"
 			   "    %s\n"
 			   "    %s\n",
 			 _("Usage:"),
-			 _("net ads dns gethostbyname <server> <name>\n"),
-			 _("  Look up hostname from the AD\n"
-			   "    nameserver\tName server to use\n"
+			 _("net ads dns async <name>\n"),
+			 _("  Async look up hostname from the DNS server\n"
 			   "    hostname\tName to look up\n"));
 		return -1;
 	}
 
-	err = do_gethostbyname(argv[0], argv[1]);
-	if (!ERR_DNS_IS_OK(err)) {
-		d_printf(_("do_gethostbyname returned %s (%d)\n"),
-			dns_errstr(err), ERROR_DNS_V(err));
+	status = ads_dns_lookup_a(talloc_tos(),
+				  argv[0],
+				  &num_names,
+				  &hostnames,
+				  &addrs);
+	if (!NT_STATUS_IS_OK(status)) {
+		d_printf("Looking up A record for %s got error %s\n",
+			 argv[0],
+			 nt_errstr(status));
+		return -1;
+	}
+	d_printf("Async A record lookup - got %u names for %s\n",
+		 (unsigned int)num_names,
+		 argv[0]);
+	for (i = 0; i < num_names; i++) {
+		char addr_buf[INET6_ADDRSTRLEN];
+		print_sockaddr(addr_buf,
+			       sizeof(addr_buf),
+			       &addrs[i].u.ss);
+		d_printf("hostname[%u] = %s, IPv4addr = %s\n",
+			(unsigned int)i,
+			hostnames[i],
+			addr_buf);
+	}
+
+#if defined(HAVE_IPV6)
+	status = ads_dns_lookup_aaaa(talloc_tos(),
+				     argv[0],
+				     &num_names,
+				     &hostnames,
+				     &addrs);
+	if (!NT_STATUS_IS_OK(status)) {
+		d_printf("Looking up AAAA record for %s got error %s\n",
+			 argv[0],
+			 nt_errstr(status));
+		return -1;
+	}
+	d_printf("Async AAAA record lookup - got %u names for %s\n",
+		 (unsigned int)num_names,
+		 argv[0]);
+	for (i = 0; i < num_names; i++) {
+		char addr_buf[INET6_ADDRSTRLEN];
+		print_sockaddr(addr_buf,
+			       sizeof(addr_buf),
+			       &addrs[i].u.ss);
+		d_printf("hostname[%u] = %s, IPv6addr = %s\n",
+			(unsigned int)i,
+			hostnames[i],
+			addr_buf);
 	}
 #endif
 	return 0;
 }
+
 
 static int net_ads_dns(struct net_context *c, int argc, const char *argv[])
 {
@@ -2239,12 +2008,12 @@ static int net_ads_dns(struct net_context *c, int argc, const char *argv[])
 			   "    Remove host dns entry from AD")
 		},
 		{
-			"gethostbyname",
-			net_ads_dns_gethostbyname,
+			"async",
+			net_ads_dns_async,
 			NET_TRANSPORT_ADS,
 			N_("Look up host"),
-			N_("net ads dns gethostbyname\n"
-			   "    Look up host")
+			N_("net ads dns async\n"
+			   "    Look up host using async DNS")
 		},
 		{NULL, NULL, 0, NULL, NULL}
 	};
@@ -2387,7 +2156,6 @@ static int net_ads_printer_publish(struct net_context *c, int argc, const char *
 	char *prt_dn, *srv_dn, **srv_cn;
 	char *srv_cn_escaped = NULL, *printername_escaped = NULL;
 	LDAPMessage *res = NULL;
-	struct cli_credentials *creds = NULL;
 	bool ok;
 
 	if (argc < 1 || c->display_usage) {
@@ -2425,20 +2193,15 @@ static int net_ads_printer_publish(struct net_context *c, int argc, const char *
 		return -1;
 	}
 
-	creds = net_context_creds(c, mem_ctx);
-	if (creds == NULL) {
-		d_fprintf(stderr, "net_context_creds() failed\n");
-		ads_destroy(&ads);
-		talloc_destroy(mem_ctx);
-		return -1;
-	}
-	cli_credentials_set_kerberos_state(creds, CRED_MUST_USE_KERBEROS);
+	cli_credentials_set_kerberos_state(c->creds,
+					   CRED_USE_KERBEROS_REQUIRED,
+					   CRED_SPECIFIED);
 
 	nt_status = cli_full_connection_creds(&cli, lp_netbios_name(), servername,
 					&server_ss, 0,
 					"IPC$", "IPC",
-					creds, 0,
-					SMB_SIGNING_IPC_DEFAULT);
+					c->creds,
+					CLI_FULL_CONNECTION_IPC);
 
 	if (NT_STATUS_IS_ERR(nt_status)) {
 		d_fprintf(stderr, _("Unable to open a connection to %s to "
@@ -2627,8 +2390,8 @@ static int net_ads_printer(struct net_context *c, int argc, const char **argv)
 static int net_ads_password(struct net_context *c, int argc, const char **argv)
 {
 	ADS_STRUCT *ads;
-	const char *auth_principal = c->opt_user_name;
-	const char *auth_password = c->opt_password;
+	const char *auth_principal = cli_credentials_get_username(c->creds);
+	const char *auth_password = cli_credentials_get_password(c->creds);
 	const char *realm = NULL;
 	const char *new_password = NULL;
 	char *chr, *prompt;
@@ -2645,7 +2408,7 @@ static int net_ads_password(struct net_context *c, int argc, const char **argv)
 		return 0;
 	}
 
-	if (c->opt_user_name == NULL || c->opt_password == NULL) {
+	if (auth_principal == NULL || auth_password == NULL) {
 		d_fprintf(stderr, _("You must supply an administrator "
 				    "username/password\n"));
 		return -1;
@@ -2984,6 +2747,10 @@ static int net_ads_keytab_flush(struct net_context *c, int argc, const char **ar
 		return 0;
 	}
 
+	if (!c->opt_user_specified && c->opt_password == NULL) {
+		net_use_krb_machine_account(c);
+	}
+
 	if (!ADS_ERR_OK(ads_startup(c, true, &ads))) {
 		return -1;
 	}
@@ -3012,6 +2779,11 @@ static int net_ads_keytab_add(struct net_context *c,
 	}
 
 	d_printf(_("Processing principals to add...\n"));
+
+	if (!c->opt_user_specified && c->opt_password == NULL) {
+		net_use_krb_machine_account(c);
+	}
+
 	if (!ADS_ERR_OK(ads_startup(c, true, &ads))) {
 		return -1;
 	}
@@ -3048,6 +2820,10 @@ static int net_ads_keytab_create(struct net_context *c, int argc, const char **a
 			 _("Usage:"),
 			 _("Create new default keytab"));
 		return 0;
+	}
+
+	if (!c->opt_user_specified && c->opt_password == NULL) {
+		net_use_krb_machine_account(c);
 	}
 
 	if (!ADS_ERR_OK(ads_startup(c, true, &ads))) {
@@ -3200,6 +2976,8 @@ static int net_ads_kerberos_pac_common(struct net_context *c, int argc, const ch
 				     2592000, /* one month */
 				     impersonate_princ_s,
 				     local_service,
+				     NULL,
+				     NULL,
 				     pac_data_ctr);
 	if (!NT_STATUS_IS_OK(status)) {
 		d_printf(_("failed to query kerberos PAC: %s\n"),

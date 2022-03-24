@@ -26,7 +26,7 @@
 
 #include "includes.h"
 #include "lib/param/param.h"
-#include "popt_common.h"
+#include "lib/cmdline/cmdline.h"
 #include "libcli/security/security.h"
 #include "utils/ntlm_auth.h"
 #include "../libcli/auth/libcli_auth.h"
@@ -37,17 +37,19 @@
 #include "librpc/crypto/gse.h"
 #include "smb_krb5.h"
 #include "lib/util/tiniparser.h"
-#include "nsswitch/winbind_client.h"
 #include "librpc/gen_ndr/krb5pac.h"
 #include "../lib/util/asn1.h"
 #include "auth/common_auth.h"
 #include "source3/include/auth.h"
 #include "source3/auth/proto.h"
 #include "nsswitch/libwbclient/wbclient.h"
+#include "nsswitch/winbind_struct_protocol.h"
+#include "nsswitch/libwbclient/wbclient_internal.h"
 #include "lib/param/loadparm.h"
 #include "lib/util/base64.h"
 #include "cmdline_contexts.h"
 #include "lib/util/tevent_ntstatus.h"
+#include "lib/util/string_wrappers.h"
 
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
@@ -472,7 +474,7 @@ static bool check_plaintext_auth(const char *user, const char *pass,
 {
 	struct winbindd_request request;
 	struct winbindd_response response;
-        NSS_STATUS result;
+	wbcErr ret;
 
 	if (!get_require_membership_sid()) {
 		return False;
@@ -495,12 +497,13 @@ static bool check_plaintext_auth(const char *user, const char *pass,
 		request.flags |= WBFLAG_PAM_CACHED_LOGIN;
 	}
 
-	result = winbindd_request_response(NULL, WINBINDD_PAM_AUTH, &request, &response);
+	ret = wbcRequestResponse(NULL, WINBINDD_PAM_AUTH,
+				 &request, &response);
 
 	/* Display response */
 
 	if (stdout_diagnostics) {
-		if ((result != NSS_STATUS_SUCCESS) && (response.data.auth.nt_status == 0)) {
+		if (!WBC_ERROR_IS_OK(ret) && (response.data.auth.nt_status == 0)) {
 			d_fprintf(stderr, "Reading winbind reply failed! (0x01)\n");
 		}
 
@@ -509,7 +512,7 @@ static bool check_plaintext_auth(const char *user, const char *pass,
 			 response.data.auth.error_string,
 			 response.data.auth.nt_status);
 	} else {
-		if ((result != NSS_STATUS_SUCCESS) && (response.data.auth.nt_status == 0)) {
+		if (!WBC_ERROR_IS_OK(ret) && (response.data.auth.nt_status == 0)) {
 			DEBUG(1, ("Reading winbind reply failed! (0x01)\n"));
 		}
 
@@ -519,7 +522,7 @@ static bool check_plaintext_auth(const char *user, const char *pass,
 			  response.data.auth.nt_status));
 	}
 
-        return (result == NSS_STATUS_SUCCESS);
+	return WBC_ERROR_IS_OK(ret);
 }
 
 /* authenticate a user with an encrypted username/password */
@@ -539,7 +542,7 @@ NTSTATUS contact_winbind_auth_crap(const char *username,
 				   char **unix_name)
 {
 	NTSTATUS nt_status;
-        NSS_STATUS result;
+	wbcErr ret;
 	struct winbindd_request request;
 	struct winbindd_response response;
 
@@ -597,7 +600,7 @@ NTSTATUS contact_winbind_auth_crap(const char *username,
                 request.data.auth_crap.nt_resp_len = nt_response->length;
 	}
 
-	result = winbindd_priv_request_response(
+	ret = wbcRequestResponsePriv(
 		NULL,
 		WINBINDD_PAM_AUTH_CRAP,
 		&request,
@@ -606,7 +609,7 @@ NTSTATUS contact_winbind_auth_crap(const char *username,
 
 	/* Display response */
 
-	if ((result != NSS_STATUS_SUCCESS) && (response.data.auth.nt_status == 0)) {
+	if (!WBC_ERROR_IS_OK(ret) && (response.data.auth.nt_status == 0)) {
 		nt_status = NT_STATUS_UNSUCCESSFUL;
 		if (error_string)
 			*error_string = smb_xstrdup("Reading winbind reply failed!");
@@ -654,7 +657,7 @@ static NTSTATUS contact_winbind_change_pswd_auth_crap(const char *username,
 						      char  **error_string)
 {
 	NTSTATUS nt_status;
-	NSS_STATUS result;
+	wbcErr ret;
 	struct winbindd_request request;
 	struct winbindd_response response;
 
@@ -697,11 +700,12 @@ static NTSTATUS contact_winbind_change_pswd_auth_crap(const char *username,
 		request.data.chng_pswd_auth_crap.old_lm_hash_enc_len = old_lm_hash_enc.length;
 	}
 
-	result = winbindd_request_response(NULL, WINBINDD_PAM_CHNG_PSWD_AUTH_CRAP, &request, &response);
+	ret = wbcRequestResponse(NULL, WINBINDD_PAM_CHNG_PSWD_AUTH_CRAP,
+				 &request, &response);
 
 	/* Display response */
 
-	if ((result != NSS_STATUS_SUCCESS) && (response.data.auth.nt_status == 0))
+	if (!WBC_ERROR_IS_OK(ret) && (response.data.auth.nt_status == 0))
 	{
 		nt_status = NT_STATUS_UNSUCCESSFUL;
 		if (error_string)
@@ -1335,9 +1339,13 @@ static NTSTATUS ntlm_auth_prepare_gensec_server(TALLOC_CTX *mem_ctx,
 	cli_credentials_set_conf(server_credentials, lp_ctx);
 
 	if (lp_server_role() == ROLE_ACTIVE_DIRECTORY_DC || lp_security() == SEC_ADS || USE_KERBEROS_KEYTAB) {
-		cli_credentials_set_kerberos_state(server_credentials, CRED_AUTO_USE_KERBEROS);
+		cli_credentials_set_kerberos_state(server_credentials,
+						   CRED_USE_KERBEROS_DESIRED,
+						   CRED_SPECIFIED);
 	} else {
-		cli_credentials_set_kerberos_state(server_credentials, CRED_DONT_USE_KERBEROS);
+		cli_credentials_set_kerberos_state(server_credentials,
+						   CRED_USE_KERBEROS_DISABLED,
+						   CRED_SPECIFIED);
 	}
 
 	nt_status = gensec_server_start(tmp_ctx, gensec_settings,
@@ -2497,6 +2505,7 @@ enum {
 	const char *hex_nt_response = NULL;
 	struct loadparm_context *lp_ctx;
 	poptContext pc;
+	bool ok;
 
 	/* NOTE: DO NOT change this interface without considering the implications!
 	   This is an external interface, which other programs will use to interact
@@ -2653,44 +2662,35 @@ enum {
 			.val        = OPT_TARGET_HOSTNAME,
 			.descrip    = "Target hostname",
 		},
-		POPT_COMMON_CONFIGFILE
+		POPT_COMMON_DEBUG_ONLY
+		POPT_COMMON_CONFIG_ONLY
+		POPT_COMMON_OPTION_ONLY
 		POPT_COMMON_VERSION
-		POPT_COMMON_OPTION
 		POPT_TABLEEND
 	};
 
 	/* Samba client initialisation */
 	smb_init_locale();
 
-	setup_logging("ntlm_auth", DEBUG_STDERR);
-	fault_setup();
-
-	/* Parse options */
-
-	pc = poptGetContext("ntlm_auth", argc, argv, long_options, 0);
-
-	/* Parse command line options */
-
-	if (argc == 1) {
-		poptPrintHelp(pc, stderr, 0);
-		poptFreeContext(pc);
-		return 1;
-	}
-
-	while((opt = poptGetNextOpt(pc)) != -1) {
-		/* Get generic config options like --configfile */
-	}
-
-	poptFreeContext(pc);
-
-	if (!lp_load_global(get_dyn_CONFIGFILE())) {
-		d_fprintf(stderr, "ntlm_auth: error opening config file %s. Error was %s\n",
-			get_dyn_CONFIGFILE(), strerror(errno));
+	ok = samba_cmdline_init(frame,
+				SAMBA_CMDLINE_CONFIG_CLIENT,
+				false /* require_smbconf */);
+	if (!ok) {
+		DBG_ERR("Failed to init cmdline parser!\n");
+		TALLOC_FREE(frame);
 		exit(1);
 	}
 
-	pc = poptGetContext(NULL, argc, (const char **)argv, long_options, 
-			    POPT_CONTEXT_KEEP_FIRST);
+	pc = samba_popt_get_context(getprogname(),
+				    argc,
+				    argv,
+				    long_options,
+				    POPT_CONTEXT_KEEP_FIRST);
+	if (pc == NULL) {
+		DBG_ERR("Failed to setup popt context!\n");
+		TALLOC_FREE(frame);
+		exit(1);
+	}
 
 	while((opt = poptGetNextOpt(pc)) != -1) {
 		switch (opt) {
@@ -2731,6 +2731,12 @@ enum {
 				require_membership_of_sid = require_membership_of;
 			}
 			break;
+
+		case POPT_ERROR_BADOPT:
+			fprintf(stderr, "\nInvalid option %s: %s\n\n",
+				poptBadOption(pc, 0), poptStrerror(opt));
+			poptPrintUsage(pc, stderr, 0);
+			exit(1);
 		}
 	}
 

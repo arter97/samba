@@ -29,6 +29,7 @@
 #include "smbd/globals.h"
 #include "smbprofile.h"
 #include "rpc_server/srv_pipe_hnd.h"
+#include "source3/lib/substitute.h"
 
 #define NERR_notsupported 50
 
@@ -730,8 +731,8 @@ void reply_trans(struct smb_request *req)
 
 	if (state->total_data)  {
 
-		if (trans_oob(state->total_data, 0, dscnt)
-		    || trans_oob(smb_len(req->inbuf), dsoff, dscnt)) {
+		if (smb_buffer_oob(state->total_data, 0, dscnt)
+		    || smb_buffer_oob(smb_len(req->inbuf), dsoff, dscnt)) {
 			goto bad_param;
 		}
 
@@ -754,8 +755,8 @@ void reply_trans(struct smb_request *req)
 
 	if (state->total_param) {
 
-		if (trans_oob(state->total_param, 0, pscnt)
-		    || trans_oob(smb_len(req->inbuf), psoff, pscnt)) {
+		if (smb_buffer_oob(state->total_param, 0, pscnt)
+		    || smb_buffer_oob(smb_len(req->inbuf), psoff, pscnt)) {
 			goto bad_param;
 		}
 
@@ -906,16 +907,16 @@ void reply_transs(struct smb_request *req)
 		goto bad_param;
 
 	if (pcnt) {
-		if (trans_oob(state->total_param, pdisp, pcnt)
-		    || trans_oob(smb_len(req->inbuf), poff, pcnt)) {
+		if (smb_buffer_oob(state->total_param, pdisp, pcnt)
+		    || smb_buffer_oob(smb_len(req->inbuf), poff, pcnt)) {
 			goto bad_param;
 		}
 		memcpy(state->param+pdisp,smb_base(req->inbuf)+poff,pcnt);
 	}
 
 	if (dcnt) {
-		if (trans_oob(state->total_data, ddisp, dcnt)
-		    || trans_oob(smb_len(req->inbuf), doff, dcnt)) {
+		if (smb_buffer_oob(state->total_data, ddisp, dcnt)
+		    || smb_buffer_oob(smb_len(req->inbuf), doff, dcnt)) {
 			goto bad_param;
 		}
 		memcpy(state->data+ddisp, smb_base(req->inbuf)+doff,dcnt);

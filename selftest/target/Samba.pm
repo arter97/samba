@@ -167,7 +167,7 @@ sub nss_wrapper_winbind_so_path($) {
         my ($object) = @_;
 	my $ret = $ENV{NSS_WRAPPER_WINBIND_SO_PATH};
         if (not defined($ret)) {
-	    $ret = bindir_path($object, "shared/libnss_wrapper_winbind.so.2");
+	    $ret = bindir_path($object, "plugins/libnss_wrapper_winbind.so.2");
 	    $ret = abs_path($ret);
 	}
 	return $ret;
@@ -331,6 +331,7 @@ sub mk_krb5_conf($$)
  # system clock differences
  kdc_timesync = 0
 
+ fcache_strict_checking = false
 ";
 
 	if (defined($ENV{MITKRB5})) {
@@ -359,12 +360,6 @@ sub mk_krb5_conf($$)
 ";
 	}
 
-	print KRB5CONF "
-[realms]
- $our_realms_stanza
-";
-
-
         if (defined($ctx->{tlsdir})) {
 	       print KRB5CONF "
 
@@ -378,7 +373,32 @@ sub mk_krb5_conf($$)
 
 ";
         }
+
+	print KRB5CONF "
+[realms]
+ $our_realms_stanza
+";
+
 	close(KRB5CONF);
+}
+
+sub append_krb5_conf_trust_realms($$)
+{
+	my ($ctx) = @_;
+
+	unless (open(KRB5CONF, ">>$ctx->{KRB5_CONFIG}")) {
+	        warn("can't open $ctx->{KRB5_CONFIG}$?");
+		return undef;
+	}
+
+	my $trust_realms_stanza = mk_realms_stanza($ctx->{TRUST_REALM},
+						   $ctx->{TRUST_DNSNAME},
+						   $ctx->{TRUST_DOMAIN},
+						   $ctx->{TRUST_SERVER_IP});
+
+	print KRB5CONF " $trust_realms_stanza";
+
+	close(KRB5CONF)
 }
 
 sub mk_realms_stanza($$$$)
@@ -386,26 +406,36 @@ sub mk_realms_stanza($$$$)
 	my ($realm, $dnsname, $domain, $kdc_ipv4) = @_;
 	my $lc_domain = lc($domain);
 
+	# The   pkinit_require_krbtgt_otherName = false
+	# is just because the certificates we have saved
+	# do not have the realm in the subjectAltName
+	# (specially encoded as a principal)
+	# per
+	# https://github.com/heimdal/heimdal/wiki/Setting-up-PK-INIT-and-Certificates
 	my $realms_stanza = "
  $realm = {
   kdc = $kdc_ipv4:88
   admin_server = $kdc_ipv4:88
   default_domain = $dnsname
+  pkinit_require_krbtgt_otherName = false
  }
  $dnsname = {
   kdc = $kdc_ipv4:88
   admin_server = $kdc_ipv4:88
   default_domain = $dnsname
+  pkinit_require_krbtgt_otherName = false
  }
  $domain = {
   kdc = $kdc_ipv4:88
   admin_server = $kdc_ipv4:88
   default_domain = $dnsname
+  pkinit_require_krbtgt_otherName = false
  }
  $lc_domain = {
   kdc = $kdc_ipv4:88
   admin_server = $kdc_ipv4:88
   default_domain = $dnsname
+  pkinit_require_krbtgt_otherName = false
  }
 
 ";
@@ -428,15 +458,22 @@ sub mk_mitkdc_conf($$)
 [kdcdefaults]
 	kdc_ports = 88
 	kdc_tcp_ports = 88
+	restrict_anonymous_to_tgt = true
 
 [realms]
 	$ctx->{realm} = {
+		master_key_type = aes256-cts
+		default_principal_flags = +preauth
 	}
 
 	$ctx->{dnsname} = {
+		master_key_type = aes256-cts
+		default_principal_flags = +preauth
 	}
 
 	$ctx->{domain} = {
+		master_key_type = aes256-cts
+		default_principal_flags = +preauth
 	}
 
 [dbmodules]
@@ -579,7 +616,10 @@ sub get_interface($)
 		lclnt4dc2smb1	  => 55,
 		fipsdc            => 56,
 		fipsadmember      => 57,
-		admemnonsswb      => 60,
+		offlineadmem      => 58,
+		s2kmember         => 59,
+		admemidmapnss     => 60,
+		localadmember2    => 61,
 
 		rootdnsforwarder  => 64,
 
@@ -906,10 +946,6 @@ my @exported_envvars = (
 	# resolv_wrapper
 	"RESOLV_WRAPPER_CONF",
 	"RESOLV_WRAPPER_HOSTS",
-
-	# crypto libraries
-	"GNUTLS_FORCE_FIPS_MODE",
-	"OPENSSL_FORCE_FIPS_MODE",
 );
 
 sub exported_envvars_str

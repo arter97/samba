@@ -28,6 +28,8 @@
 #include "lib/util/util_net.h"
 #include "dnsserver_common.h"
 
+#undef strcasecmp
+
 static struct DNS_ADDR_ARRAY *fill_dns_addr_array(TALLOC_CTX *mem_ctx,
 					   struct loadparm_context *lp_ctx,
 					   bool listen_only)
@@ -146,7 +148,7 @@ struct dnsserver_serverinfo *dnsserver_init_serverinfo(TALLOC_CTX *mem_ctx,
 
 	serverinfo->dwDsForestVersion = dsdb_forest_functional_level(samdb);
 	serverinfo->dwDsDomainVersion = dsdb_functional_level(samdb);
-	serverinfo->dwDsDsaVersion = 4; /* need to do ldb search here */
+	serverinfo->dwDsDsaVersion = dsdb_dc_functional_level(samdb);
 
 	serverinfo->pszDomainName = samdb_dn_to_dns_domain(mem_ctx, domain_dn);
 	serverinfo->pszForestName = samdb_dn_to_dns_domain(mem_ctx, forest_dn);

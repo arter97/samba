@@ -23,6 +23,7 @@
 */
 
 #include "includes.h"
+#include "locking/share_mode_lock.h"
 #include "smbd/smbd.h"
 #include "smbd/globals.h"
 #include "ntdomain.h"
@@ -37,6 +38,7 @@
 #include "libcli/auth/netlogon_creds_cli.h"
 #include "lib/gencache.h"
 #include "rpc_server/rpc_config.h"
+#include "lib/global_contexts.h"
 
 static struct files_struct *log_writeable_file_fn(
 	struct files_struct *fsp, void *private_data)
@@ -80,8 +82,12 @@ static void exit_server_common(enum server_exit_reason how,
 	struct smbXsrv_client *client = global_smbXsrv_client;
 	struct smbXsrv_connection *xconn = NULL;
 	struct smbd_server_connection *sconn = NULL;
-	struct messaging_context *msg_ctx = global_messaging_context();
 	NTSTATUS disconnect_status;
+
+	if (!exit_firsttime) {
+		exit(0);
+	}
+	exit_firsttime = false;
 
 	switch (how) {
 	case SERVER_EXIT_NORMAL:
@@ -94,13 +100,25 @@ static void exit_server_common(enum server_exit_reason how,
 	}
 
 	if (client != NULL) {
+		NTSTATUS status;
+
 		sconn = client->sconn;
 		xconn = client->connections;
-	}
 
-	if (!exit_firsttime)
-		exit(0);
-	exit_firsttime = false;
+		/*
+		 * Make sure we stop handling new multichannel
+		 * connections early!
+		 *
+		 * From here, we're not able to handle them.
+		 */
+		status = smbXsrv_client_remove(client);
+		if (!NT_STATUS_IS_OK(status)) {
+			D_ERR("Server exit (%s)\n",
+			      (reason ? reason : "normal exit"));
+			DBG_ERR("smbXsrv_client_remove() failed (%s)\n",
+				nt_errstr(status));
+		}
+	}
 
 	change_to_root_user();
 
@@ -172,9 +190,6 @@ static void exit_server_common(enum server_exit_reason how,
 
 	change_to_root_user();
 
-	/* 3 second timeout. */
-	print_notify_send_messages(msg_ctx, 3);
-
 #ifdef USE_DMAPI
 	/* Destroy Samba DMAPI session only if we are master smbd process */
 	if (am_parent) {
@@ -184,11 +199,6 @@ static void exit_server_common(enum server_exit_reason how,
 	}
 #endif
 
-	if (am_parent && sconn != NULL) {
-		dcesrv_shutdown_registered_ep_servers(sconn->dce_ctx);
-
-		global_dcesrv_context_free();
-	}
 
 	/*
 	 * we need to force the order of freeing the following,
@@ -208,7 +218,6 @@ static void exit_server_common(enum server_exit_reason how,
 	TALLOC_FREE(smbd_memcache_ctx);
 
 	locking_end();
-	printing_end();
 
 	if (how != SERVER_EXIT_NORMAL) {
 

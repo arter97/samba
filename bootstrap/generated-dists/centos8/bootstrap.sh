@@ -54,6 +54,7 @@ yum install -y \
     keyutils-libs-devel \
     krb5-devel \
     krb5-server \
+    krb5-workstation \
     libacl-devel \
     libarchive-devel \
     libattr-devel \
@@ -62,7 +63,6 @@ yum install -y \
     libcap-devel \
     libcephfs-devel \
     libicu-devel \
-    libnsl2-devel \
     libpcap-devel \
     libtasn1-devel \
     libtasn1-tools \
@@ -81,6 +81,7 @@ yum install -y \
     perl \
     perl-Archive-Tar \
     perl-ExtUtils-MakeMaker \
+    perl-JSON \
     perl-Parse-Yapp \
     perl-Test-Simple \
     perl-generators \
@@ -94,10 +95,12 @@ yum install -y \
     python3-devel \
     python3-dns \
     python3-gpg \
+    python3-iso8601 \
     python3-libsemanage \
     python3-markdown \
     python3-policycoreutils \
     python3-pyasn1 \
+    python3-setproctitle \
     quota-devel \
     readline-devel \
     redhat-lsb \
@@ -109,6 +112,7 @@ yum install -y \
     sudo \
     systemd-devel \
     tar \
+    tracker-devel \
     tree \
     wget \
     which \

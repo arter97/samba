@@ -2,12 +2,12 @@
 .\"     Title: ctdb
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/08/2021
+.\"      Date: 03/21/2022
 .\"    Manual: CTDB - clustered TDB database
 .\"    Source: ctdb
 .\"  Language: English
 .\"
-.TH "CTDB" "7" "11/08/2021" "ctdb" "CTDB \- clustered TDB database"
+.TH "CTDB" "7" "03/21/2022" "ctdb" "CTDB \- clustered TDB database"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -69,42 +69,61 @@ Manage a pool of public IP addresses that are used to provide services to client
 .RE
 .PP
 Combined with a cluster filesystem CTDB provides a full high\-availablity (HA) environment for services such as clustered Samba, NFS and other services\&.
+.PP
+In addition to the CTDB manual pages there is much more information available at
+\m[blue]\fB\%https://wiki.samba.org/index.php/CTDB_and_Clustered_Samba\fR\m[]\&.
 .SH "ANATOMY OF A CTDB CLUSTER"
 .PP
 A CTDB cluster is a collection of nodes with 2 or more network interfaces\&. All nodes provide network (usually file/NAS) services to clients\&. Data served by file services is stored on shared storage (usually a cluster filesystem) that is accessible by all nodes\&.
 .PP
 CTDB provides an "all active" cluster, where services are load balanced across all nodes\&.
-.SH "RECOVERY LOCK"
-.PP
-CTDB uses a
-\fIrecovery lock\fR
-to avoid a
-\fIsplit brain\fR, where a cluster becomes partitioned and each partition attempts to operate independently\&. Issues that can result from a split brain include file data corruption, because file locking metadata may not be tracked correctly\&.
+.SH "CLUSTER LEADER"
 .PP
 CTDB uses a
 \fIcluster leader and follower\fR
-model of cluster management\&. All nodes in a cluster elect one node to be the leader\&. The leader node coordinates privileged operations such as database recovery and IP address failover\&. CTDB refers to the leader node as the
-\fIrecovery master\fR\&. This node takes and holds the recovery lock to assert its privileged role in the cluster\&.
+model of cluster management\&. All nodes in a cluster elect one node to be the leader\&. The leader node coordinates privileged operations such as database recovery and IP address failover\&.
 .PP
-By default, the recovery lock is implemented using a file (specified by
-\fIrecovery lock\fR
+CTDB previously referred to the leader as the
+\fIrecovery master\fR
+or
+\fIrecmaster\fR\&. References to these terms may still be found in documentation and code\&.
+.SH "CLUSTER LOCK"
+.PP
+CTDB uses a cluster lock to assert its privileged role in the cluster\&. This node takes the cluster lock when it becomes leader and holds the lock until it is no longer leader\&. The
+\fIcluster lock\fR
+helps CTDB to avoid a
+\fIsplit brain\fR, where a cluster becomes partitioned and each partition attempts to operate independently\&. Issues that can result from a split brain include file data corruption, because file locking metadata may not be tracked correctly\&.
+.PP
+CTDB previously referred to the cluster lock as the
+\fIrecovery lock\fR\&. The abbreviation
+\fIreclock\fR
+is still used \- just "clock" would be confusing\&.
+.PP
+\fICTDB is unable configure a default cluster lock\fR, because this would depend on factors such as cluster filesystem mountpoints\&. However,
+\fIrunning CTDB without a cluster lock is not recommended\fR
+as there will be no split brain protection\&.
+.PP
+When a cluster lock is configured it is used as the election mechanism\&. Nodes race to take the cluster lock and the winner is the cluster leader\&. This avoids problems when a node wins an election but is unable to take the lock \- this can occur if a cluster becomes partitioned (for example, due to a communication failure) and a different leader is elected by the nodes in each partition, or if the cluster filesystem has a high failover latency\&.
+.PP
+By default, the cluster lock is implemented using a file (specified by
+\fIcluster lock\fR
 in the
 [cluster]
 section of
-\fBctdb.conf\fR(5)) residing in shared storage (usually) on a cluster filesystem\&. To support a recovery lock the cluster filesystem must support lock coherence\&. See
+\fBctdb.conf\fR(5)) residing in shared storage (usually) on a cluster filesystem\&. To support a cluster lock the cluster filesystem must support lock coherence\&. See
 \fBping_pong\fR(1)
 for more details\&.
 .PP
-The recovery lock can also be implemented using an arbitrary cluster mutex helper (or call\-out)\&. This is indicated by using an exclamation point (\*(Aq!\*(Aq) as the first character of the
-\fIrecovery lock\fR
+The cluster lock can also be implemented using an arbitrary cluster mutex helper (or call\-out)\&. This is indicated by using an exclamation point (\*(Aq!\*(Aq) as the first character of the
+\fIcluster lock\fR
 parameter\&. For example, a value of
-\fB!/usr/local/bin/myhelper recovery\fR
+\fB!/usr/local/bin/myhelper cluster\fR
 would run the given helper with the specified arguments\&. The helper will continue to run as long as it holds its mutex\&. See
 ctdb/doc/cluster_mutex_helper\&.txt
 in the source tree, and related code, for clues about writing helpers\&.
 .PP
 When a file is specified for the
-\fIrecovery lock\fR
+\fIcluster lock\fR
 parameter (i\&.e\&. no leading \*(Aq!\*(Aq) the file lock is implemented by a default helper (\fB/usr/local/libexec/ctdb/ctdb_mutex_fcntl_helper\fR)\&. This helper has arguments as follows:
 
 .sp
@@ -123,11 +142,7 @@ parameter (i\&.e\&. no leading \*(Aq!\*(Aq) the file lock is implemented by a de
 \fBctdb_mutex_fcntl_helper\fR
 will take a lock on FILE and then check every RECHECK\-INTERVAL seconds to ensure that FILE still exists and that its inode number is unchanged from when the lock was taken\&. The default value for RECHECK\-INTERVAL is 5\&.
 .PP
-If a cluster becomes partitioned (for example, due to a communication failure) and a different recovery master is elected by the nodes in each partition, then only one of these recovery masters will be able to take the recovery lock\&. The recovery master in the "losing" partition will not be able to take the recovery lock and will be excluded from the cluster\&. The nodes in the "losing" partition will elect each node in turn as their recovery master so eventually all the nodes in that partition will be excluded\&.
-.PP
-CTDB does sanity checks to ensure that the recovery lock is held as expected\&.
-.PP
-CTDB can run without a recovery lock but this is not recommended as there will be no protection from split brains\&.
+CTDB does sanity checks to ensure that the cluster lock is held as expected\&.
 .SH "PRIVATE VS PUBLIC ADDRESSES"
 .PP
 Each node in a CTDB cluster has multiple IP addresses assigned to it:
@@ -309,9 +324,9 @@ A node that is partially online participates in a cluster like a healthy (OK) no
 .PP
 Cluster nodes can have several different capabilities enabled\&. These are listed below\&.
 .PP
-RECMASTER
+LEADER
 .RS 4
-Indicates that a node can become the CTDB cluster recovery master\&. The current recovery master is decided via an election held by all active nodes with this capability\&.
+Indicates that a node can become the CTDB cluster leader\&. The current leader is decided via an election held by all active nodes with this capability\&.
 .sp
 Default is YES\&.
 .RE
@@ -323,7 +338,7 @@ Indicates that a node can be the location master (LMASTER) for database records\
 Default is YES\&.
 .RE
 .PP
-The RECMASTER and LMASTER capabilities can be disabled when CTDB is used to create a cluster spanning across WAN links\&. In this case CTDB acts as a WAN accelerator\&.
+The LEADER and LMASTER capabilities can be disabled when CTDB is used to create a cluster spanning across WAN links\&. In this case CTDB acts as a WAN accelerator\&.
 .SH "LVS"
 .PP
 LVS is a mode where CTDB presents one single IP address for the entire cluster\&. This is an alternative to using public IP addresses and round\-robin DNS to loadbalance clients across the cluster\&.
@@ -336,9 +351,9 @@ Client access to the cluster is load\-balanced across the HEALTHY nodes in an LV
 \fBctdb lvs\fR
 command is used to show which nodes are currently load\-balanced across\&.
 .PP
-In each LVS group, one of the nodes is selected by CTDB to be the LVS master\&. This node receives all traffic from clients coming in to the LVS public address and multiplexes it across the internal network to one of the nodes that LVS is using\&. When responding to the client, that node will send the data back directly to the client, bypassing the LVS master node\&. The command
-\fBctdb lvs master\fR
-will show which node is the current LVS master\&.
+In each LVS group, one of the nodes is selected by CTDB to be the LVS leader\&. This node receives all traffic from clients coming in to the LVS public address and multiplexes it across the internal network to one of the nodes that LVS is using\&. When responding to the client, that node will send the data back directly to the client, bypassing the LVS leader node\&. The command
+\fBctdb lvs leader\fR
+will show which node is the current LVS leader\&.
 .PP
 The path used for a client I/O is:
 .sp
@@ -350,7 +365,7 @@ The path used for a client I/O is:
 .sp -1
 .IP "  1." 4.2
 .\}
-Client sends request packet to LVSMASTER\&.
+Client sends request packet to LVS leader\&.
 .RE
 .sp
 .RS 4
@@ -361,7 +376,7 @@ Client sends request packet to LVSMASTER\&.
 .sp -1
 .IP "  2." 4.2
 .\}
-LVSMASTER passes the request on to one node across the internal network\&.
+LVS leader passes the request on to one node across the internal network\&.
 .RE
 .sp
 .RS 4
@@ -386,7 +401,7 @@ Selected node processes the request\&.
 Node responds back to client\&.
 .RE
 .PP
-This means that all incoming traffic to the cluster will pass through one physical node, which limits scalability\&. You can send more data to the LVS address that one physical node can multiplex\&. This means that you should not use LVS if your I/O pattern is write\-intensive since you will be limited in the available network bandwidth that node can handle\&. LVS does work very well for read\-intensive workloads where only smallish READ requests are going through the LVSMASTER bottleneck and the majority of the traffic volume (the data in the read replies) goes straight from the processing node back to the clients\&. For read\-intensive i/o patterns you can achieve very high throughput rates in this mode\&.
+This means that all incoming traffic to the cluster will pass through one physical node, which limits scalability\&. You can send more data to the LVS address that one physical node can multiplex\&. This means that you should not use LVS if your I/O pattern is write\-intensive since you will be limited in the available network bandwidth that node can handle\&. LVS does work very well for read\-intensive workloads where only smallish READ requests are going through the LVS leader bottleneck and the majority of the traffic volume (the data in the read replies) goes straight from the processing node back to the clients\&. For read\-intensive i/o patterns you can achieve very high throughput rates in this mode\&.
 .PP
 Note: you can use LVS and public addresses at the same time\&.
 .PP
@@ -437,11 +452,11 @@ Example
 .RE
 .\}
 .PP
-Normally any node in an LVS group can act as the LVS master\&. Nodes that are highly loaded due to other demands maybe flagged with the "slave\-only" option in the
+Normally any node in an LVS group can act as the LVS leader\&. Nodes that are highly loaded due to other demands maybe flagged with the "follower\-only" option in the
 \fICTDB_LVS_NODES\fR
 file to limit the LVS functionality of those nodes\&.
 .PP
-LVS nodes file that excludes 192\&.168\&.1\&.4 from being the LVS master node:
+LVS nodes file that excludes 192\&.168\&.1\&.4 from being the LVS leader node:
 .sp
 .if n \{\
 .RS 4
@@ -449,7 +464,7 @@ LVS nodes file that excludes 192\&.168\&.1\&.4 from being the LVS master node:
 .nf
 192\&.168\&.1\&.2
 192\&.168\&.1\&.3
-192\&.168\&.1\&.4 slave\-only
+192\&.168\&.1\&.4 follower\-only
       
 .fi
 .if n \{\
@@ -473,7 +488,7 @@ One extra NATGW public address is assigned on the public network to each NATGW g
 .PP
 There can be multiple NATGW groups in a cluster but each node can only be member of one NATGW group\&.
 .PP
-In each NATGW group, one of the nodes is selected by CTDB to be the NATGW master and the other nodes are consider to be NATGW slaves\&. NATGW slaves establish a fallback default route to the NATGW master via the private network\&. When a NATGW slave hosts no public IP addresses then it will use this route for outbound connections\&. The NATGW master hosts the NATGW public IP address and routes outgoing connections from slave nodes via this IP address\&. It also establishes a fallback default route\&.
+In each NATGW group, one of the nodes is selected by CTDB to be the NATGW leader and the other nodes are consider to be NATGW followers\&. NATGW followers establish a fallback default route to the NATGW leader via the private network\&. When a NATGW follower hosts no public IP addresses then it will use this route for outbound connections\&. The NATGW leader hosts the NATGW public IP address and routes outgoing connections from follower nodes via this IP address\&. It also establishes a fallback default route\&.
 .SS "Configuration"
 .PP
 NATGW is usually configured similar to the following example configuration:
@@ -493,7 +508,7 @@ CTDB_NATGW_DEFAULT_GATEWAY=10\&.0\&.0\&.1
 .RE
 .\}
 .PP
-Normally any node in a NATGW group can act as the NATGW master\&. Some configurations may have special nodes that lack connectivity to a public network\&. In such cases, those nodes can be flagged with the "slave\-only" option in the
+Normally any node in a NATGW group can act as the NATGW leader\&. Some configurations may have special nodes that lack connectivity to a public network\&. In such cases, those nodes can be flagged with the "follower\-only" option in the
 \fICTDB_NATGW_NODES\fR
 file to limit the NATGW functionality of those nodes\&.
 .PP
@@ -504,17 +519,17 @@ section in
 for more details of NATGW configuration\&.
 .SS "Implementation details"
 .PP
-When the NATGW functionality is used, one of the nodes is selected to act as a NAT gateway for all the other nodes in the group when they need to communicate with the external services\&. The NATGW master is selected to be a node that is most likely to have usable networks\&.
+When the NATGW functionality is used, one of the nodes is selected to act as a NAT gateway for all the other nodes in the group when they need to communicate with the external services\&. The NATGW leader is selected to be a node that is most likely to have usable networks\&.
 .PP
-The NATGW master hosts the NATGW public IP address
+The NATGW leader hosts the NATGW public IP address
 \fICTDB_NATGW_PUBLIC_IP\fR
 on the configured public interfaces
 \fICTDB_NATGW_PUBLIC_IFACE\fR
-and acts as a router, masquerading outgoing connections from slave nodes via this IP address\&. If
+and acts as a router, masquerading outgoing connections from follower nodes via this IP address\&. If
 \fICTDB_NATGW_DEFAULT_GATEWAY\fR
 is set then it also establishes a fallback default route to the configured this gateway with a metric of 10\&. A metric 10 route is used so it can co\-exist with other default routes that may be available\&.
 .PP
-A NATGW slave establishes its fallback default route to the NATGW master via the private network
+A NATGW follower establishes its fallback default route to the NATGW leader via the private network
 \fICTDB_NATGW_PRIVATE_NETWORK\fRwith a metric of 10\&. This route is used for outbound connections when no other default route is available because the node hosts no public addresses\&. A metric 10 routes is used so that it can co\-exist with other default routes that may be available when the node is hosting public addresses\&.
 .PP
 \fICTDB_NATGW_STATIC_ROUTES\fR
@@ -765,14 +780,14 @@ To activate a node as being a remote cluster node you need to set the following 
 .nf
 [legacy]
   lmaster capability = false
-  recmaster capability = false
+  leader capability = false
 	
 .fi
 .if n \{\
 .RE
 .\}
 .PP
-Verify with the command "ctdb getcapabilities" that that node no longer has the recmaster or the lmaster capabilities\&.
+Verify with the command "ctdb getcapabilities" that that node no longer has the leader or the lmaster capabilities\&.
 .SH "SEE ALSO"
 .PP
 \fBctdb\fR(1),
@@ -787,6 +802,7 @@ Verify with the command "ctdb getcapabilities" that that node no longer has the 
 \fBctdb.sysconfig\fR(5),
 \fBctdb-statistics\fR(7),
 \fBctdb-tunables\fR(7),
+\m[blue]\fB\%https://wiki.samba.org/index.php/CTDB_and_Clustered_Samba\fR\m[],
 \m[blue]\fB\%http://ctdb.samba.org/\fR\m[]
 .SH "AUTHOR"
 .br

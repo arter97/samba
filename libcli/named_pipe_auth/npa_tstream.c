@@ -60,6 +60,7 @@ struct tevent_req *tstream_npa_connect_send(TALLOC_CTX *mem_ctx,
 					    struct tevent_context *ev,
 					    const char *directory,
 					    const char *npipe,
+					    enum dcerpc_transport_t transport,
 					    const struct tsocket_address *remote_client_addr,
 					    const char *remote_client_name_in,
 					    const struct tsocket_address *local_server_addr,
@@ -72,7 +73,7 @@ struct tevent_req *tstream_npa_connect_send(TALLOC_CTX *mem_ctx,
 	int ret;
 	enum ndr_err_code ndr_err;
 	char *lower_case_npipe;
-	struct named_pipe_auth_req_info4 *info4;
+	struct named_pipe_auth_req_info5 *info5;
 
 	req = tevent_req_create(mem_ctx, &state,
 				struct tstream_npa_connect_state);
@@ -118,36 +119,39 @@ struct tevent_req *tstream_npa_connect_send(TALLOC_CTX *mem_ctx,
 		goto post;
 	}
 
-	state->auth_req.level = 4;
-	info4 = &state->auth_req.info.info4;
+	state->auth_req.level = 5;
+	info5 = &state->auth_req.info.info5;
 
-	info4->remote_client_name = remote_client_name_in;
-	info4->remote_client_addr = tsocket_address_inet_addr_string(remote_client_addr,
+	info5->transport = transport;
+	SMB_ASSERT(info5->transport == transport); /* Assert no overflow */
+
+	info5->remote_client_name = remote_client_name_in;
+	info5->remote_client_addr = tsocket_address_inet_addr_string(remote_client_addr,
 								     state);
-	if (!info4->remote_client_addr) {
+	if (!info5->remote_client_addr) {
 		/* errno might be EINVAL */
 		tevent_req_error(req, errno);
 		goto post;
 	}
-	info4->remote_client_port = tsocket_address_inet_port(remote_client_addr);
-	if (!info4->remote_client_name) {
-		info4->remote_client_name = info4->remote_client_addr;
+	info5->remote_client_port = tsocket_address_inet_port(remote_client_addr);
+	if (!info5->remote_client_name) {
+		info5->remote_client_name = info5->remote_client_addr;
 	}
 
-	info4->local_server_name = local_server_name_in;
-	info4->local_server_addr = tsocket_address_inet_addr_string(local_server_addr,
+	info5->local_server_name = local_server_name_in;
+	info5->local_server_addr = tsocket_address_inet_addr_string(local_server_addr,
 								    state);
-	if (!info4->local_server_addr) {
+	if (!info5->local_server_addr) {
 		/* errno might be EINVAL */
 		tevent_req_error(req, errno);
 		goto post;
 	}
-	info4->local_server_port = tsocket_address_inet_port(local_server_addr);
-	if (!info4->local_server_name) {
-		info4->local_server_name = info4->local_server_addr;
+	info5->local_server_port = tsocket_address_inet_port(local_server_addr);
+	if (!info5->local_server_name) {
+		info5->local_server_name = info5->local_server_addr;
 	}
 
-	info4->session_info = discard_const_p(struct auth_session_info_transport, session_info);
+	info5->session_info = discard_const_p(struct auth_session_info_transport, session_info);
 
 	if (DEBUGLVL(10)) {
 		NDR_PRINT_DEBUG(named_pipe_auth_req, &state->auth_req);
@@ -233,6 +237,9 @@ static void tstream_npa_connect_writev_done(struct tevent_req *subreq)
 
 	subreq = tstream_u32_read_send(
 		state, state->caller.ev, 0x00FFFFFF, state->unix_stream);
+	if (tevent_req_nomem(subreq, req)) {
+		return;
+	}
 	tevent_req_set_callback(subreq, tstream_npa_connect_readv_done, req);
 }
 
@@ -250,8 +257,7 @@ static void tstream_npa_connect_readv_done(struct tevent_req *subreq)
 
 	err = tstream_u32_read_recv(subreq, state, &in.data, &in.length);
 	TALLOC_FREE(subreq);
-	if (err != 0) {
-		tevent_req_error(req, err);
+	if (tevent_req_error(req, err)) {
 		return;
 	}
 
@@ -342,10 +348,10 @@ int _tstream_npa_connect_recv(struct tevent_req *req,
 
 	npas->unix_stream = talloc_move(stream, &state->unix_stream);
 	switch (state->auth_rep.level) {
-	case 4:
-		npas->file_type = state->auth_rep.info.info4.file_type;
-		device_state = state->auth_rep.info.info4.device_state;
-		allocation_size = state->auth_rep.info.info4.allocation_size;
+	case 5:
+		npas->file_type = state->auth_rep.info.info5.file_type;
+		device_state = state->auth_rep.info.info5.device_state;
+		allocation_size = state->auth_rep.info.info5.allocation_size;
 		break;
 	}
 
@@ -947,15 +953,14 @@ static const struct tstream_context_ops tstream_npa_ops = {
 	.disconnect_recv	= tstream_npa_disconnect_recv,
 };
 
-int _tstream_npa_existing_socket(TALLOC_CTX *mem_ctx,
-				 int fd,
+int _tstream_npa_existing_stream(TALLOC_CTX *mem_ctx,
+				 struct tstream_context **transport,
 				 uint16_t file_type,
 				 struct tstream_context **_stream,
 				 const char *location)
 {
 	struct tstream_context *stream;
 	struct tstream_npa *npas;
-	int ret;
 
 	switch (file_type) {
 	case FILE_TYPE_BYTE_MODE_PIPE:
@@ -975,23 +980,33 @@ int _tstream_npa_existing_socket(TALLOC_CTX *mem_ctx,
 	if (!stream) {
 		return -1;
 	}
-	ZERO_STRUCTP(npas);
 
-	npas->file_type = file_type;
-
-	ret = tstream_bsd_existing_socket(stream, fd,
-					  &npas->unix_stream);
-	if (ret == -1) {
-		int saved_errno = errno;
-		talloc_free(stream);
-		errno = saved_errno;
-		return -1;
-	}
+	*npas = (struct tstream_npa) {
+		.file_type = file_type,
+		.unix_stream = talloc_move(npas, transport),
+	};
 
 	*_stream = stream;
 	return 0;
 }
 
+int _tstream_npa_existing_socket(TALLOC_CTX *mem_ctx,
+				 int fd,
+				 uint16_t file_type,
+				 struct tstream_context **_stream,
+				 const char *location)
+{
+	struct tstream_context *transport = NULL;
+	int ret;
+
+	ret = _tstream_bsd_existing_socket(
+		mem_ctx, fd, &transport, location);
+	if (ret == -1) {
+		return -1;
+	}
+	return _tstream_npa_existing_stream(
+		mem_ctx, &transport, file_type, _stream, location);
+}
 
 struct tstream_npa_accept_state {
 	struct tevent_context *ev;
@@ -1000,16 +1015,15 @@ struct tstream_npa_accept_state {
 	uint16_t device_state;
 	uint64_t alloc_size;
 
+	struct named_pipe_auth_req *pipe_request;
+
 	DATA_BLOB npa_blob;
 	struct iovec out_iov;
 
 	/* results */
 	NTSTATUS accept_status;
 	struct tsocket_address *remote_client_addr;
-	char *remote_client_name;
 	struct tsocket_address *local_server_addr;
-	char *local_server_name;
-	struct auth_session_info_transport *session_info;
 };
 
 static void tstream_npa_accept_existing_reply(struct tevent_req *subreq);
@@ -1070,7 +1084,7 @@ static void tstream_npa_accept_existing_reply(struct tevent_req *subreq)
 			tevent_req_data(req, struct tstream_npa_accept_state);
 	struct named_pipe_auth_req *pipe_request;
 	struct named_pipe_auth_rep pipe_reply;
-	struct named_pipe_auth_req_info4 i4;
+	struct named_pipe_auth_req_info5 i5;
 	enum ndr_err_code ndr_err;
 	DATA_BLOB in, out;
 	int err;
@@ -1114,6 +1128,7 @@ static void tstream_npa_accept_existing_reply(struct tevent_req *subreq)
 		DEBUG(0, ("Out of memory!\n"));
 		goto reply;
 	}
+	state->pipe_request = pipe_request;
 
 	/* parse the passed credentials */
 	ndr_err = ndr_pull_struct_blob_all(
@@ -1132,64 +1147,57 @@ static void tstream_npa_accept_existing_reply(struct tevent_req *subreq)
 		NDR_PRINT_DEBUG(named_pipe_auth_req, pipe_request);
 	}
 
-	ZERO_STRUCT(i4);
+	ZERO_STRUCT(i5);
 
-	if (pipe_request->level != 4) {
+	if (pipe_request->level != 5) {
 		DEBUG(0, ("Unknown level %u\n", pipe_request->level));
 		pipe_reply.level = 0;
 		pipe_reply.status = NT_STATUS_INVALID_LEVEL;
 		goto reply;
 	}
 
-	pipe_reply.level = 4;
+	pipe_reply.level = 5;
 	pipe_reply.status = NT_STATUS_OK;
-	pipe_reply.info.info4.file_type = state->file_type;
-	pipe_reply.info.info4.device_state = state->device_state;
-	pipe_reply.info.info4.allocation_size = state->alloc_size;
+	pipe_reply.info.info5.file_type = state->file_type;
+	pipe_reply.info.info5.device_state = state->device_state;
+	pipe_reply.info.info5.allocation_size = state->alloc_size;
 
-	i4 = pipe_request->info.info4;
-	if (i4.local_server_addr == NULL) {
+	i5 = pipe_request->info.info5;
+	if (i5.local_server_addr == NULL) {
 		pipe_reply.status = NT_STATUS_INVALID_ADDRESS;
 		DEBUG(2, ("Missing local server address\n"));
 		goto reply;
 	}
-	if (i4.remote_client_addr == NULL) {
+	if (i5.remote_client_addr == NULL) {
 		pipe_reply.status = NT_STATUS_INVALID_ADDRESS;
 		DEBUG(2, ("Missing remote client address\n"));
 		goto reply;
 	}
 
-	state->local_server_name = discard_const_p(char,
-						   talloc_move(state,
-							       &i4.local_server_name));
 	ret = tsocket_address_inet_from_strings(state, "ip",
-						i4.local_server_addr,
-						i4.local_server_port,
+						i5.local_server_addr,
+						i5.local_server_port,
 						&state->local_server_addr);
 	if (ret != 0) {
 		DEBUG(2, ("Invalid local server address[%s:%u] - %s\n",
-			  i4.local_server_addr, i4.local_server_port,
+			  i5.local_server_addr, i5.local_server_port,
 			  strerror(errno)));
 		pipe_reply.status = NT_STATUS_INVALID_ADDRESS;
 		goto reply;
 	}
 
-	state->remote_client_name = discard_const_p(char,
-						    talloc_move(state,
-								&i4.remote_client_name));
 	ret = tsocket_address_inet_from_strings(state, "ip",
-						i4.remote_client_addr,
-						i4.remote_client_port,
+						i5.remote_client_addr,
+						i5.remote_client_port,
 						&state->remote_client_addr);
 	if (ret != 0) {
 		DEBUG(2, ("Invalid remote client address[%s:%u] - %s\n",
-			  i4.remote_client_addr, i4.remote_client_port,
+			  i5.remote_client_addr, i5.remote_client_port,
 			  strerror(errno)));
 		pipe_reply.status = NT_STATUS_INVALID_ADDRESS;
 		goto reply;
 	}
 
-	state->session_info = talloc_move(state, &i4.session_info);
 reply:
 	/* create the output */
 	ndr_err = ndr_push_struct_blob(&out, state, &pipe_reply,
@@ -1241,19 +1249,63 @@ static void tstream_npa_accept_existing_done(struct tevent_req *subreq)
 	tevent_req_done(req);
 }
 
-int _tstream_npa_accept_existing_recv(struct tevent_req *req,
-				      int *perrno,
-				      TALLOC_CTX *mem_ctx,
-				      struct tstream_context **stream,
-				      struct tsocket_address **remote_client_addr,
-				      char **_remote_client_name,
-				      struct tsocket_address **local_server_addr,
-				      char **local_server_name,
-				      struct auth_session_info_transport **session_info,
-				      const char *location)
+static struct named_pipe_auth_req_info5 *copy_npa_info5(
+	TALLOC_CTX *mem_ctx, const struct named_pipe_auth_req_info5 *src)
+{
+	struct named_pipe_auth_req_info5 *dst = NULL;
+	DATA_BLOB blob;
+	enum ndr_err_code ndr_err;
+
+	dst = talloc_zero(mem_ctx, struct named_pipe_auth_req_info5);
+	if (dst == NULL) {
+		return NULL;
+	}
+
+	ndr_err = ndr_push_struct_blob(
+		&blob,
+		dst,
+		src,
+		(ndr_push_flags_fn_t)ndr_push_named_pipe_auth_req_info5);
+	if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
+		DBG_WARNING("ndr_push_named_pipe_auth_req_info5 failed: %s\n",
+			    ndr_errstr(ndr_err));
+		TALLOC_FREE(dst);
+		return NULL;
+	}
+
+	ndr_err = ndr_pull_struct_blob_all(
+		&blob,
+		dst,
+		dst,
+		(ndr_pull_flags_fn_t)ndr_pull_named_pipe_auth_req_info5);
+	TALLOC_FREE(blob.data);
+	if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
+		DBG_WARNING("ndr_push_named_pipe_auth_req_info5 failed: %s\n",
+			    ndr_errstr(ndr_err));
+		TALLOC_FREE(dst);
+		return NULL;
+	}
+
+	return dst;
+}
+
+int _tstream_npa_accept_existing_recv(
+	struct tevent_req *req,
+	int *perrno,
+	TALLOC_CTX *mem_ctx,
+	struct tstream_context **stream,
+	struct named_pipe_auth_req_info5 **info5,
+	enum dcerpc_transport_t *transport,
+	struct tsocket_address **remote_client_addr,
+	char **_remote_client_name,
+	struct tsocket_address **local_server_addr,
+	char **local_server_name,
+	struct auth_session_info_transport **session_info,
+	const char *location)
 {
 	struct tstream_npa_accept_state *state =
 			tevent_req_data(req, struct tstream_npa_accept_state);
+	struct named_pipe_auth_req_info5 *i5 = &state->pipe_request->info.info5;
 	struct tstream_npa *npas;
 	int ret;
 
@@ -1294,95 +1346,45 @@ int _tstream_npa_accept_existing_recv(struct tevent_req *req,
 	npas->unix_stream = state->plain;
 	npas->file_type = state->file_type;
 
-	*remote_client_addr = talloc_move(mem_ctx, &state->remote_client_addr);
-	*_remote_client_name = talloc_move(mem_ctx, &state->remote_client_name);
-	*local_server_addr = talloc_move(mem_ctx, &state->local_server_addr);
-	*local_server_name = talloc_move(mem_ctx, &state->local_server_name);
-	*session_info = talloc_move(mem_ctx, &state->session_info);
+	if (info5 != NULL) {
+		/*
+		 * Make a full copy of "info5" because further down we
+		 * talloc_move() away substructures from
+		 * state->pipe_request.
+		 */
+		struct named_pipe_auth_req_info5 *dst = copy_npa_info5(
+			mem_ctx, i5);
+		if (dst == NULL) {
+			*perrno = ENOMEM;
+			tevent_req_received(req);
+			return -1;
+		}
+		*info5 = dst;
+	}
+
+	if (transport != NULL) {
+		*transport = i5->transport;
+	}
+	if (remote_client_addr != NULL) {
+		*remote_client_addr = talloc_move(
+			mem_ctx, &state->remote_client_addr);
+	}
+	if (_remote_client_name != NULL) {
+		*_remote_client_name = discard_const_p(
+			char, talloc_move(mem_ctx, &i5->remote_client_name));
+	}
+	if (local_server_addr != NULL) {
+		*local_server_addr = talloc_move(
+			mem_ctx, &state->local_server_addr);
+	}
+	if (local_server_name != NULL) {
+		*local_server_name = discard_const_p(
+			char, talloc_move(mem_ctx, &i5->local_server_name));
+	}
+	if (session_info != NULL) {
+		*session_info = talloc_move(mem_ctx, &i5->session_info);
+	}
 
 	tevent_req_received(req);
 	return 0;
-}
-
-
-/* SOCKETPAIR for internal rpc communication */
-
-/* file_type is FILE_TYPE_BYTE_MODE_PIPE or FILE_TYPE_MESSAGE_MODE_PIPE */
-int _tstream_npa_socketpair(uint16_t file_type,
-			    TALLOC_CTX *mem_ctx1,
-			    struct tstream_context **pstream1,
-			    TALLOC_CTX *mem_ctx2,
-			    struct tstream_context **pstream2,
-			    const char *location)
-{
-	struct tstream_context *stream1 = NULL;
-	struct tstream_context *stream2 = NULL;
-	int fds[2];
-	int fd1;
-	int fd2;
-	int rc;
-	bool ok;
-
-	rc = socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
-	if (rc == -1) {
-		return -1;
-	}
-	fd1 = fds[0];
-	fd2 = fds[1];
-
-	ok = smb_set_close_on_exec(fd1);
-	if (!ok) {
-		goto close_fail;
-	}
-
-	ok = smb_set_close_on_exec(fd2);
-	if (!ok) {
-		goto close_fail;
-	}
-
-	rc = set_blocking(fd1, false);
-	if (rc == -1) {
-		goto close_fail;
-	}
-
-	rc = set_blocking(fd2, false);
-	if (rc == -1) {
-		goto close_fail;
-	}
-
-	rc = _tstream_npa_existing_socket(mem_ctx1,
-					  fd1,
-					  file_type,
-					  &stream1,
-					  location);
-	if (rc == -1) {
-		goto close_fail;
-	}
-
-	rc = _tstream_npa_existing_socket(mem_ctx2,
-					  fd2,
-					  file_type,
-					  &stream2,
-					  location);
-	if (rc == -1) {
-		int sys_errno = errno;
-		talloc_free(stream1);
-		close(fd2);
-		errno = sys_errno;
-		return -1;
-	}
-
-	*pstream1 = stream1;
-	*pstream2 = stream2;
-
-	return 0;
-
-close_fail:
-	{
-		int sys_errno = errno;
-		close(fd1);
-		close(fd2);
-		errno = sys_errno;
-		return -1;
-	}
 }

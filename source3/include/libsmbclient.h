@@ -81,16 +81,6 @@ extern "C" {
 #include <time.h>
 #include <utime.h>
 
-  /* Debian bug #221618 */
-#ifdef _LARGEFILE64_SOURCE
-#undef _LARGEFILE64_SOURCE
-#endif
-#define _LARGEFILE64_SOURCE 1
-#ifdef _FILE_OFFSET_BITS
-#undef _FILE_OFFSET_BITS
-#endif
-#define _FILE_OFFSET_BITS 64
-
 #define SMBC_BASE_FD        10000 /* smallest file descriptor returned */
 
 #define SMBC_WORKGROUP      1
@@ -235,6 +225,7 @@ typedef enum smbc_share_mode
  */
 typedef enum smbc_smb_encrypt_level
 {
+    SMBC_ENCRYPTLEVEL_DEFAULT   = -1,
     SMBC_ENCRYPTLEVEL_NONE      = 0,
     SMBC_ENCRYPTLEVEL_REQUEST   = 1,
     SMBC_ENCRYPTLEVEL_REQUIRE   = 2

@@ -23,25 +23,24 @@
 #include "../libcli/security/security.h"
 #include "passdb/lookup_sid.h"
 #include "auth.h"
+#include "source3/lib/substitute.h"
 
 /*
- * No prefix means direct username
- * @name means netgroup first, then unix group
- * &name means netgroup
- * +name means unix group
- * + and & may be combined
+ * We dropped NIS support in 2021, but need to keep configs working.
+ *
+ * TODO FIXME: Remove me in future
  */
 
 static bool do_group_checks(const char **name, const char **pattern)
 {
 	if ((*name)[0] == '@') {
-		*pattern = "&+";
+		*pattern = "+";
 		*name += 1;
 		return True;
 	}
 
 	if (((*name)[0] == '+') && ((*name)[1] == '&')) {
-		*pattern = "+&";
+		*pattern = "+";
 		*name += 2;
 		return True;
 	}
@@ -53,13 +52,13 @@ static bool do_group_checks(const char **name, const char **pattern)
 	}
 
 	if (((*name)[0] == '&') && ((*name)[1] == '+')) {
-		*pattern = "&+";
+		*pattern = "+";
 		*name += 2;
 		return True;
 	}
 
 	if ((*name)[0] == '&') {
-		*pattern = "&";
+		*pattern = "+";
 		*name += 1;
 		return True;
 	}
@@ -79,7 +78,7 @@ static bool token_contains_name(TALLOC_CTX *mem_ctx,
 	enum lsa_SidType type;
 
 	if (username != NULL) {
-		size_t domain_len = strlen(domain);
+		size_t domain_len = domain != NULL ? strlen(domain) : 0;
 
 		/* Check if username starts with domain name */
 		if (domain_len > 0) {
@@ -147,11 +146,6 @@ static bool token_contains_name(TALLOC_CTX *mem_ctx,
 			continue;
 		}
 		if (*prefix == '&') {
-			if (username) {
-				if (user_in_netgroup(mem_ctx, username, name)) {
-					return True;
-				}
-			}
 			continue;
 		}
 		smb_panic("got invalid prefix from do_groups_check");

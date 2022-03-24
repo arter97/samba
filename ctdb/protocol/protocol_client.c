@@ -281,55 +281,6 @@ int ctdb_reply_control_get_dbmap(struct ctdb_reply_control *reply,
 	return reply->status;
 }
 
-/* CTDB_CONTROL_PULL_DB */
-
-void ctdb_req_control_pull_db(struct ctdb_req_control *request,
-			      struct ctdb_pulldb *pulldb)
-{
-	request->opcode = CTDB_CONTROL_PULL_DB;
-	request->pad = 0;
-	request->srvid = 0;
-	request->client_id = 0;
-	request->flags = 0;
-
-	request->rdata.opcode = CTDB_CONTROL_PULL_DB;
-	request->rdata.data.pulldb = pulldb;
-}
-
-int ctdb_reply_control_pull_db(struct ctdb_reply_control *reply,
-			       TALLOC_CTX *mem_ctx,
-			       struct ctdb_rec_buffer **recbuf)
-{
-	if (reply->rdata.opcode != CTDB_CONTROL_PULL_DB) {
-		return EPROTO;
-	}
-
-	if (reply->status == 0) {
-		*recbuf = talloc_steal(mem_ctx, reply->rdata.data.recbuf);
-	}
-	return reply->status;
-}
-
-/* CTDB_CONTROL_PUSH_DB */
-
-void ctdb_req_control_push_db(struct ctdb_req_control *request,
-			      struct ctdb_rec_buffer *recbuf)
-{
-	request->opcode = CTDB_CONTROL_PUSH_DB;
-	request->pad = 0;
-	request->srvid = 0;
-	request->client_id = 0;
-	request->flags = 0;
-
-	request->rdata.opcode = CTDB_CONTROL_PUSH_DB;
-	request->rdata.data.recbuf = recbuf;
-}
-
-int ctdb_reply_control_push_db(struct ctdb_reply_control *reply)
-{
-	return ctdb_reply_control_generic(reply, CTDB_CONTROL_PUSH_DB);
-}
-
 /* CTDB_CONTROL_GET_RECMODE */
 
 void ctdb_req_control_get_recmode(struct ctdb_req_control *request)
@@ -604,52 +555,6 @@ int ctdb_reply_control_get_pid(struct ctdb_reply_control *reply,
 	reply->status = 0;
 
 	return reply->status;
-}
-
-/* CTDB_CONTROL_GET_RECMASTER */
-
-void ctdb_req_control_get_recmaster(struct ctdb_req_control *request)
-{
-	request->opcode = CTDB_CONTROL_GET_RECMASTER;
-	request->pad = 0;
-	request->srvid = 0;
-	request->client_id = 0;
-	request->flags = 0;
-
-	request->rdata.opcode = CTDB_CONTROL_GET_RECMASTER;
-}
-
-int ctdb_reply_control_get_recmaster(struct ctdb_reply_control *reply,
-				     uint32_t *recmaster)
-{
-	if (reply->rdata.opcode != CTDB_CONTROL_GET_RECMASTER) {
-		return EPROTO;
-	}
-
-	*recmaster = reply->status;
-	reply->status = 0;
-
-	return reply->status;
-}
-
-/* CTDB_CONTROL_SET_RECMASTER */
-
-void ctdb_req_control_set_recmaster(struct ctdb_req_control *request,
-				    int recmaster)
-{
-	request->opcode = CTDB_CONTROL_SET_RECMASTER;
-	request->pad = 0;
-	request->srvid = 0;
-	request->client_id = 0;
-	request->flags = 0;
-
-	request->rdata.opcode = CTDB_CONTROL_SET_RECMASTER;
-	request->rdata.data.recmaster = recmaster;
-}
-
-int ctdb_reply_control_set_recmaster(struct ctdb_reply_control *reply)
-{
-	return ctdb_reply_control_generic(reply, CTDB_CONTROL_SET_RECMASTER);
 }
 
 /* CTDB_CONTROL_FREEZE */

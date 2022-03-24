@@ -20,15 +20,20 @@
 #ifndef NPA_TSTREAM_H
 #define NPA_TSTREAM_H
 
+#include <replace.h>
+#include "librpc/rpc/rpc_common.h"
+
 struct tevent_req;
 struct tevent_context;
 struct auth_session_info_transport;
 struct tsocket_address;
+struct named_pipe_auth_req_info5;
 
 struct tevent_req *tstream_npa_connect_send(TALLOC_CTX *mem_ctx,
 					    struct tevent_context *ev,
 					    const char *directory,
 					    const char *npipe,
+					    enum dcerpc_transport_t transport,
 					    const struct tsocket_address *remote_client_addr,
 					    const char *remote_client_name_in,
 					    const struct tsocket_address *local_server_addr,
@@ -45,6 +50,15 @@ int _tstream_npa_connect_recv(struct tevent_req *req,
 #define tstream_npa_connect_recv(req, perrno, mem_ctx, stream, f, d, a) \
 	_tstream_npa_connect_recv(req, perrno, mem_ctx, stream, f, d, a, \
 				  __location__)
+
+int _tstream_npa_existing_stream(TALLOC_CTX *mem_ctx,
+				 struct tstream_context **transport,
+				 uint16_t file_type,
+				 struct tstream_context **_stream,
+				 const char *location);
+#define tstream_npa_existing_stream(mem_ctx, transport, ft, stream) \
+	_tstream_npa_existing_stream(mem_ctx, transport, ft, stream, \
+				     __location__)
 
 int _tstream_npa_existing_socket(TALLOC_CTX *mem_ctx,
 				 int fd,
@@ -95,18 +109,23 @@ struct tevent_req *tstream_npa_accept_existing_send(TALLOC_CTX *mem_ctx,
  *
  * @return  0 if successful, -1 on failure with *perror filled.
  */
-int _tstream_npa_accept_existing_recv(struct tevent_req *req,
-				      int *perrno,
-				      TALLOC_CTX *mem_ctx,
-				      struct tstream_context **stream,
-				      struct tsocket_address **remote_client_addr,
-				      char **_remote_client_name,
-				      struct tsocket_address **local_server_addr,
-				      char **local_server_name,
-				      struct auth_session_info_transport **session_info,
-				      const char *location);
+int _tstream_npa_accept_existing_recv(
+	struct tevent_req *req,
+	int *perrno,
+	TALLOC_CTX *mem_ctx,
+	struct tstream_context **stream,
+	struct named_pipe_auth_req_info5 **info5,
+	enum dcerpc_transport_t *transport,
+	struct tsocket_address **remote_client_addr,
+	char **_remote_client_name,
+	struct tsocket_address **local_server_addr,
+	char **local_server_name,
+	struct auth_session_info_transport **session_info,
+	const char *location);
 #define tstream_npa_accept_existing_recv(req, perrno, \
 					 mem_ctx, stream, \
+					 info4, \
+					 transport, \
 					 remote_client_addr, \
 					 remote_client_name,  \
 					 local_server_addr, \
@@ -114,21 +133,13 @@ int _tstream_npa_accept_existing_recv(struct tevent_req *req,
 					 session_info) \
 	_tstream_npa_accept_existing_recv(req, perrno, \
 					  mem_ctx, stream, \
+					  info4, \
+					  transport, \
 					  remote_client_addr, \
 					  remote_client_name,  \
 					  local_server_addr, \
 					  local_server_name, \
 					  session_info, \
 					  __location__)
-
-int _tstream_npa_socketpair(uint16_t file_type,
-			    TALLOC_CTX *mem_ctx1,
-			    struct tstream_context **pstream1,
-			    TALLOC_CTX *mem_ctx2,
-			    struct tstream_context **pstream2,
-			    const char *location);
-#define tstream_npa_socketpair(ft, mem1, stream1, mem2, stream2) \
-	_tstream_npa_socketpair(ft, mem1, stream1, mem2, stream2, \
-				__location__)
 
 #endif /* NPA_TSTREAM_H */

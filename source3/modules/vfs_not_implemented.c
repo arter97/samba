@@ -24,6 +24,7 @@
 #include "lib/util/tevent_unix.h"
 #include "lib/util/tevent_ntstatus.h"
 
+_PUBLIC_
 int vfs_not_implemented_connect(
 			vfs_handle_struct *handle,
 			const char *service,
@@ -33,11 +34,13 @@ int vfs_not_implemented_connect(
 	return -1;
 }
 
+_PUBLIC_
 void vfs_not_implemented_disconnect(vfs_handle_struct *handle)
 {
 	;
 }
 
+_PUBLIC_
 uint64_t vfs_not_implemented_disk_free(vfs_handle_struct *handle,
 				const struct smb_filename *smb_fname,
 				uint64_t *bsize,
@@ -50,6 +53,7 @@ uint64_t vfs_not_implemented_disk_free(vfs_handle_struct *handle,
 	return 0;
 }
 
+_PUBLIC_
 int vfs_not_implemented_get_quota(vfs_handle_struct *handle,
 				const struct smb_filename *smb_fname,
 				enum SMB_QUOTA_TYPE qtype,
@@ -60,6 +64,7 @@ int vfs_not_implemented_get_quota(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_set_quota(vfs_handle_struct *handle,
 				  enum SMB_QUOTA_TYPE qtype,
 				  unid_t id, SMB_DISK_QUOTA *dq)
@@ -68,6 +73,7 @@ int vfs_not_implemented_set_quota(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_get_shadow_copy_data(vfs_handle_struct *handle,
 				files_struct *fsp,
 				struct shadow_copy_data *shadow_copy_data,
@@ -77,6 +83,7 @@ int vfs_not_implemented_get_shadow_copy_data(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_statvfs(struct vfs_handle_struct *handle,
 				const struct smb_filename *smb_fname,
 				struct vfs_statvfs_struct *statbuf)
@@ -85,18 +92,21 @@ int vfs_not_implemented_statvfs(struct vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 uint32_t vfs_not_implemented_fs_capabilities(struct vfs_handle_struct *handle,
 				enum timestamp_set_resolution *p_ts_res)
 {
 	return 0;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_get_dfs_referrals(struct vfs_handle_struct *handle,
 					       struct dfs_GetDFSReferral *r)
 {
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_create_dfs_pathat(struct vfs_handle_struct *handle,
 				struct files_struct *dirfsp,
 				const struct smb_filename *smb_fname,
@@ -106,6 +116,7 @@ NTSTATUS vfs_not_implemented_create_dfs_pathat(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_read_dfs_pathat(struct vfs_handle_struct *handle,
 				TALLOC_CTX *mem_ctx,
 				struct files_struct *dirfsp,
@@ -116,6 +127,7 @@ NTSTATUS vfs_not_implemented_read_dfs_pathat(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_snap_check_path(struct vfs_handle_struct *handle,
 				TALLOC_CTX *mem_ctx,
 				const char *service_path,
@@ -124,6 +136,7 @@ NTSTATUS vfs_not_implemented_snap_check_path(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_SUPPORTED;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_snap_create(struct vfs_handle_struct *handle,
 					 TALLOC_CTX *mem_ctx,
 					 const char *base_volume,
@@ -135,6 +148,7 @@ NTSTATUS vfs_not_implemented_snap_create(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_SUPPORTED;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_snap_delete(struct vfs_handle_struct *handle,
 					 TALLOC_CTX *mem_ctx,
 					 char *base_path,
@@ -143,6 +157,7 @@ NTSTATUS vfs_not_implemented_snap_delete(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_SUPPORTED;
 }
 
+_PUBLIC_
 DIR *vfs_not_implemented_fdopendir(vfs_handle_struct *handle, files_struct *fsp,
 				   const char *mask, uint32_t attr)
 {
@@ -150,29 +165,36 @@ DIR *vfs_not_implemented_fdopendir(vfs_handle_struct *handle, files_struct *fsp,
 	return NULL;
 }
 
+_PUBLIC_
 struct dirent *vfs_not_implemented_readdir(vfs_handle_struct *handle,
-					   DIR *dirp, SMB_STRUCT_STAT *sbuf)
+					   struct files_struct *dirfsp,
+					   DIR *dirp,
+					   SMB_STRUCT_STAT *sbuf)
 {
 	errno = ENOSYS;
 	return NULL;
 }
 
+_PUBLIC_
 void vfs_not_implemented_seekdir(vfs_handle_struct *handle, DIR *dirp, long offset)
 {
 	;
 }
 
+_PUBLIC_
 long vfs_not_implemented_telldir(vfs_handle_struct *handle, DIR *dirp)
 {
 	errno = ENOSYS;
 	return (long)-1;
 }
 
+_PUBLIC_
 void vfs_not_implemented_rewind_dir(vfs_handle_struct *handle, DIR *dirp)
 {
 	;
 }
 
+_PUBLIC_
 int vfs_not_implemented_mkdirat(vfs_handle_struct *handle,
 		struct files_struct *dirfsp,
 		const struct smb_filename *smb_fname,
@@ -182,12 +204,14 @@ int vfs_not_implemented_mkdirat(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_closedir(vfs_handle_struct *handle, DIR *dir)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_openat(vfs_handle_struct *handle,
 			       const struct files_struct *dirfsp,
 			       const struct smb_filename *smb_fname,
@@ -199,9 +223,9 @@ int vfs_not_implemented_openat(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_create_file(struct vfs_handle_struct *handle,
 				struct smb_request *req,
-				struct files_struct **dirsp,
 				struct smb_filename *smb_fname,
 				uint32_t access_mask,
 				uint32_t share_access,
@@ -221,12 +245,14 @@ NTSTATUS vfs_not_implemented_create_file(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 int vfs_not_implemented_close_fn(vfs_handle_struct *handle, files_struct *fsp)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
+_PUBLIC_
 ssize_t vfs_not_implemented_pread(vfs_handle_struct *handle, files_struct *fsp,
 				  void *data, size_t n, off_t offset)
 {
@@ -234,6 +260,7 @@ ssize_t vfs_not_implemented_pread(vfs_handle_struct *handle, files_struct *fsp,
 	return -1;
 }
 
+_PUBLIC_
 struct tevent_req *vfs_not_implemented_pread_send(struct vfs_handle_struct *handle,
 						  TALLOC_CTX *mem_ctx,
 						  struct tevent_context *ev,
@@ -243,6 +270,7 @@ struct tevent_req *vfs_not_implemented_pread_send(struct vfs_handle_struct *hand
 	return NULL;
 }
 
+_PUBLIC_
 ssize_t vfs_not_implemented_pread_recv(struct tevent_req *req,
 				       struct vfs_aio_state *vfs_aio_state)
 {
@@ -250,6 +278,7 @@ ssize_t vfs_not_implemented_pread_recv(struct tevent_req *req,
 	return -1;
 }
 
+_PUBLIC_
 ssize_t vfs_not_implemented_pwrite(vfs_handle_struct *handle, files_struct *fsp,
 				   const void *data, size_t n, off_t offset)
 {
@@ -257,6 +286,7 @@ ssize_t vfs_not_implemented_pwrite(vfs_handle_struct *handle, files_struct *fsp,
 	return -1;
 }
 
+_PUBLIC_
 struct tevent_req *vfs_not_implemented_pwrite_send(struct vfs_handle_struct *handle,
 						   TALLOC_CTX *mem_ctx,
 						   struct tevent_context *ev,
@@ -267,6 +297,7 @@ struct tevent_req *vfs_not_implemented_pwrite_send(struct vfs_handle_struct *han
 	return NULL;
 }
 
+_PUBLIC_
 ssize_t vfs_not_implemented_pwrite_recv(struct tevent_req *req,
 				struct vfs_aio_state *vfs_aio_state)
 {
@@ -274,6 +305,7 @@ ssize_t vfs_not_implemented_pwrite_recv(struct tevent_req *req,
 	return -1;
 }
 
+_PUBLIC_
 off_t vfs_not_implemented_lseek(vfs_handle_struct *handle, files_struct *fsp,
 			off_t offset, int whence)
 {
@@ -281,6 +313,7 @@ off_t vfs_not_implemented_lseek(vfs_handle_struct *handle, files_struct *fsp,
 	return (off_t) - 1;
 }
 
+_PUBLIC_
 ssize_t vfs_not_implemented_sendfile(vfs_handle_struct *handle, int tofd,
 				     files_struct *fromfsp, const DATA_BLOB *hdr,
 				     off_t offset, size_t n)
@@ -289,6 +322,7 @@ ssize_t vfs_not_implemented_sendfile(vfs_handle_struct *handle, int tofd,
 	return -1;
 }
 
+_PUBLIC_
 ssize_t vfs_not_implemented_recvfile(vfs_handle_struct *handle, int fromfd,
 				     files_struct *tofsp, off_t offset, size_t n)
 {
@@ -296,6 +330,7 @@ ssize_t vfs_not_implemented_recvfile(vfs_handle_struct *handle, int fromfd,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_renameat(vfs_handle_struct *handle,
 			       files_struct *srcfsp,
 			       const struct smb_filename *smb_fname_src,
@@ -306,6 +341,7 @@ int vfs_not_implemented_renameat(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 struct tevent_req *vfs_not_implemented_fsync_send(struct vfs_handle_struct *handle,
 						  TALLOC_CTX *mem_ctx,
 						  struct tevent_context *ev,
@@ -314,6 +350,7 @@ struct tevent_req *vfs_not_implemented_fsync_send(struct vfs_handle_struct *hand
 	return NULL;
 }
 
+_PUBLIC_
 int vfs_not_implemented_fsync_recv(struct tevent_req *req,
 				   struct vfs_aio_state *vfs_aio_state)
 {
@@ -321,12 +358,14 @@ int vfs_not_implemented_fsync_recv(struct tevent_req *req,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_stat(vfs_handle_struct *handle, struct smb_filename *smb_fname)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_fstat(vfs_handle_struct *handle, files_struct *fsp,
 			SMB_STRUCT_STAT *sbuf)
 {
@@ -334,6 +373,7 @@ int vfs_not_implemented_fstat(vfs_handle_struct *handle, files_struct *fsp,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_lstat(vfs_handle_struct *handle,
 			      struct smb_filename *smb_fname)
 {
@@ -341,6 +381,7 @@ int vfs_not_implemented_lstat(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 uint64_t vfs_not_implemented_get_alloc_size(struct vfs_handle_struct *handle,
 					    struct files_struct *fsp,
 					    const SMB_STRUCT_STAT *sbuf)
@@ -349,6 +390,7 @@ uint64_t vfs_not_implemented_get_alloc_size(struct vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_unlinkat(vfs_handle_struct *handle,
 			struct files_struct *dirfsp,
 			const struct smb_filename *smb_fname,
@@ -358,14 +400,7 @@ int vfs_not_implemented_unlinkat(vfs_handle_struct *handle,
 	return -1;
 }
 
-int vfs_not_implemented_chmod(vfs_handle_struct *handle,
-			      const struct smb_filename *smb_fname,
-			      mode_t mode)
-{
-	errno = ENOSYS;
-	return -1;
-}
-
+_PUBLIC_
 int vfs_not_implemented_fchmod(vfs_handle_struct *handle, files_struct *fsp,
 			       mode_t mode)
 {
@@ -373,6 +408,7 @@ int vfs_not_implemented_fchmod(vfs_handle_struct *handle, files_struct *fsp,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_fchown(vfs_handle_struct *handle, files_struct *fsp,
 			       uid_t uid, gid_t gid)
 {
@@ -380,6 +416,7 @@ int vfs_not_implemented_fchown(vfs_handle_struct *handle, files_struct *fsp,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_lchown(vfs_handle_struct *handle,
 			       const struct smb_filename *smb_fname,
 			       uid_t uid,
@@ -389,6 +426,7 @@ int vfs_not_implemented_lchown(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_chdir(vfs_handle_struct *handle,
 			      const struct smb_filename *smb_fname)
 {
@@ -396,6 +434,7 @@ int vfs_not_implemented_chdir(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 struct smb_filename *vfs_not_implemented_getwd(vfs_handle_struct *handle,
 					       TALLOC_CTX *ctx)
 {
@@ -403,14 +442,16 @@ struct smb_filename *vfs_not_implemented_getwd(vfs_handle_struct *handle,
 	return NULL;
 }
 
-int vfs_not_implemented_ntimes(vfs_handle_struct *handle,
-			       const struct smb_filename *smb_fname,
-			       struct smb_file_time *ft)
+_PUBLIC_
+int vfs_not_implemented_fntimes(vfs_handle_struct *handle,
+				files_struct *fsp,
+				struct smb_file_time *ft)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_ftruncate(vfs_handle_struct *handle, files_struct *fsp,
 				  off_t offset)
 {
@@ -418,6 +459,7 @@ int vfs_not_implemented_ftruncate(vfs_handle_struct *handle, files_struct *fsp,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_fallocate(vfs_handle_struct *handle, files_struct *fsp,
 				  uint32_t mode, off_t offset, off_t len)
 {
@@ -425,6 +467,7 @@ int vfs_not_implemented_fallocate(vfs_handle_struct *handle, files_struct *fsp,
 	return -1;
 }
 
+_PUBLIC_
 bool vfs_not_implemented_lock(vfs_handle_struct *handle, files_struct *fsp, int op,
 			      off_t offset, off_t count, int type)
 {
@@ -432,14 +475,17 @@ bool vfs_not_implemented_lock(vfs_handle_struct *handle, files_struct *fsp, int 
 	return false;
 }
 
-int vfs_not_implemented_kernel_flock(struct vfs_handle_struct *handle,
-				     struct files_struct *fsp,
-				     uint32_t share_access, uint32_t access_mask)
+_PUBLIC_
+int vfs_not_implemented_filesystem_sharemode(struct vfs_handle_struct *handle,
+					     struct files_struct *fsp,
+					     uint32_t share_access,
+					     uint32_t access_mask)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_fcntl(struct vfs_handle_struct *handle,
 			      struct files_struct *fsp, int cmd,
 			      va_list cmd_arg)
@@ -448,6 +494,7 @@ int vfs_not_implemented_fcntl(struct vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_linux_setlease(struct vfs_handle_struct *handle,
 				       struct files_struct *fsp, int leasetype)
 {
@@ -455,6 +502,7 @@ int vfs_not_implemented_linux_setlease(struct vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 bool vfs_not_implemented_getlock(vfs_handle_struct *handle, files_struct *fsp,
 				 off_t *poffset, off_t *pcount, int *ptype,
 				 pid_t *ppid)
@@ -463,6 +511,7 @@ bool vfs_not_implemented_getlock(vfs_handle_struct *handle, files_struct *fsp,
 	return false;
 }
 
+_PUBLIC_
 int vfs_not_implemented_symlinkat(vfs_handle_struct *handle,
 				const struct smb_filename *link_contents,
 				struct files_struct *dirfsp,
@@ -472,8 +521,9 @@ int vfs_not_implemented_symlinkat(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_vfs_readlinkat(vfs_handle_struct *handle,
-			files_struct *dirfsp,
+			const struct files_struct *dirfsp,
 			const struct smb_filename *smb_fname,
 			char *buf,
 			size_t bufsiz)
@@ -482,6 +532,7 @@ int vfs_not_implemented_vfs_readlinkat(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_linkat(vfs_handle_struct *handle,
 			files_struct *srcfsp,
 			const struct smb_filename *old_smb_fname,
@@ -493,6 +544,7 @@ int vfs_not_implemented_linkat(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 int vfs_not_implemented_mknodat(vfs_handle_struct *handle,
 			files_struct *dirfsp,
 			const struct smb_filename *smb_fname,
@@ -503,6 +555,7 @@ int vfs_not_implemented_mknodat(vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 struct smb_filename *vfs_not_implemented_realpath(vfs_handle_struct *handle,
 						  TALLOC_CTX *ctx,
 						  const struct smb_filename *smb_fname)
@@ -511,14 +564,16 @@ struct smb_filename *vfs_not_implemented_realpath(vfs_handle_struct *handle,
 	return NULL;
 }
 
-int vfs_not_implemented_chflags(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
+_PUBLIC_
+int vfs_not_implemented_fchflags(vfs_handle_struct *handle,
+				struct files_struct *fsp,
 				uint flags)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
+_PUBLIC_
 struct file_id vfs_not_implemented_file_id_create(vfs_handle_struct *handle,
 						  const SMB_STRUCT_STAT *sbuf)
 {
@@ -528,6 +583,7 @@ struct file_id vfs_not_implemented_file_id_create(vfs_handle_struct *handle,
 	return id;
 }
 
+_PUBLIC_
 uint64_t vfs_not_implemented_fs_file_id(vfs_handle_struct *handle,
 					const SMB_STRUCT_STAT *sbuf)
 {
@@ -535,10 +591,12 @@ uint64_t vfs_not_implemented_fs_file_id(vfs_handle_struct *handle,
 	return 0;
 }
 
+_PUBLIC_
 struct vfs_not_implemented_offload_read_state {
 	bool dummy;
 };
 
+_PUBLIC_
 struct tevent_req *vfs_not_implemented_offload_read_send(
 			TALLOC_CTX *mem_ctx,
 			struct tevent_context *ev,
@@ -562,9 +620,12 @@ struct tevent_req *vfs_not_implemented_offload_read_send(
 	return tevent_req_post(req, ev);
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_offload_read_recv(struct tevent_req *req,
 				       struct vfs_handle_struct *handle,
 				       TALLOC_CTX *mem_ctx,
+				       uint32_t *flags,
+				       uint64_t *xferlen,
 				       DATA_BLOB *_token_blob)
 {
 	NTSTATUS status;
@@ -578,10 +639,12 @@ NTSTATUS vfs_not_implemented_offload_read_recv(struct tevent_req *req,
 	return NT_STATUS_OK;
 }
 
+_PUBLIC_
 struct vfs_not_implemented_offload_write_state {
 	uint64_t unused;
 };
 
+_PUBLIC_
 struct tevent_req *vfs_not_implemented_offload_write_send(
 			struct vfs_handle_struct *handle,
 			TALLOC_CTX *mem_ctx,
@@ -606,6 +669,7 @@ struct tevent_req *vfs_not_implemented_offload_write_send(
 	return tevent_req_post(req, ev);
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_offload_write_recv(struct vfs_handle_struct *handle,
 						struct tevent_req *req,
 						off_t *copied)
@@ -621,15 +685,16 @@ NTSTATUS vfs_not_implemented_offload_write_recv(struct vfs_handle_struct *handle
 	return NT_STATUS_OK;
 }
 
-NTSTATUS vfs_not_implemented_get_compression(struct vfs_handle_struct *handle,
+_PUBLIC_
+NTSTATUS vfs_not_implemented_fget_compression(struct vfs_handle_struct *handle,
 					     TALLOC_CTX *mem_ctx,
 					     struct files_struct *fsp,
-					     struct smb_filename *smb_fname,
 					     uint16_t *_compression_fmt)
 {
 	return NT_STATUS_INVALID_DEVICE_REQUEST;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_set_compression(struct vfs_handle_struct *handle,
 					     TALLOC_CTX *mem_ctx,
 					     struct files_struct *fsp,
@@ -638,9 +703,9 @@ NTSTATUS vfs_not_implemented_set_compression(struct vfs_handle_struct *handle,
 	return NT_STATUS_INVALID_DEVICE_REQUEST;
 }
 
-NTSTATUS vfs_not_implemented_streaminfo(struct vfs_handle_struct *handle,
+_PUBLIC_
+NTSTATUS vfs_not_implemented_fstreaminfo(struct vfs_handle_struct *handle,
 					struct files_struct *fsp,
-					const struct smb_filename *smb_fname,
 					TALLOC_CTX *mem_ctx,
 					unsigned int *num_streams,
 					struct stream_struct **streams)
@@ -648,6 +713,7 @@ NTSTATUS vfs_not_implemented_streaminfo(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 int vfs_not_implemented_get_real_filename(struct vfs_handle_struct *handle,
 					  const struct smb_filename *path,
 					  const char *name,
@@ -658,6 +724,7 @@ int vfs_not_implemented_get_real_filename(struct vfs_handle_struct *handle,
 	return -1;
 }
 
+_PUBLIC_
 const char *vfs_not_implemented_connectpath(struct vfs_handle_struct *handle,
 					    const struct smb_filename *smb_fname)
 {
@@ -665,6 +732,7 @@ const char *vfs_not_implemented_connectpath(struct vfs_handle_struct *handle,
 	return NULL;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_brl_lock_windows(struct vfs_handle_struct *handle,
 					      struct byte_range_lock *br_lck,
 					      struct lock_struct *plock)
@@ -672,6 +740,7 @@ NTSTATUS vfs_not_implemented_brl_lock_windows(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 bool vfs_not_implemented_brl_unlock_windows(struct vfs_handle_struct *handle,
 					    struct byte_range_lock *br_lck,
 					    const struct lock_struct *plock)
@@ -680,6 +749,7 @@ bool vfs_not_implemented_brl_unlock_windows(struct vfs_handle_struct *handle,
 	return false;
 }
 
+_PUBLIC_
 bool vfs_not_implemented_strict_lock_check(struct vfs_handle_struct *handle,
 					   struct files_struct *fsp,
 					   struct lock_struct *plock)
@@ -688,6 +758,7 @@ bool vfs_not_implemented_strict_lock_check(struct vfs_handle_struct *handle,
 	return false;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_translate_name(struct vfs_handle_struct *handle,
 					    const char *mapped_name,
 					    enum vfs_translate_direction direction,
@@ -696,6 +767,17 @@ NTSTATUS vfs_not_implemented_translate_name(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
+NTSTATUS vfs_not_implemented_parent_pathname(struct vfs_handle_struct *handle,
+						    TALLOC_CTX *mem_ctx,
+						    const struct smb_filename *smb_fname_in,
+						    struct smb_filename **parent_dir_out,
+						    struct smb_filename **atname_out)
+{
+	return NT_STATUS_NOT_IMPLEMENTED;
+}
+
+_PUBLIC_
 NTSTATUS vfs_not_implemented_fsctl(struct vfs_handle_struct *handle,
 				   struct files_struct *fsp,
 				   TALLOC_CTX *ctx,
@@ -709,17 +791,11 @@ NTSTATUS vfs_not_implemented_fsctl(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
-NTSTATUS vfs_not_implemented_readdir_attr(struct vfs_handle_struct *handle,
-					  const struct smb_filename *fname,
-					  TALLOC_CTX *mem_ctx,
-					  struct readdir_attr_data **pattr_data)
-{
-	return NT_STATUS_NOT_IMPLEMENTED;
-}
-
-NTSTATUS vfs_not_implemented_get_dos_attributes(struct vfs_handle_struct *handle,
-						struct smb_filename *smb_fname,
-						uint32_t *dosmode)
+_PUBLIC_
+NTSTATUS vfs_not_implemented_freaddir_attr(struct vfs_handle_struct *handle,
+					struct files_struct *fsp,
+					TALLOC_CTX *mem_ctx,
+					struct readdir_attr_data **pattr_data)
 {
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
@@ -729,6 +805,7 @@ struct vfs_not_implemented_get_dos_attributes_state {
 	uint32_t dosmode;
 };
 
+_PUBLIC_
 struct tevent_req *vfs_not_implemented_get_dos_attributes_send(
 			TALLOC_CTX *mem_ctx,
 			struct tevent_context *ev,
@@ -749,6 +826,7 @@ struct tevent_req *vfs_not_implemented_get_dos_attributes_send(
 	return tevent_req_post(req, ev);
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_get_dos_attributes_recv(
 			struct tevent_req *req,
 			struct vfs_aio_state *aio_state,
@@ -770,6 +848,7 @@ NTSTATUS vfs_not_implemented_get_dos_attributes_recv(
 	return NT_STATUS_OK;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_fget_dos_attributes(struct vfs_handle_struct *handle,
 						 struct files_struct *fsp,
 						 uint32_t *dosmode)
@@ -777,13 +856,7 @@ NTSTATUS vfs_not_implemented_fget_dos_attributes(struct vfs_handle_struct *handl
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
-NTSTATUS vfs_not_implemented_set_dos_attributes(struct vfs_handle_struct *handle,
-						const struct smb_filename *smb_fname,
-						uint32_t dosmode)
-{
-	return NT_STATUS_NOT_IMPLEMENTED;
-}
-
+_PUBLIC_
 NTSTATUS vfs_not_implemented_fset_dos_attributes(struct vfs_handle_struct *handle,
 						 struct files_struct *fsp,
 						 uint32_t dosmode)
@@ -791,6 +864,7 @@ NTSTATUS vfs_not_implemented_fset_dos_attributes(struct vfs_handle_struct *handl
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_fget_nt_acl(vfs_handle_struct *handle, files_struct *fsp,
 					 uint32_t security_info,
 					 TALLOC_CTX *mem_ctx,
@@ -799,16 +873,7 @@ NTSTATUS vfs_not_implemented_fget_nt_acl(vfs_handle_struct *handle, files_struct
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
-NTSTATUS vfs_not_implemented_get_nt_acl_at(vfs_handle_struct *handle,
-					struct files_struct *dirfsp,
-					const struct smb_filename *smb_fname,
-					uint32_t security_info,
-					TALLOC_CTX *mem_ctx,
-					struct security_descriptor **ppdesc)
-{
-	return NT_STATUS_NOT_IMPLEMENTED;
-}
-
+_PUBLIC_
 NTSTATUS vfs_not_implemented_fset_nt_acl(vfs_handle_struct *handle, files_struct *fsp,
 					 uint32_t security_info_sent,
 					 const struct security_descriptor *psd)
@@ -816,32 +881,17 @@ NTSTATUS vfs_not_implemented_fset_nt_acl(vfs_handle_struct *handle, files_struct
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
-SMB_ACL_T vfs_not_implemented_sys_acl_get_file(vfs_handle_struct *handle,
-					       const struct smb_filename *smb_fname,
-					       SMB_ACL_TYPE_T type,
-					       TALLOC_CTX *mem_ctx)
-{
-	errno = ENOSYS;
-	return (SMB_ACL_T) NULL;
-}
-
+_PUBLIC_
 SMB_ACL_T vfs_not_implemented_sys_acl_get_fd(vfs_handle_struct *handle,
-					     files_struct *fsp, TALLOC_CTX *mem_ctx)
+					     files_struct *fsp,
+					     SMB_ACL_TYPE_T type,
+					     TALLOC_CTX *mem_ctx)
 {
 	errno = ENOSYS;
 	return (SMB_ACL_T) NULL;
 }
 
-int vfs_not_implemented_sys_acl_blob_get_file(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				TALLOC_CTX *mem_ctx,
-				char **blob_description,
-				DATA_BLOB *blob)
-{
-	errno = ENOSYS;
-	return -1;
-}
-
+_PUBLIC_
 int vfs_not_implemented_sys_acl_blob_get_fd(vfs_handle_struct *handle,
 				files_struct *fsp, TALLOC_CTX *mem_ctx,
 				char **blob_description, DATA_BLOB *blob)
@@ -850,34 +900,19 @@ int vfs_not_implemented_sys_acl_blob_get_fd(vfs_handle_struct *handle,
 	return -1;
 }
 
-int vfs_not_implemented_sys_acl_set_file(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				SMB_ACL_TYPE_T acltype,
-				SMB_ACL_T theacl)
-{
-	errno = ENOSYS;
-	return -1;
-}
-
-int vfs_not_implemented_sys_acl_set_fd(vfs_handle_struct *handle, files_struct *fsp,
+_PUBLIC_
+int vfs_not_implemented_sys_acl_set_fd(vfs_handle_struct *handle,
+				       struct files_struct *fsp,
+				       SMB_ACL_TYPE_T type,
 				       SMB_ACL_T theacl)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
-int vfs_not_implemented_sys_acl_delete_def_file(vfs_handle_struct *handle,
-					const struct smb_filename *smb_fname)
-{
-	errno = ENOSYS;
-	return -1;
-}
-
-ssize_t vfs_not_implemented_getxattr(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				const char *name,
-				void *value,
-				size_t size)
+_PUBLIC_
+int vfs_not_implemented_sys_acl_delete_def_fd(vfs_handle_struct *handle,
+					struct files_struct *fsp)
 {
 	errno = ENOSYS;
 	return -1;
@@ -889,6 +924,7 @@ struct vfs_not_implemented_getxattrat_state {
 	uint8_t *xattr_value;
 };
 
+_PUBLIC_
 struct tevent_req *vfs_not_implemented_getxattrat_send(
 			TALLOC_CTX *mem_ctx,
 			struct tevent_context *ev,
@@ -911,6 +947,7 @@ struct tevent_req *vfs_not_implemented_getxattrat_send(
 	return tevent_req_post(req, ev);
 }
 
+_PUBLIC_
 ssize_t vfs_not_implemented_getxattrat_recv(struct tevent_req *req,
 				    struct vfs_aio_state *aio_state,
 				    TALLOC_CTX *mem_ctx,
@@ -935,6 +972,7 @@ ssize_t vfs_not_implemented_getxattrat_recv(struct tevent_req *req,
 	return xattr_size;
 }
 
+_PUBLIC_
 ssize_t vfs_not_implemented_fgetxattr(vfs_handle_struct *handle,
 			      struct files_struct *fsp, const char *name,
 			      void *value, size_t size)
@@ -943,15 +981,7 @@ ssize_t vfs_not_implemented_fgetxattr(vfs_handle_struct *handle,
 	return -1;
 }
 
-ssize_t vfs_not_implemented_listxattr(vfs_handle_struct *handle,
-				      const struct smb_filename *smb_fname,
-				      char *list,
-				      size_t size)
-{
-	errno = ENOSYS;
-	return -1;
-}
-
+_PUBLIC_
 ssize_t vfs_not_implemented_flistxattr(vfs_handle_struct *handle,
 				       struct files_struct *fsp, char *list,
 				       size_t size)
@@ -960,14 +990,7 @@ ssize_t vfs_not_implemented_flistxattr(vfs_handle_struct *handle,
 	return -1;
 }
 
-int vfs_not_implemented_removexattr(vfs_handle_struct *handle,
-				    const struct smb_filename *smb_fname,
-				    const char *name)
-{
-	errno = ENOSYS;
-	return -1;
-}
-
+_PUBLIC_
 int vfs_not_implemented_fremovexattr(vfs_handle_struct *handle,
 				     struct files_struct *fsp, const char *name)
 {
@@ -975,17 +998,7 @@ int vfs_not_implemented_fremovexattr(vfs_handle_struct *handle,
 	return -1;
 }
 
-int vfs_not_implemented_setxattr(vfs_handle_struct *handle,
-				 const struct smb_filename *smb_fname,
-				 const char *name,
-				 const void *value,
-				 size_t size,
-				 int flags)
-{
-	errno = ENOSYS;
-	return -1;
-}
-
+_PUBLIC_
 int vfs_not_implemented_fsetxattr(vfs_handle_struct *handle, struct files_struct *fsp,
 				  const char *name, const void *value, size_t size,
 				  int flags)
@@ -994,6 +1007,7 @@ int vfs_not_implemented_fsetxattr(vfs_handle_struct *handle, struct files_struct
 	return -1;
 }
 
+_PUBLIC_
 bool vfs_not_implemented_aio_force(struct vfs_handle_struct *handle,
 				   struct files_struct *fsp)
 {
@@ -1001,6 +1015,7 @@ bool vfs_not_implemented_aio_force(struct vfs_handle_struct *handle,
 	return false;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_audit_file(struct vfs_handle_struct *handle,
 					struct smb_filename *file,
 					struct security_acl *sacl,
@@ -1010,6 +1025,7 @@ NTSTATUS vfs_not_implemented_audit_file(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_durable_cookie(struct vfs_handle_struct *handle,
 					    struct files_struct *fsp,
 					    TALLOC_CTX *mem_ctx,
@@ -1018,6 +1034,7 @@ NTSTATUS vfs_not_implemented_durable_cookie(struct vfs_handle_struct *handle,
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_durable_disconnect(struct vfs_handle_struct *handle,
 						struct files_struct *fsp,
 						const DATA_BLOB old_cookie,
@@ -1027,6 +1044,7 @@ NTSTATUS vfs_not_implemented_durable_disconnect(struct vfs_handle_struct *handle
 	return NT_STATUS_NOT_IMPLEMENTED;
 }
 
+_PUBLIC_
 NTSTATUS vfs_not_implemented_durable_reconnect(struct vfs_handle_struct *handle,
 					       struct smb_request *smb1req,
 					       struct smbXsrv_open *op,
@@ -1090,17 +1108,16 @@ static struct vfs_fn_pointers vfs_not_implemented_fns = {
 	.lstat_fn = vfs_not_implemented_lstat,
 	.get_alloc_size_fn = vfs_not_implemented_get_alloc_size,
 	.unlinkat_fn = vfs_not_implemented_unlinkat,
-	.chmod_fn = vfs_not_implemented_chmod,
 	.fchmod_fn = vfs_not_implemented_fchmod,
 	.fchown_fn = vfs_not_implemented_fchown,
 	.lchown_fn = vfs_not_implemented_lchown,
 	.chdir_fn = vfs_not_implemented_chdir,
 	.getwd_fn = vfs_not_implemented_getwd,
-	.ntimes_fn = vfs_not_implemented_ntimes,
+	.fntimes_fn = vfs_not_implemented_fntimes,
 	.ftruncate_fn = vfs_not_implemented_ftruncate,
 	.fallocate_fn = vfs_not_implemented_fallocate,
 	.lock_fn = vfs_not_implemented_lock,
-	.kernel_flock_fn = vfs_not_implemented_kernel_flock,
+	.filesystem_sharemode_fn = vfs_not_implemented_filesystem_sharemode,
 	.fcntl_fn = vfs_not_implemented_fcntl,
 	.linux_setlease_fn = vfs_not_implemented_linux_setlease,
 	.getlock_fn = vfs_not_implemented_getlock,
@@ -1109,61 +1126,52 @@ static struct vfs_fn_pointers vfs_not_implemented_fns = {
 	.linkat_fn = vfs_not_implemented_linkat,
 	.mknodat_fn = vfs_not_implemented_mknodat,
 	.realpath_fn = vfs_not_implemented_realpath,
-	.chflags_fn = vfs_not_implemented_chflags,
+	.fchflags_fn = vfs_not_implemented_fchflags,
 	.file_id_create_fn = vfs_not_implemented_file_id_create,
 	.fs_file_id_fn = vfs_not_implemented_fs_file_id,
 	.offload_read_send_fn = vfs_not_implemented_offload_read_send,
 	.offload_read_recv_fn = vfs_not_implemented_offload_read_recv,
 	.offload_write_send_fn = vfs_not_implemented_offload_write_send,
 	.offload_write_recv_fn = vfs_not_implemented_offload_write_recv,
-	.get_compression_fn = vfs_not_implemented_get_compression,
+	.fget_compression_fn = vfs_not_implemented_fget_compression,
 	.set_compression_fn = vfs_not_implemented_set_compression,
 
-	.streaminfo_fn = vfs_not_implemented_streaminfo,
+	.fstreaminfo_fn = vfs_not_implemented_fstreaminfo,
 	.get_real_filename_fn = vfs_not_implemented_get_real_filename,
 	.connectpath_fn = vfs_not_implemented_connectpath,
 	.brl_lock_windows_fn = vfs_not_implemented_brl_lock_windows,
 	.brl_unlock_windows_fn = vfs_not_implemented_brl_unlock_windows,
 	.strict_lock_check_fn = vfs_not_implemented_strict_lock_check,
 	.translate_name_fn = vfs_not_implemented_translate_name,
+	.parent_pathname_fn = vfs_not_implemented_parent_pathname,
 	.fsctl_fn = vfs_not_implemented_fsctl,
-	.readdir_attr_fn = vfs_not_implemented_readdir_attr,
+	.freaddir_attr_fn = vfs_not_implemented_freaddir_attr,
 	.audit_file_fn = vfs_not_implemented_audit_file,
 
 	/* DOS attributes. */
-	.get_dos_attributes_fn = vfs_not_implemented_get_dos_attributes,
 	.get_dos_attributes_send_fn = vfs_not_implemented_get_dos_attributes_send,
 	.get_dos_attributes_recv_fn = vfs_not_implemented_get_dos_attributes_recv,
 	.fget_dos_attributes_fn = vfs_not_implemented_fget_dos_attributes,
-	.set_dos_attributes_fn = vfs_not_implemented_set_dos_attributes,
 	.fset_dos_attributes_fn = vfs_not_implemented_fset_dos_attributes,
 
 	/* NT ACL operations. */
 
 	.fget_nt_acl_fn = vfs_not_implemented_fget_nt_acl,
-	.get_nt_acl_at_fn = vfs_not_implemented_get_nt_acl_at,
 	.fset_nt_acl_fn = vfs_not_implemented_fset_nt_acl,
 
 	/* POSIX ACL operations. */
 
-	.sys_acl_get_file_fn = vfs_not_implemented_sys_acl_get_file,
 	.sys_acl_get_fd_fn = vfs_not_implemented_sys_acl_get_fd,
-	.sys_acl_blob_get_file_fn = vfs_not_implemented_sys_acl_blob_get_file,
 	.sys_acl_blob_get_fd_fn = vfs_not_implemented_sys_acl_blob_get_fd,
-	.sys_acl_set_file_fn = vfs_not_implemented_sys_acl_set_file,
 	.sys_acl_set_fd_fn = vfs_not_implemented_sys_acl_set_fd,
-	.sys_acl_delete_def_file_fn = vfs_not_implemented_sys_acl_delete_def_file,
+	.sys_acl_delete_def_fd_fn = vfs_not_implemented_sys_acl_delete_def_fd,
 
 	/* EA operations. */
-	.getxattr_fn = vfs_not_implemented_getxattr,
 	.getxattrat_send_fn = vfs_not_implemented_getxattrat_send,
 	.getxattrat_recv_fn = vfs_not_implemented_getxattrat_recv,
 	.fgetxattr_fn = vfs_not_implemented_fgetxattr,
-	.listxattr_fn = vfs_not_implemented_listxattr,
 	.flistxattr_fn = vfs_not_implemented_flistxattr,
-	.removexattr_fn = vfs_not_implemented_removexattr,
 	.fremovexattr_fn = vfs_not_implemented_fremovexattr,
-	.setxattr_fn = vfs_not_implemented_setxattr,
 	.fsetxattr_fn = vfs_not_implemented_fsetxattr,
 
 	/* aio operations */

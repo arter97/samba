@@ -680,6 +680,11 @@ int smb_krb5_salt_principal_str(const char *realm,
 					   userPrincipalName,
 					   uac_flags,
 					   &salt_principal);
+	if (krb5_ret != 0) {
+		DBG_ERR("unable to create salt principal:%s\n",
+			error_message(krb5_ret));
+		return krb5_ret;
+	}
 
 	krb5_ret = krb5_unparse_name(krb5_ctx, salt_principal,
 				     &salt_principal_malloc);
@@ -1079,7 +1084,7 @@ krb5_error_code smb_krb5_renew_ticket(const char *ccache_string,
 		goto done;
 	}
 
-	DEBUG(10,("smb_krb5_renew_ticket: using %s as ccache\n", ccache_string));
+	DBG_DEBUG("Using %s as ccache for '%s'\n", ccache_string, client_string);
 
 	/* FIXME: we should not fall back to defaults */
 	ret = krb5_cc_resolve(context, discard_const_p(char, ccache_string), &ccache);
@@ -1101,7 +1106,10 @@ krb5_error_code smb_krb5_renew_ticket(const char *ccache_string,
 
 	ret = krb5_get_renewed_creds(context, &creds, client, ccache, discard_const_p(char, service_string));
 	if (ret) {
-		DEBUG(10,("smb_krb5_renew_ticket: krb5_get_kdc_cred failed: %s\n", error_message(ret)));
+		DBG_DEBUG("krb5_get_renewed_creds using ccache '%s' "
+			  "for client '%s' and service '%s' failed: %s\n",
+			  ccache_string, client_string, service_string,
+			  error_message(ret));
 		goto done;
 	}
 

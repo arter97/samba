@@ -176,18 +176,6 @@ void fill_ctdb_req_control_data(TALLOC_CTX *mem_ctx,
 	case CTDB_CONTROL_GET_DBMAP:
 		break;
 
-	case CTDB_CONTROL_PULL_DB:
-		cd->data.pulldb = talloc(mem_ctx, struct ctdb_pulldb);
-		assert(cd->data.pulldb != NULL);
-		fill_ctdb_pulldb(mem_ctx, cd->data.pulldb);
-		break;
-
-	case CTDB_CONTROL_PUSH_DB:
-		cd->data.recbuf = talloc(mem_ctx, struct ctdb_rec_buffer);
-		assert(cd->data.recbuf != NULL);
-		fill_ctdb_rec_buffer(mem_ctx, cd->data.recbuf);
-		break;
-
 	case CTDB_CONTROL_GET_RECMODE:
 		break;
 
@@ -243,13 +231,6 @@ void fill_ctdb_req_control_data(TALLOC_CTX *mem_ctx,
 		break;
 
 	case CTDB_CONTROL_GET_PID:
-		break;
-
-	case CTDB_CONTROL_GET_RECMASTER:
-		break;
-
-	case CTDB_CONTROL_SET_RECMASTER:
-		cd->data.recmaster = rand_int(32);
 		break;
 
 	case CTDB_CONTROL_FREEZE:
@@ -652,14 +633,6 @@ void verify_ctdb_req_control_data(struct ctdb_req_control_data *cd,
 	case CTDB_CONTROL_GET_DBMAP:
 		break;
 
-	case CTDB_CONTROL_PULL_DB:
-		verify_ctdb_pulldb(cd->data.pulldb, cd2->data.pulldb);
-		break;
-
-	case CTDB_CONTROL_PUSH_DB:
-		verify_ctdb_rec_buffer(cd->data.recbuf, cd2->data.recbuf);
-		break;
-
 	case CTDB_CONTROL_GET_RECMODE:
 		break;
 
@@ -710,13 +683,6 @@ void verify_ctdb_req_control_data(struct ctdb_req_control_data *cd,
 		break;
 
 	case CTDB_CONTROL_GET_PID:
-		break;
-
-	case CTDB_CONTROL_GET_RECMASTER:
-		break;
-
-	case CTDB_CONTROL_SET_RECMASTER:
-		assert(cd->data.recmaster == cd2->data.recmaster);
 		break;
 
 	case CTDB_CONTROL_FREEZE:
@@ -1089,15 +1055,6 @@ void fill_ctdb_reply_control_data(TALLOC_CTX *mem_ctx,
 		fill_ctdb_dbid_map(mem_ctx, cd->data.dbmap);
 		break;
 
-	case CTDB_CONTROL_PULL_DB:
-		cd->data.recbuf = talloc(mem_ctx, struct ctdb_rec_buffer);
-		assert(cd->data.recbuf != NULL);
-		fill_ctdb_rec_buffer(mem_ctx, cd->data.recbuf);
-		break;
-
-	case CTDB_CONTROL_PUSH_DB:
-		break;
-
 	case CTDB_CONTROL_GET_RECMODE:
 		break;
 
@@ -1143,12 +1100,6 @@ void fill_ctdb_reply_control_data(TALLOC_CTX *mem_ctx,
 		break;
 
 	case CTDB_CONTROL_GET_PID:
-		break;
-
-	case CTDB_CONTROL_GET_RECMASTER:
-		break;
-
-	case CTDB_CONTROL_SET_RECMASTER:
 		break;
 
 	case CTDB_CONTROL_FREEZE:
@@ -1468,13 +1419,6 @@ void verify_ctdb_reply_control_data(struct ctdb_reply_control_data *cd,
 		verify_ctdb_dbid_map(cd->data.dbmap, cd2->data.dbmap);
 		break;
 
-	case CTDB_CONTROL_PULL_DB:
-		verify_ctdb_rec_buffer(cd->data.recbuf, cd2->data.recbuf);
-		break;
-
-	case CTDB_CONTROL_PUSH_DB:
-		break;
-
 	case CTDB_CONTROL_GET_RECMODE:
 		break;
 
@@ -1518,12 +1462,6 @@ void verify_ctdb_reply_control_data(struct ctdb_reply_control_data *cd,
 		break;
 
 	case CTDB_CONTROL_GET_PID:
-		break;
-
-	case CTDB_CONTROL_GET_RECMASTER:
-		break;
-
-	case CTDB_CONTROL_SET_RECMASTER:
 		break;
 
 	case CTDB_CONTROL_FREEZE:
@@ -1854,6 +1792,7 @@ void fill_ctdb_message_data(TALLOC_CTX *mem_ctx, union ctdb_message_data *md,
 		fill_ctdb_srvid_message(md->msg, md->msg);
 		break;
 
+	case CTDB_SRVID_LEADER:
 	case CTDB_SRVID_BANNING:
 	case CTDB_SRVID_REBALANCE_NODE:
 		md->pnn = rand32();
@@ -1917,6 +1856,7 @@ void verify_ctdb_message_data(union ctdb_message_data *md,
 		verify_ctdb_srvid_message(md->msg, md2->msg);
 		break;
 
+	case CTDB_SRVID_LEADER:
 	case CTDB_SRVID_BANNING:
 	case CTDB_SRVID_REBALANCE_NODE:
 		assert(md->pnn == md2->pnn);

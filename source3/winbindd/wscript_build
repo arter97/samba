@@ -260,7 +260,6 @@ bld.SAMBA3_SUBSYSTEM('winbindd-lib',
                     talloc
                     tevent
                     pdb
-                    popt_samba3
                     idmap
                     ads
                     msrpc3
@@ -271,8 +270,7 @@ bld.SAMBA3_SUBSYSTEM('winbindd-lib',
                     SLCACHE
                     RPC_NDR_DSSETUP
                     RPC_NDR_WINBIND
-                    RPC_SAMR
-                    RPC_LSARPC
+                    TOKEN_UTIL
                     RPC_SERVER
                     WB_REQTRANS
                     TDB_VALIDATE
@@ -285,6 +283,7 @@ bld.SAMBA3_BINARY('winbindd',
                  winbindd.c
                  ''',
                  deps='''
+                 CMDLINE_S3
                  winbindd-lib
                  ''',
                  enabled=bld.env.build_winbind,

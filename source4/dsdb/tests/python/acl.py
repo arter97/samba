@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # This is unit with tests for LDAP access checks
 
-from __future__ import print_function
 import optparse
 import sys
 import base64
@@ -12,7 +11,7 @@ import samba
 
 from samba.tests import DynamicTestCase
 from samba.tests.subunitrun import SubunitOptions, TestProgram
-from samba.compat import get_string
+from samba.common import get_string
 
 import samba.getopt as options
 from samba.join import DCJoinContext

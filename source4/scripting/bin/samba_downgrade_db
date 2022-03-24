@@ -19,7 +19,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from __future__ import print_function
 import optparse
 import sys
 
@@ -35,7 +34,7 @@ from samba import getopt as options
 from samba.samdb import SamDB
 from samba.dbchecker import dbcheck
 from samba.credentials import Credentials
-parser = optparse.OptionParser("sambaundoguididx")
+parser = optparse.OptionParser("samba_downgrade_db")
 sambaopts = options.SambaOptions(parser)
 parser.add_option_group(options.VersionOptions(parser))
 parser.add_option("-H", "--URL", help="LDB URL for database",

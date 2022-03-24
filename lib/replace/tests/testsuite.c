@@ -1,4 +1,4 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
 
    libreplace tests
@@ -8,7 +8,7 @@
      ** NOTE! The following LGPL license applies to the talloc
      ** library. This does NOT imply that all of Samba is released
      ** under the LGPL
-   
+
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
    License as published by the Free Software Foundation; either
@@ -127,7 +127,7 @@ static int test_strlcat(void)
 		return false;
 	}
 	if (strcmp(tmp, "bl") != 0) {
-		printf("failure: strlcat [\nexpected \"bl\", got \"%s\"\n]\n", 
+		printf("failure: strlcat [\nexpected \"bl\", got \"%s\"\n]\n",
 			   tmp);
 		return false;
 	}
@@ -164,17 +164,22 @@ static int test_memmove(void)
 static int test_strdup(void)
 {
 	char *x;
+	int cmp;
+
 	printf("test: strdup\n");
 	x = strdup("bla");
-	if (strcmp("bla", x) != 0) {
+
+	cmp = strcmp("bla", x);
+	if (cmp != 0) {
 		printf("failure: strdup [\nfailed: expected \"bla\", got \"%s\"\n]\n",
 			   x);
+		free(x);
 		return false;
 	}
 	free(x);
 	printf("success: strdup\n");
 	return true;
-}	
+}
 
 static int test_setlinebuf(void)
 {
@@ -259,32 +264,52 @@ static int test_setenv(void)
 static int test_strndup(void)
 {
 	char *x;
+	int cmp;
+
 	printf("test: strndup\n");
 	x = strndup("bla", 0);
-	if (strcmp(x, "") != 0) {
+	cmp = strcmp(x, "");
+	free(x);
+	if (cmp != 0) {
 		printf("failure: strndup [\ninvalid\n]\n");
 		return false;
 	}
-	free(x);
+
 	x = strndup("bla", 2);
-	if (strcmp(x, "bl") != 0) {
+	cmp = strcmp(x, "bl");
+	free(x);
+	if (cmp != 0) {
 		printf("failure: strndup [\ninvalid\n]\n");
 		return false;
 	}
-	free(x);
+
+#ifdef __GNUC__
+# if __GNUC__ < 11
+	/*
+	 * This code will not compile with gcc11 -O3 anymore.
+	 *
+	 * error: ‘strndup’ specified bound 10 exceeds source size 4 [-Werror=stringop-overread]
+	 *          x = strndup("bla", 10);
+	 *          ^~~~~~~~~~~~~~~~~~
+	 */
 	x = strndup("bla", 10);
-	if (strcmp(x, "bla") != 0) {
+	cmp = strcmp(x, "bla");
+	free(x);
+	if (cmp != 0) {
 		printf("failure: strndup [\ninvalid\n]\n");
-		free(x);
 		return false;
 	}
-	free(x);
+# endif
+#endif /* __GNUC__ */
+
 	printf("success: strndup\n");
 	return true;
 }
 
 static int test_strnlen(void)
 {
+	char longlen[20] = { 0 };
+
 	printf("test: strnlen\n");
 	if (strnlen("bla", 2) != 2) {
 		printf("failure: strnlen [\nunexpected length\n]\n");
@@ -296,7 +321,9 @@ static int test_strnlen(void)
 		return false;
 	}
 
-	if (strnlen("some text", 20) != 9) {
+	memcpy(longlen, "some text", 10);
+
+	if (strnlen(longlen, 20) != 9) {
 		printf("failure: strnlen [\nunexpected length\n]\n");
 		return false;
 	}
@@ -325,24 +352,30 @@ static int test_setegid(void)
 
 static int test_asprintf(void)
 {
-	char *x;
+	char *x = NULL;
+
 	printf("test: asprintf\n");
 	if (asprintf(&x, "%d", 9) != 1) {
 		printf("failure: asprintf [\ngenerate asprintf\n]\n");
+		free(x);
 		return false;
 	}
 	if (strcmp(x, "9") != 0) {
 		printf("failure: asprintf [\ngenerate asprintf\n]\n");
+		free(x);
 		return false;
 	}
 	if (asprintf(&x, "dat%s", "a") != 4) {
 		printf("failure: asprintf [\ngenerate asprintf\n]\n");
+		free(x);
 		return false;
 	}
 	if (strcmp(x, "data") != 0) {
 		printf("failure: asprintf [\ngenerate asprintf\n]\n");
+		free(x);
 		return false;
 	}
+	free(x);
 	printf("success: asprintf\n");
 	return true;
 }
@@ -745,7 +778,7 @@ static int test_strtoull(void)
 	return true;
 }
 
-/* 
+/*
 FIXME:
 Types:
 bool
@@ -1070,6 +1103,7 @@ static bool test_closefrom(void)
 		fd = dup(0);
 		if (fd == -1) {
 			perror("dup failed");
+			closefrom(3);
 			return false;
 		}
 
@@ -1077,6 +1111,7 @@ static bool test_closefrom(void)
 
 		if (fd >= 1000) {
 			printf("fd=%d\n", fd);
+			closefrom(3);
 			return false;
 		}
 	}

@@ -24,6 +24,7 @@
 #include "rpc_client/cli_lsarpc.h"
 #include "rpc_client/init_lsa.h"
 #include "../libcli/security/security.h"
+#include "lib/util/string_wrappers.h"
 
 /********************************************************************
 ********************************************************************/
@@ -72,7 +73,7 @@ static NTSTATUS name_to_sid(struct rpc_pipe_client *pipe_hnd,
 	struct dcerpc_binding_handle *b = pipe_hnd->binding_handle;
 
 	/* maybe its a raw SID */
-	if ( strncmp(name, "S-", 2) == 0 && string_to_sid(sid, name) ) {
+	if (dom_sid_parse(name, sid)) {
 		return NT_STATUS_OK;
 	}
 
@@ -102,7 +103,7 @@ static NTSTATUS enum_privileges(struct rpc_pipe_client *pipe_hnd,
 	NTSTATUS status, result;
 	uint32_t enum_context = 0;
 	uint32_t pref_max_length=0x1000;
-	int i;
+	uint32_t i;
 	uint16_t lang_id=0;
 	uint16_t lang_id_sys=0;
 	uint16_t lang_id_desc;
@@ -170,7 +171,7 @@ static NTSTATUS check_privilege_for_user(struct rpc_pipe_client *pipe_hnd,
 {
 	NTSTATUS status, result;
 	struct lsa_RightSet rights;
-	int i;
+	uint32_t i;
 	struct dcerpc_binding_handle *b = pipe_hnd->binding_handle;
 
 	status = dcerpc_lsa_EnumAccountRights(b, ctx,
@@ -208,7 +209,7 @@ static NTSTATUS enum_privileges_for_user(struct rpc_pipe_client *pipe_hnd,
 {
 	NTSTATUS status, result;
 	struct lsa_RightSet rights;
-	int i;
+	uint32_t i;
 	struct dcerpc_binding_handle *b = pipe_hnd->binding_handle;
 
 	status = dcerpc_lsa_EnumAccountRights(b, ctx,
@@ -244,7 +245,7 @@ static NTSTATUS enum_accounts_for_privilege(struct rpc_pipe_client *pipe_hnd,
 	uint32_t enum_context=0;
 	uint32_t pref_max_length=0x1000;
 	struct lsa_SidArray sid_array;
-	int i;
+	uint32_t i;
 	fstring name;
 	struct dcerpc_binding_handle *b = pipe_hnd->binding_handle;
 
@@ -297,7 +298,7 @@ static NTSTATUS enum_privileges_for_accounts(struct rpc_pipe_client *pipe_hnd,
 	uint32_t enum_context=0;
 	uint32_t pref_max_length=0x1000;
 	struct lsa_SidArray sid_array;
-	int i;
+	uint32_t i;
 	fstring name;
 	struct dcerpc_binding_handle *b = pipe_hnd->binding_handle;
 

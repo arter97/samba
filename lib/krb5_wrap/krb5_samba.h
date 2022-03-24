@@ -320,16 +320,6 @@ char *smb_get_krb5_error_message(krb5_context context,
 				 krb5_error_code code,
 				 TALLOC_CTX *mem_ctx);
 
-krb5_error_code kt_copy(krb5_context context,
-			const char *from,
-			const char *to);
-krb5_error_code kt_copy_one_principal(krb5_context context,
-				      const char *from,
-				      const char *to,
-				      const char *principal,
-				      krb5_kvno kvno,
-				      const krb5_enctype *enctypes);
-
 #if defined(HAVE_KRB5_KT_COMPARE)
 #define smb_krb5_kt_compare krb5_kt_compare
 #else
@@ -396,7 +386,8 @@ int smb_krb5_principal_get_type(krb5_context context,
 				krb5_const_principal principal);
 
 #if !defined(HAVE_KRB5_WARNX)
-krb5_error_code krb5_warnx(krb5_context context, const char *fmt, ...);
+krb5_error_code krb5_warnx(krb5_context context, const char *fmt, ...)
+	PRINTF_ATTRIBUTE(2, 0);
 #endif
 
 krb5_error_code smb_krb5_cc_copy_creds(krb5_context context,

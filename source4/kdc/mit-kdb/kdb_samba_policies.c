@@ -20,15 +20,21 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "includes.h"
-
-#include "system/kerberos.h"
+#include "lib/replace/replace.h"
+#include "lib/replace/system/kerberos.h"
+#include "lib/util/data_blob.h"
+#include "lib/util/debug.h"
+#include "lib/util/fault.h"
+#include "lib/util/memory.h"
 
 #include <profile.h>
 #include <kdb.h>
 
 #include "kdc/mit_samba.h"
 #include "kdb_samba.h"
+
+#undef DBGC_CLASS
+#define DBGC_CLASS DBGC_KERBEROS
 
 /* FIXME: This is a krb5 function which is exported, but in no header */
 extern krb5_error_code decode_krb5_padata_sequence(const krb5_data *output,
@@ -159,6 +165,7 @@ done:
 
 static krb5_error_code ks_get_pac(krb5_context context,
 				  krb5_db_entry *client,
+				  krb5_db_entry *server,
 				  krb5_keyblock *client_key,
 				  krb5_pac *pac)
 {
@@ -173,6 +180,7 @@ static krb5_error_code ks_get_pac(krb5_context context,
 	code = mit_samba_get_pac(mit_ctx,
 				 context,
 				 client,
+				 server,
 				 client_key,
 				 pac);
 	if (code != 0) {
@@ -287,22 +295,6 @@ done:
 	return code;
 }
 
-#if KRB5_KDB_API_VERSION < 10
-krb5_error_code kdb_samba_db_sign_auth_data(krb5_context context,
-					    unsigned int flags,
-					    krb5_const_principal client_princ,
-					    krb5_db_entry *client,
-					    krb5_db_entry *server,
-					    krb5_db_entry *krbtgt,
-					    krb5_keyblock *client_key,
-					    krb5_keyblock *server_key,
-					    krb5_keyblock *krbtgt_key,
-					    krb5_keyblock *session_key,
-					    krb5_timestamp authtime,
-					    krb5_authdata **tgt_auth_data,
-					    krb5_authdata ***signed_auth_data)
-{
-#else
 krb5_error_code kdb_samba_db_sign_auth_data(krb5_context context,
 					    unsigned int flags,
 					    krb5_const_principal client_princ,
@@ -322,7 +314,6 @@ krb5_error_code kdb_samba_db_sign_auth_data(krb5_context context,
 					    krb5_data ***auth_indicators,
 					    krb5_authdata ***signed_auth_data)
 {
-#endif
 	krb5_const_principal ks_client_princ = NULL;
 	krb5_db_entry *client_entry = NULL;
 	krb5_authdata **pac_auth_data = NULL;
@@ -336,10 +327,8 @@ krb5_error_code kdb_samba_db_sign_auth_data(krb5_context context,
 	char *client_name = NULL;
 
 
-#if KRB5_KDB_API_VERSION >= 10
 	krbtgt = krbtgt == NULL ? local_krbtgt : krbtgt;
 	krbtgt_key = krbtgt_key == NULL ? local_krbtgt_key : krbtgt_key;
-#endif
 
 	/* FIXME: We don't support S4U yet */
 	if (flags & KRB5_KDB_FLAGS_S4U) {
@@ -439,7 +428,17 @@ krb5_error_code kdb_samba_db_sign_auth_data(krb5_context context,
 	 */
 	if (with_pac && generate_pac) {
 		DBG_DEBUG("Generate PAC for AS-REQ [%s]\n", client_name);
-		code = ks_get_pac(context, client_entry, client_key, &pac);
+
+		code = krb5_pac_init(context, &pac);
+		if (code != 0) {
+			goto done;
+		}
+
+		code = ks_get_pac(context,
+				  client_entry,
+				  server,
+				  NULL,
+				  &pac);
 		if (code != 0) {
 			goto done;
 		}
@@ -488,9 +487,15 @@ krb5_error_code kdb_samba_db_sign_auth_data(krb5_context context,
 					  "delegation TGS [%s]\n",
 					  client_name);
 
+				code = krb5_pac_init(context, &pac);
+				if (code != 0) {
+					goto done;
+				}
+
 				code = ks_get_pac(context,
 						  client_entry,
-						  client_key,
+						  server,
+						  NULL,
 						  &pac);
 				if (code != 0 && code != ENOENT) {
 					goto done;
@@ -610,7 +615,6 @@ static void samba_bad_password_count(krb5_db_entry *client,
 	}
 }
 
-#if KRB5_KDB_API_VERSION >= 9
 void kdb_samba_db_audit_as_req(krb5_context context,
 			       krb5_kdc_req *request,
 			       const krb5_address *local_addr,
@@ -632,22 +636,3 @@ void kdb_samba_db_audit_as_req(krb5_context context,
 
 	/* TODO: perform proper audit logging for addresses */
 }
-#else
-void kdb_samba_db_audit_as_req(krb5_context context,
-			       krb5_kdc_req *request,
-			       krb5_db_entry *client,
-			       krb5_db_entry *server,
-			       krb5_timestamp authtime,
-			       krb5_error_code error_code)
-{
-	/*
-	 * FIXME: This segfaulted with a FAST test
-	 * FIND_FAST: <unknown client> for <unknown server>, Unknown FAST armor type 0
-	 */
-	if (client == NULL) {
-		return;
-	}
-
-	samba_bad_password_count(client, error_code);
-}
-#endif
