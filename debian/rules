@@ -53,7 +53,6 @@ conf_args = \
 		--with-automount \
 		--with-ldap \
 		--with-ads \
-		--with-dnsupdate \
 		--with-gpgme \
 		--libdir=/usr/lib/$(DEB_HOST_MULTIARCH) \
 		--with-modulesdir=/usr/lib/$(DEB_HOST_MULTIARCH)/samba \
