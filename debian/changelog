@@ -1,3 +1,22 @@
+samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
+
+  * New upstream major release.
+    Closes: #1004690, CVE-2021-20316: Fileserver symlink metadata share escape
+    Closes: #1004691, CVE-2021-43566: mkdir race condition allows share escape
+    Closes: #1004692, CVE-2021-44141: UNIX extensions in SMB1 disclose whether
+     the outside target of a symlink exists
+    Closes: #1005642 (windows client data corruption due to cache poisoning)
+  * Notable changes in 4.16 series compared to 4.13:
+    - modular VFS (see The_New_VFS.txt)
+    - publishing printers in AD is more complete
+    - group policies for winbindd cilents (like linux systems)
+    - certificate auto enrollement in AD group policy
+    - large list of improvements in samba-tool
+    - SMB1 protocol has been deprecated, some subcommands has been removed
+    - more consistend options/subcommands in samba commands
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 24 Mar 2022 13:54:07 +0300
+
 samba (2:4.13.14+dfsg-1) unstable; urgency=high
 
   * New upstream security release in order to address the following defects:
