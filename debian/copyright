@@ -11,7 +11,7 @@ Files: *
 Copyright: 1992-2012 Andrew Tridgell and the Samba Team
 License: GPL-3.0+
 
-Files: source4/heimdal/*
+Files: third_party/heimdal/*
 Copyright:
  1996-2005 Kungliga Tekniska Högskolan
  (Royal Institute of Technology, Stockholm, Sweden).
