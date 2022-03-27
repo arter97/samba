@@ -24,6 +24,8 @@ usr/lib/*/ctdb/ctdb_natgw
 usr/lib/*/ctdb/ctdb_recovery_helper
 usr/lib/*/ctdb/ctdb_takeover_helper
 usr/lib/*/ctdb/smnotify
+# helper for /etc/ctdb/debug_locks.sh
+usr/lib/*/ctdb/tdb_mutex_check
 usr/lib/*/samba/libctdb-event-client-samba4.so.0
 usr/lib/tmpfiles.d/ctdb.conf
 usr/sbin/ctdbd
