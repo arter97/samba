@@ -1,12 +1,10 @@
-#! /bin/bash
+#! /bin/sh
 
 set -e
 umask 022
 
-# this could be done with dpkg-parsechangelog -S, but that only works since
-# dpkg 1.17, so we want to avoid this to enable backports
-DEB_VERSION=`dpkg-parsechangelog |grep ^Version: | awk '{ print $2 }'`
-DEB_HOST_MULTIARCH=`dpkg-architecture -qDEB_HOST_MULTIARCH`
+DEB_VERSION=$(dpkg-parsechangelog -S Version)
+DEB_HOST_MULTIARCH=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
 
 
 make_shlibs() {
@@ -50,9 +48,7 @@ make_shlibs() {
 }
 
 
-for pkg in `dh_listpackages`
+for pkg in $(dh_listpackages)
 do
 	make_shlibs $pkg
 done
-
-
