@@ -280,24 +280,21 @@ override_dh_makeshlibs:
 	# private libraries
 	debian/make_shlibs
 
+shlibdeps := dh_shlibdeps -l${DESTDIR}/usr/lib/${DEB_HOST_MULTIARCH}/samba
+
 override_dh_shlibdeps:
-	LD_LIBRARY_PATH=$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/samba:$$LD_LIBRARY_PATH \
-	  dh_shlibdeps -a -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
+	${shlibdeps} -a -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
 ifeq ($(WITH_CEPH), yes)
-	LD_LIBRARY_PATH=$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/samba:$$LD_LIBRARY_PATH \
-	  dh_shlibdeps -a -- -pvfsceph -dRecommends \
+	${shlibdeps}-a -- -pvfsceph -dRecommends \
 	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so
-	LD_LIBRARY_PATH=$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/samba:$$LD_LIBRARY_PATH \
-	  dh_shlibdeps -a -- -prados -dRecommends \
+	${shlibdeps} -a -- -prados -dRecommends \
 	    -e debian/ctdb/usr/lib/*/ctdb/ctdb_mutex_ceph_rados_helper
 endif
 ifeq ($(WITH_GLUSTERFS), yes)
-	LD_LIBRARY_PATH=$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/samba:$$LD_LIBRARY_PATH \
-	  dh_shlibdeps -a -- -pvfsglusterfs -dRecommends \
+	${shlibdeps} -a -- -pvfsglusterfs -dRecommends \
 	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so
 endif
-	LD_LIBRARY_PATH=$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/samba:$$LD_LIBRARY_PATH \
-	  dh_shlibdeps -a -- -pvfssnapper -dRecommends \
+	${shlibdeps} -a -- -pvfssnapper -dRecommends \
 	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so
 
 override_dh_gencontrol:
