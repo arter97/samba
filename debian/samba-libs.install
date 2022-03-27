@@ -43,7 +43,6 @@ usr/lib/*/samba/libcliauth-samba4.so.0
 usr/lib/*/samba/libclidns-samba4.so.0
 usr/lib/*/samba/libcluster-samba4.so.0
 usr/lib/*/samba/libcmdline-contexts-samba4.so.0
-usr/lib/*/samba/libcmdline-credentials-samba4.so.0
 usr/lib/*/samba/libcom-err-samba4.so.0
 usr/lib/*/samba/libcommon-auth-samba4.so.0
 usr/lib/*/samba/libdbwrap-samba4.so.0
@@ -83,8 +82,6 @@ usr/lib/*/samba/libnet-keytab-samba4.so.0
 usr/lib/*/samba/libnetif-samba4.so.0
 usr/lib/*/samba/libnpa-tstream-samba4.so.0
 usr/lib/*/samba/libnss-info-samba4.so.0
-usr/lib/*/samba/libpopt-samba3.so.0
-usr/lib/*/samba/libpopt-samba3-cmdline.so.0
 usr/lib/*/samba/libposix-eadb-samba4.so.0
 usr/lib/*/samba/libprinter-driver-samba4.so.0
 usr/lib/*/samba/libprinting-migrate-samba4.so.0
@@ -114,7 +111,6 @@ usr/lib/*/samba/libtalloc-report-printf-samba4.so.0
 usr/lib/*/samba/libtalloc-report-samba4.so.0
 usr/lib/*/samba/libtdb-wrap-samba4.so.0
 usr/lib/*/samba/libtrusts-util-samba4.so.0
-usr/lib/*/samba/libutil-cmdline-samba4.so.0
 usr/lib/*/samba/libutil-reg-samba4.so.0
 usr/lib/*/samba/libutil-setid-samba4.so.0
 usr/lib/*/samba/libutil-tdb-samba4.so.0
