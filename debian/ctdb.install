@@ -7,7 +7,6 @@ etc/sudoers.d
 [linux-any] lib/systemd/system/ctdb.service
 usr/bin/ctdb
 usr/bin/ctdb_diagnostics
-usr/bin/ctdb_local_daemons
 usr/bin/ltdbtool
 usr/bin/onnode
 usr/bin/ping_pong
