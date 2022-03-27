@@ -89,6 +89,7 @@ usr/lib/*/samba/libprinting-migrate-samba4.so.0
 usr/lib/*/samba/libprocess-model-samba4.so.0
 usr/lib/*/samba/libregistry-samba4.so.0
 usr/lib/*/samba/libroken-samba4.so.0
+usr/lib/*/samba/libsamba-cluster-support-samba4.so.0
 usr/lib/*/samba/libsamba-modules-samba4.so.0
 usr/lib/*/samba/libsamba-net.cpython-*.so.*
 usr/lib/*/samba/libsamba-python.cpython-*.so.0
