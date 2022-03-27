@@ -7,8 +7,8 @@ usr/lib/*/libndr-krb5pac.so.*
 usr/lib/*/libndr-nbt.so.0*
 usr/lib/*/libndr-standard.so.*
 usr/lib/*/libndr.so.*
-usr/lib/*/libnetapi.so.0
-usr/lib/*/libsamba-credentials.so.0*
+usr/lib/*/libnetapi.so.1*
+usr/lib/*/libsamba-credentials.so.1*
 usr/lib/*/libsamba-errors.so.*
 usr/lib/*/libsamba-hostconfig.so.*
 usr/lib/*/libsamba-passdb.so.0
