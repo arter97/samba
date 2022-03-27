@@ -20,6 +20,7 @@ usr/lib/*/samba/libhdb-samba4.so.0
 usr/lib/*/samba/libkdc-samba4.so.0
 usr/lib/*/samba/libmscat-samba4.so.0
 usr/lib/*/samba/libpac-samba4.so.0
+usr/lib/*/samba/rpcd_*
 usr/lib/*/samba/samba-bgqd
 usr/lib/*/samba/samba-dcerpcd
 usr/lib/*/samba/service/*.so
