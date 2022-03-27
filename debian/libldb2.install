@@ -1,9 +1,19 @@
 #!/bin/sh
-echo 'usr/lib/*/ldb/modules'
 echo 'usr/lib/*/libldb.so.*'
 if [ "$DEB_HOST_ARCH_BITS" != 32 ]; then
-    echo 'usr/lib/*/ldb/libldb-mdb-int.so'
+    echo 'usr/lib/*/samba/libldb-mdb-int-samba4.so.0'
 fi
-echo 'usr/lib/*/ldb/libldb-key-value.so'
-echo 'usr/lib/*/ldb/libldb-tdb-err-map.so'
-echo 'usr/lib/*/ldb/libldb-tdb-int.so'
+echo 'usr/lib/*/samba/libldb-key-value-samba4.so.0'
+echo 'usr/lib/*/samba/libldb-tdb-err-map-samba4.so.0'
+echo 'usr/lib/*/samba/libldb-tdb-int-samba4.so.0'
+
+echo 'usr/lib/*/samba/ldb/asq.so'
+echo 'usr/lib/*/samba/ldb/ldap.so'
+echo 'usr/lib/*/samba/ldb/ldb.so'
+echo 'usr/lib/*/samba/ldb/mdb.so'
+echo 'usr/lib/*/samba/ldb/paged_searches.so'
+echo 'usr/lib/*/samba/ldb/rdn_name.so'
+echo 'usr/lib/*/samba/ldb/sample.so'
+echo 'usr/lib/*/samba/ldb/server_sort.so'
+echo 'usr/lib/*/samba/ldb/skel.so'
+echo 'usr/lib/*/samba/ldb/tdb.so'

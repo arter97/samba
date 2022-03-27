@@ -1,6 +1,7 @@
 # list all *.h under samba-4.0 except:
 # libsmbclient.h: libsmbclient-dev
 # wbclient.h: libwbclient-dev
+# ldb*.h (except ldb_wrap.h): libldb-dev
 usr/include/samba-4.0/charset.h
 usr/include/samba-4.0/core/*.h
 usr/include/samba-4.0/credentials.h
