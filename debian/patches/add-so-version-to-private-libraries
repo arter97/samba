@@ -8,20 +8,15 @@ only works when the library has a version number.
 Origin: vendor
 Forwarded: not-needed
 ---
- buildtools/wafsamba/wafsamba.py | 3 +++
- 1 file changed, 3 insertions(+)
+ buildtools/wafsamba/wafsamba.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/buildtools/wafsamba/wafsamba.py b/buildtools/wafsamba/wafsamba.py
-index 1bdabf6..008a214 100644
+index 185ef3b73a2..291239fcaa7 100644
 --- a/buildtools/wafsamba/wafsamba.py
 +++ b/buildtools/wafsamba/wafsamba.py
-@@ -232,6 +232,9 @@ def SAMBA_LIBRARY(bld, libname, source,
-             raise Errors.WafError("public library '%s' must have header files" %
-                        libname)
- 
-+    if private_library and not vnum:
+@@ -307,3 +307,3 @@ def SAMBA_LIBRARY(bld, libname, source,
+         bundled_name = PRIVATE_NAME(bld, libname.replace('_', '-'))
+-        vnum = None
 +        vnum = '0'
-+
-     if bundled_name is not None:
-         pass
-     elif target_type == 'PYTHON' or realname or not private_library:
+ 
