@@ -20,7 +20,7 @@ make_shlibs() {
 	#   the symbols file (dpkg-gensymbols -c4)
 	# - create first part of the shlibs file:
 	#   for public libraries, we want a weak dependency in the shlibs file
-	dh_makeshlibs -p$pkg -V -X/usr/lib/${DEB_HOST_MULTIARCH}/samba -X/usr/lib/${DEB_HOST_MULTIARCH}/plugin -- -c4
+	dh_makeshlibs -p$pkg -V -X/usr/lib/${DEB_HOST_MULTIARCH}/samba -- -c4
 	[ -e $PKGDIR/shlibs ] && mv $PKGDIR/shlibs $PKGDIR/shlibs.1
 
 	# step 2:
@@ -33,7 +33,7 @@ make_shlibs() {
 	#   file
 	#   this step will generate a strict dependency for all libraries (also
 	#   public ones), so afterwards, we will have to merge them
-	dh_makeshlibs -p$pkg -V"$pkg (= ${DEB_VERSION})" -X/usr/lib/${DEB_HOST_MULTIARCH}/plugin -- -q -O/dev/null
+	dh_makeshlibs -p$pkg -V"$pkg (= ${DEB_VERSION})" -- -q -O/dev/null
 
 	if [ -e $PKGDIR/shlibs ]
 	then
