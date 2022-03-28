@@ -277,9 +277,9 @@ override_dh_missing:
 	dh_missing --fail-missing
 
 override_dh_makeshlibs:
-	# create symbols and shlibs files in separate wrapper script to deal with
-	# private libraries
-	debian/make_shlibs
+	# create symbols and shlibs files in separate wrapper script
+	# to deal with private libraries
+	debian/make_shlibs "${LDB_DEB_VERSION}|libldb2|ldb-tools|libldb-dev|python3-ldb|python3-ldb-dev"
 
 shlibdeps := dh_shlibdeps -l${DESTDIR}/usr/lib/${DEB_HOST_MULTIARCH}/samba
 
