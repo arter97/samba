@@ -23,7 +23,7 @@ LDB_NEXT_VERSION = $(shell ${PYSHORT} -c "x = '$(LDB_VERSION)'.split('.'); x[-1]
 LDB_DEPENDS = "libldb2 (<< $(LDB_EPOCH):$(LDB_NEXT_VERSION)~), libldb2 (>> $(LDB_EPOCH):$(LDB_VERSION)~)"
 
 V = 1
-WAF := $(PYTHON) ./buildtools/bin/waf $(if ${V},-v)
+WAF := PYTHONHASHSEED=1 $(PYTHON) ./buildtools/bin/waf $(if ${V},-v)
 WAF_NO_PARALLEL := $(WAF) -j 1
 
 # wrapper around cups-config, to work around #726726
