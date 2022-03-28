@@ -14,12 +14,11 @@ make_shlibs() {
 
 	# step 1:
 	# - create symbols files:
-	#   - we only want symbols for public libraries (so exclude private
-	#   ones)
+	#   - we only want symbols for public libraries (exclude private libs)
 	#   - we want to fail if new symbols appear, which are not listed in
-	#   the symbols file (dpkg-gensymbols -c4)
+	#     the symbols file (dpkg-gensymbols -c4)
 	# - create first part of the shlibs file:
-	#   for public libraries, we want a weak dependency in the shlibs file
+	#   for public libraries, we want a weak version dependency
 	dh_makeshlibs -p$pkg -V -X/usr/lib/${DEB_HOST_MULTIARCH}/samba -- -c4
 	[ -e $PKGDIR/shlibs ] && mv $PKGDIR/shlibs $PKGDIR/shlibs.1
 
@@ -29,22 +28,25 @@ make_shlibs() {
 	#   - output to /dev/null (-O/dev/null)
 	#   - don't print info about new symbols (-q)
 	# - create second part of the shlibs file:
-	#   for private libraries, we want a strict dependency in the shlibs
-	#   file
+	#   for private libraries, we want a strict version dependency
 	#   this step will generate a strict dependency for all libraries (also
 	#   public ones), so afterwards, we will have to merge them
 	dh_makeshlibs -p$pkg -V"$pkg (= ${DEB_VERSION})" -- -q -O/dev/null
 
-	if [ -e $PKGDIR/shlibs ]
-	then
-		mv $PKGDIR/shlibs $PKGDIR/shlibs.2
-		# output shlibs entries from the first file
-		# output shlibs entries from the second file if they are not in the first file
-		debian/merge_shlibs.pl $PKGDIR/shlibs.1 $PKGDIR/shlibs.2 > $PKGDIR/shlibs
+	if [ -e $PKGDIR/shlibs -a -e $PKGDIR/shlibs.1 ]; then
+		# append entries from 2nd file if they are not in 1st
+		exec <$PKGDIR/shlibs.1; seen=
+		while read lib rest; do seen="$seen|$lib"; done
+		exec <$PKGDIR/shlibs
+		while read lib rest; do
+			case "$seen|" in (*"|$lib|"*) continue;; esac
+			echo "$lib $rest"
+		done >>$PKGDIR/shlibs.1
+		exec <&-
+		mv -f $PKGDIR/shlibs.1 $PKGDIR/shlibs
+	elif [ -e $PKGDIR/shlibs.1 ]; then
+		mv $PKGDIR/shlibs.1 $PKGDIR/shlibs
 	fi
-	rm -f $PKGDIR/shlibs.1
-	rm -f $PKGDIR/shlibs.2
-
 }
 
 
