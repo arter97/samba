@@ -13,14 +13,16 @@ include /usr/share/dpkg/vendor.mk
 export PYSHORT=python3
 export PYTHON=$(shell which $(PYSHORT))
 export PYTHON_CONFIG=$(PYTHON)-config
+PYTHON_SUFFIX = $(call dpkg_late_eval,PYTHON_SUFFIX,\
+	${PYTHON_CONFIG} --extension-suffix | sed 's/\.so$$//')
 
-LDB_VERSION = $(shell pkg-config --modversion ldb)
-LDB_EPOCH = $(shell dpkg-query -f '$${Version}' -W libldb-dev | sed 's/:.*//')
+LDB_EPOCH = 2
+LDB_VERSION = $(shell sed -nr "s/^VERSION *= *'(.*)'/${LDB_EPOCH}:\\1/p; t q; b; : q; q" lib/ldb/wscript)
+LDB_DEB_VERSION = ${LDB_VERSION}+samba${DEB_VERSION_UPSTREAM_REVISION}
 LDB_NEXT_VERSION = $(shell ${PYSHORT} -c "x = '$(LDB_VERSION)'.split('.'); x[-1] = str(int(x[-1])+1); print('.'.join(x))")
-# samba ships ldb modules, which are specific to the ldb version, so we need a
-# strict dependency on the upstream ldb version
-# this also mean samba needs a rebuild when the upstream ldb version changes
-LDB_DEPENDS = "libldb2 (<< $(LDB_EPOCH):$(LDB_NEXT_VERSION)~), libldb2 (>> $(LDB_EPOCH):$(LDB_VERSION)~)"
+# samba ships ldb modules, which are specific to the ldb version,
+# so we need a strict dependency on the upstream ldb version
+LDB_DEPENDS = libldb2 (<< ${LDB_NEXT_VERSION}~), libldb2 (>> ${LDB_VERSION}~)
 
 V = 1
 WAF := PYTHONHASHSEED=1 $(PYTHON) ./buildtools/bin/waf $(if ${V},-v)
@@ -62,7 +64,7 @@ conf_args = \
 		--enable-avahi \
 		--disable-rpath \
 		--disable-rpath-install \
-		--bundled-libraries=NONE,pytevent \
+		--bundled-libraries=NONE,pytevent,ldb,pyldb,pyldb-util$(PYTHON_SUFFIX) \
 		--with-cluster-support \
 		--with-socketpath=/run/ctdb/ctdbd.socket \
 		--with-logdir=/var/log/ctdb \
@@ -141,9 +143,6 @@ override_dh_auto_install:
 	rm $(DESTDIR)/usr/lib/python*/*-packages/tevent.py
 	# Already documented in debian/copyright
 	-rm $(DESTDIR)/usr/share/samba/setup/ad-schema/licence.txt
-	# System ldb loads its modules from a different path
-	mkdir -p $(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/ldb/modules/ldb
-	ln -sf ../../../samba/ldb $(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/ldb/modules/ldb/samba
 	# pam stuff
 	mkdir -p $(DESTDIR)/usr/share/pam-configs
 	install -m 0644 debian/winbind.pam-config $(DESTDIR)/usr/share/pam-configs/winbind
@@ -196,6 +195,10 @@ endif
 	mkdir -p $(DESTDIR)/usr/lib/tmpfiles.d
 	echo "d /run/samba 0755 root root -" > $(DESTDIR)/usr/lib/tmpfiles.d/samba.conf
 	echo "d /run/ctdb 0755 root root -" > $(DESTDIR)/usr/lib/tmpfiles.d/ctdb.conf
+
+override_dh_install:
+	DEB_PY3_INCDIR=$$(python3-config --includes | sed 's,^-I\([^ ]*\).*,\1,') \
+		dh_install
 
 override_dh_installdocs-arch:
 	cp ctdb/config/events/README ctdb/README.eventscripts
@@ -296,7 +299,9 @@ endif
 	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so
 
 override_dh_gencontrol:
-	dh_gencontrol -- -Vldb:Depends=$(LDB_DEPENDS)
+	dh_gencontrol -plibldb2 -pldb-tools -plibldb-dev -ppython3-ldb -ppython3-ldb-dev \
+	  -- -v${LDB_DEB_VERSION}
+	dh_gencontrol --remaining-packages -- -Vldb:Depends="${LDB_DEPENDS}"
 
 override_dh_auto_clean:
 	-$(WAF) clean
