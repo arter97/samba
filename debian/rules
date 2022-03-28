@@ -10,16 +10,18 @@ include /usr/share/dpkg/buildflags.mk
 include /usr/share/dpkg/pkg-info.mk
 include /usr/share/dpkg/vendor.mk
 
+export PYSHORT=python3
+export PYTHON=$(shell which $(PYSHORT))
+export PYTHON_CONFIG=$(PYTHON)-config
+
 LDB_VERSION = $(shell pkg-config --modversion ldb)
 LDB_EPOCH = $(shell dpkg-query -f '$${Version}' -W libldb-dev | sed 's/:.*//')
-LDB_NEXT_VERSION = $(shell python3 -c "x = '$(LDB_VERSION)'.split('.'); x[-1] = str(int(x[-1])+1); print('.'.join(x))")
+LDB_NEXT_VERSION = $(shell ${PYSHORT} -c "x = '$(LDB_VERSION)'.split('.'); x[-1] = str(int(x[-1])+1); print('.'.join(x))")
 # samba ships ldb modules, which are specific to the ldb version, so we need a
 # strict dependency on the upstream ldb version
 # this also mean samba needs a rebuild when the upstream ldb version changes
 LDB_DEPENDS = "libldb2 (<< $(LDB_EPOCH):$(LDB_NEXT_VERSION)~), libldb2 (>> $(LDB_EPOCH):$(LDB_VERSION)~)"
-export PYSHORT=python3
-export PYTHON=$(shell which $(PYSHORT))
-export PYTHON_CONFIG="$(PYTHON)-config"
+
 V = 1
 WAF := $(PYTHON) ./buildtools/bin/waf $(if ${V},-v)
 WAF_NO_PARALLEL := $(WAF) -j 1
