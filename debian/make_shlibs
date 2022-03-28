@@ -6,11 +6,20 @@ umask 022
 DEB_VERSION=$(dpkg-parsechangelog -S Version)
 DEB_HOST_MULTIARCH=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
 
+# arguments in form custom-version|pkg1|pkg2|pkg3|...
+custvers="$*"
 
 make_shlibs() {
 	pkg=$1
-	echo $pkg
 	PKGDIR=debian/$pkg/DEBIAN
+
+	ver=${DEB_VERSION}
+	for v in $custvers; do
+	    case "$v|" in
+		(*"|$pkg|"*) ver="${v%%|*}"; break;;
+	    esac
+	done
+	echo $pkg $ver
 
 	# step 1:
 	# - create symbols files:
@@ -19,7 +28,7 @@ make_shlibs() {
 	#     the symbols file (dpkg-gensymbols -c4)
 	# - create first part of the shlibs file:
 	#   for public libraries, we want a weak version dependency
-	dh_makeshlibs -p$pkg -V -X/usr/lib/${DEB_HOST_MULTIARCH}/samba -- -c4
+	dh_makeshlibs -p$pkg -V"$pkg (>= ${ver%-*})" -X/usr/lib/${DEB_HOST_MULTIARCH}/samba -- -c4 -v$ver
 	[ -e $PKGDIR/shlibs ] && mv $PKGDIR/shlibs $PKGDIR/shlibs.1
 
 	# step 2:
@@ -31,7 +40,7 @@ make_shlibs() {
 	#   for private libraries, we want a strict version dependency
 	#   this step will generate a strict dependency for all libraries (also
 	#   public ones), so afterwards, we will have to merge them
-	dh_makeshlibs -p$pkg -V"$pkg (= ${DEB_VERSION})" -- -q -O/dev/null
+	dh_makeshlibs -p$pkg -V"$pkg (= $ver)" -- -q -O/dev/null -v$ver
 
 	if [ -e $PKGDIR/shlibs -a -e $PKGDIR/shlibs.1 ]; then
 		# append entries from 2nd file if they are not in 1st
