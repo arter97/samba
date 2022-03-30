@@ -328,11 +328,7 @@ override_dh_gencontrol:
 	dh_gencontrol --remaining-packages -- -Vldb:Depends="${LDB_DEPENDS}"
 
 override_dh_auto_clean:
-	-$(WAF) clean
-	find . -name "*.pyc" | xargs rm -f
-	rm -rf buildtools/bin/.waf-*
-	rm -rf bin
+	rm -rf bin/
+	find -name __pycache__ -exec rm -rf {} +
 	rm -f .lock-wscript
-	rm -f ctdb/README.eventscripts
-	rm -f ctdb/README.notification
-	rm -rf ctdb/doc/examples/nfs-kernel-server/
+	rm -f compile_commands.json
