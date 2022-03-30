@@ -14,6 +14,28 @@ samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
     - large list of improvements in samba-tool
     - SMB1 protocol has been deprecated, some subcommands has been removed
     - more consistend options/subcommands in samba commands
+  * d/rules: export PYTHONHASHSEED=1. This makes lots of sporadic build-time
+    debian-specific failures to go away, by preserving order of waf hashes
+  * refresh patches, update build-depend versions (talloc, tdb, tevent)
+  * refresh lintian-overrides files a bit
+  * build-depend on python3-markdown
+  * build-depend on libjson-perl for new heimdal bits
+  * more consistent internal lib naming; refresh file lists everywhere
+  * samba: install new rpc_* services, install samba-dcerpc
+  * refresh symbols files
+  * build libldb from samba sources, not from separate source
+    (this moves ldb plugins from /usr/lib/$triple/ldb/plugin/ldb/ to
+     /usr/lib/$triple/samba/ldb/ - the same where dsdb modules are).
+  * optimizations for d/make_shlibs; also allow one to specify explicit
+    version for some packages
+  * as per clarifications for waf --{bundled,builtin}-libraries, remove
+    now-wrong usage there. This also fixes build failures with current
+    samba sources
+  * d/rules: various optimizations to reduce startup costs by eliminating
+    unnecessary external command calls during d/rules read by make.
+    Including caching of LDB version information in d/ldb-version.mk file.
+    This does not affect the buildd processing much (and does not affect
+    runtime at all), but helps with build procedure debugging.
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 24 Mar 2022 13:54:07 +0300
 
