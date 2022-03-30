@@ -36,6 +36,8 @@ samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
     Including caching of LDB version information in d/ldb-version.mk file.
     This does not affect the buildd processing much (and does not affect
     runtime at all), but helps with build procedure debugging.
+  * samba-common-bin.postinst: explicitly mkdir /run/samba before invoking
+    samba binaries (Closes: #953530)
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 24 Mar 2022 13:54:07 +0300
 

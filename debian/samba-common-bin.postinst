@@ -2,10 +2,8 @@
 
 set -e
 
-# systemd-tmpfiles should be called before testparm
-# See https://bugs.debian.org/975422
-
-#DEBHELPER#
+# ensure a (tmpfs-based) /run/samba exists before running testparm
+[ -d /run/samba ] || mkdir -p /run/samba
 
 if [ "$1" = "configure" ] ; then
     SERVER_ROLE=`samba-tool testparm --parameter-name="server role"  2>/dev/null | tail -1`
@@ -19,3 +17,5 @@ if [ "$1" = "configure" ] ; then
         echo "Done"
     fi
 fi
+
+#DEBHELPER#
