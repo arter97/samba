@@ -130,7 +130,8 @@ ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
 		-Nsamba-testsuite
 endif
 
-%:
+binary binary-arch binary-indep build build-arch build-indep \
+clean install install-arch install-indep: %:
 	dh $* --with python3 $(BUILD_PACKAGES)
 
 override_dh_auto_configure:
