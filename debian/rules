@@ -139,7 +139,20 @@ override_dh_auto_configure:
 	$(WAF_NO_PARALLEL) configure $(conf_args)
 
 override_dh_auto_build:
-	DESTDIR="$(DESTDIR)" $(WAF)
+# samba build system is designed so that default build (what is produced
+# by waf build) supposed to be run directly from the build directory,
+# with all the paths pointing there.  At the install stage, quite some
+# recompilation/relinking is done again, to adopt to the actual install
+# paths. There's no need (for now) to build samba to be run from the build
+# directory, so we use `waf install' here instead of `waf build'.
+# However, as of 4.16, `waf install' without the build step fails, since
+# it tries to run two executables which are not built.
+# Build these two executables first, and build the install stage.
+# This will pefrorm unnecessary/extra install step (into d/tmp), which
+# we'll repeat during actual install stage, but this is definitely
+# better/faster than building whole thing for _not_ running from the build dir.
+	DESTDIR="$(DESTDIR)" $(WAF) --targets=compile_et,asn1_compile
+	DESTDIR="$(DESTDIR)" $(WAF) install
 
 override_dh_auto_test:
 	# Running make test requires configuration with --enable-selftest, which
