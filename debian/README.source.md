@@ -81,9 +81,9 @@ Then several steps are needed:
         git am $(cat debian/patches/series | sed s@^@debian/patches/@)
         # then update or drop patches as needed
 
-- Bump talloc, tdb, tevent and ldb Build-Depends in debian/control, from lib/*/wscript
+- Bump talloc, tdb, and tevent Build-Depends in debian/control, from lib/*/wscript
 
-        grep ^VERSION lib/{talloc,tdb,tevent,ldb}/wscript
+        grep ^VERSION lib/{talloc,tdb,tevent}/wscript
         editor debian/control
 
 - Check if other Build-Depends need to be bumped
