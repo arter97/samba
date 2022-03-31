@@ -22,6 +22,13 @@ Each time:
     gbp pull --track-missing
     gbp buildpackage --git-pbuilder --git-dist=sid --git-arch=amd64
 
+Alternatively, source-only:
+
+    cd samba
+    git checkout master
+    dpkg-buildpackage -S -d
+    # build the resulting ../samba_*.dsc with other means
+
 Merging minor upstream releases
 ===============================
 
