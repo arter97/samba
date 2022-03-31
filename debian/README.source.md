@@ -76,9 +76,9 @@ After `gbp pull`:
 
 Then several steps are needed:
 
-- Apply all patches:
+- Check patches:
 
-        git am $(cat debian/patches/series | sed s@^@debian/patches/@)
+        QUILT_PATCHES=debian/patches quilt push -a
         # then update or drop patches as needed
 
 - Bump talloc, tdb, and tevent Build-Depends in debian/control, from lib/*/wscript

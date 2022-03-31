@@ -42,6 +42,8 @@ samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
     variant only, no build-dir one.
   * samba-common-bin.postinst: explicitly mkdir /run/samba before invoking
     samba binaries (Closes: #953530)
+  * in the salsa git repository of samba, stop keeping debian patches in
+    applied form, keep them in d/patches/ only as most other packages do.
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 24 Mar 2022 13:54:07 +0300
 
