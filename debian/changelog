@@ -44,6 +44,10 @@ samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
     samba binaries (Closes: #953530)
   * in the salsa git repository of samba, stop keeping debian patches in
     applied form, keep them in d/patches/ only as most other packages do.
+  * move single python (helper) module, libsamba-policy, together with
+    2 internal libraries used by it, from samba-libs package to python3-samba.
+    This makes samba-libs to be free from python-related files, and makes
+    python3-samba to be the only python-providing package. Closes: #1006875
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 24 Mar 2022 13:54:07 +0300
 

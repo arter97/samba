@@ -255,6 +255,9 @@ Depends: python3-ldb,
          ${misc:Depends},
          ${python3:Depends},
          ${shlibs:Depends}
+Replaces:
+# libsamba-policy & helpers python libs moved from samba-libs to python3-samba
+ samba-libs (<< 2:4.16.0+dfsg-1~),
 Recommends: python3-gpg
 Description: Python 3 bindings for Samba
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,

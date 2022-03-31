@@ -13,7 +13,6 @@ usr/lib/*/libsamba-errors.so.*
 usr/lib/*/libsamba-hostconfig.so.*
 usr/lib/*/libsamba-passdb.so.0
 usr/lib/*/libsamba-passdb.so.0.28.0
-usr/lib/*/libsamba-policy.cpython-*.so.*
 usr/lib/*/libsamdb.so.*
 usr/lib/*/libsmbconf.so.0
 usr/lib/*/libsmbldap.so.2*
@@ -92,8 +91,6 @@ usr/lib/*/samba/libregistry-samba4.so.0
 usr/lib/*/samba/libroken-samba4.so.0
 usr/lib/*/samba/libsamba-cluster-support-samba4.so.0
 usr/lib/*/samba/libsamba-modules-samba4.so.0
-usr/lib/*/samba/libsamba-net.cpython-*.so.*
-usr/lib/*/samba/libsamba-python.cpython-*.so.0
 usr/lib/*/samba/libsamba-security-samba4.so.0
 usr/lib/*/samba/libsamba-sockets-samba4.so.0
 usr/lib/*/samba/libsamba3-util-samba4.so.0
