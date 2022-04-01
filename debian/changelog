@@ -37,9 +37,10 @@ samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
     Including caching of LDB version information in d/ldb-version.mk file.
     This does not affect the buildd processing much (and does not affect
     runtime at all), but helps with build procedure debugging.
-  * d/rules: numerous small fixes, cleanups and other changes:
+  * d/rules: numerous small fixes, cleanups and other changes, including:
     - clean up the install target
     - remove some now-irrelevant parts
+    - fix no-glusterfs-build on non-linux
   * change build procedure: instead of `waf build', run `waf install'.
     `waf build' builds samba to be run from the build dir, and `waf install'
     rebuilds/relinks everything again for production. Build the production
@@ -61,6 +62,9 @@ samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
     testparm message (Closes: #975882)
   * spelling.patch: fix many common spelling mistakes in the source
   * ctdb: simplify/cleanup instllation of READMEs/examples
+  * d/control: remove breaks/replaces/depends on ancient versions of some
+    packages (ancient dpkg version in Pre-Depends, ancient samba-libs)
+  * d/rules: rework wrong shlibdeps handling
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 24 Mar 2022 13:54:07 +0300
 
