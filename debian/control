@@ -71,7 +71,7 @@ Vcs-Git: https://salsa.debian.org/samba-team/samba.git
 
 Package: samba
 Architecture: any
-Pre-Depends: dpkg (>= 1.15.6~), ${misc:Pre-Depends}
+Pre-Depends: ${misc:Pre-Depends}
 Depends: adduser,
          libpam-modules,
          libpam-runtime (>= 1.0.1-11),
@@ -142,7 +142,7 @@ Description: Samba core libraries
 Package: samba-common
 Architecture: all
 Multi-Arch: foreign
-Pre-Depends: dpkg (>= 1.15.6~), ${misc:Pre-Depends}
+Pre-Depends: ${misc:Pre-Depends}
 Depends: ucf, ${misc:Depends}
 Recommends: samba-common-bin
 Description: common files used by both the Samba server and client
@@ -181,7 +181,6 @@ Depends: samba-common (= ${source:Version}),
          samba-libs (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
-Pre-Depends: dpkg (>= 1.15.6~)
 Provides: samba-client
 Suggests: cifs-utils, heimdal-clients
 Description: command-line SMB/CIFS clients for Unix
@@ -316,7 +315,7 @@ Package: libsmbclient
 Section: libs
 Architecture: any
 Multi-Arch: same
-Pre-Depends: dpkg (>= 1.15.6~), ${misc:Pre-Depends}
+Pre-Depends: ${misc:Pre-Depends}
 Depends: samba-libs (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
 Description: shared library for communication with SMB/CIFS servers
  This package provides a shared library that enables client applications
@@ -328,7 +327,6 @@ Section: libdevel
 Architecture: any
 Multi-Arch: same
 Depends: libsmbclient (= ${binary:Version}), ${misc:Depends}
-Pre-Depends: dpkg (>= 1.15.6~)
 Description: development files for libsmbclient
  This package provides the development files (static library and headers)
  required for building applications against libsmbclient, a library that
@@ -364,7 +362,7 @@ Package: libpam-winbind
 Section: admin
 Architecture: any
 Multi-Arch: same
-Pre-Depends: dpkg (>= 1.15.6~), ${misc:Pre-Depends}
+Pre-Depends: ${misc:Pre-Depends}
 Depends: libpam-runtime (>= 1.0.1-6),
          libpam0g (>= 1.1.3-2~),
          samba-common (= ${source:Version}),
@@ -386,7 +384,6 @@ Package: libnss-winbind
 Section: admin
 Architecture: any
 Multi-Arch: same
-Pre-Depends: dpkg (>= 1.15.6~)
 Depends: samba-common (= ${source:Version}),
          winbind:any (= ${binary:Version}),
          ${misc:Depends},
@@ -408,7 +405,7 @@ Package: libwbclient0
 Section: libs
 Architecture: any
 Multi-Arch: same
-Pre-Depends: dpkg (>= 1.15.6~), ${misc:Pre-Depends}
+Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Breaks: samba-libs (<< 2:4.11.0+dfsg-1~), libsamba-util0 (<< 2:4.0.0)
 Replaces: libsamba-util0 (<< 2:4.0.0)
@@ -425,7 +422,6 @@ Section: libdevel
 Architecture: any
 Multi-Arch: same
 Depends: libwbclient0 (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
-Pre-Depends: dpkg (>= 1.15.6~)
 Breaks: samba-libs (<< 2:4.11.0+dfsg-1~), samba-dev (<< 2:4.11)
 Replaces: samba-dev (<< 2:4.11)
 Description: Samba winbind client library - development files
