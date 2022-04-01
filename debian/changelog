@@ -47,7 +47,8 @@ samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
   * move single python (helper) module, libsamba-policy, together with
     2 internal libraries used by it, from samba-libs package to python3-samba.
     This makes samba-libs to be free from python-related files, and makes
-    python3-samba to be the only python-providing package. Closes: #1006875
+    python3-samba to be the only python-providing package.
+    Closes: #1006875, #878612, #862338
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 24 Mar 2022 13:54:07 +0300
 
