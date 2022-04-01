@@ -561,7 +561,6 @@ Description: Python 3 bindings for LDB
 Package: python3-ldb-dev
 Section: libdevel
 Architecture: any
-Multi-Arch: same
 Depends: libc6-dev,
          libldb-dev,
          pkg-config,
