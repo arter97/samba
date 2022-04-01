@@ -14,7 +14,6 @@ usr/bin/smbstatus
 usr/lib/*/samba/libHDB-SAMBA4-samba4.so.0
 usr/lib/*/samba/libREG-FULL-samba4.so.0
 usr/lib/*/samba/libRPC-WORKER-samba4.so.0
-usr/lib/*/samba/libdb-glue-samba4.so.0
 usr/lib/*/samba/libgss-preauth-samba4.so.0
 usr/lib/*/samba/libhdb-samba4.so.0
 usr/lib/*/samba/libkdc-samba4.so.0

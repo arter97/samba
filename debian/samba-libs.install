@@ -46,6 +46,7 @@ usr/lib/*/samba/libcmdline-contexts-samba4.so.0
 usr/lib/*/samba/libcmdline-samba4.so.0
 usr/lib/*/samba/libcom-err-samba4.so.0
 usr/lib/*/samba/libcommon-auth-samba4.so.0
+usr/lib/*/samba/libdb-glue-samba4.so.0
 usr/lib/*/samba/libdbwrap-samba4.so.0
 usr/lib/*/samba/libdcerpc-pkt-auth-samba4.so.0
 usr/lib/*/samba/libdcerpc-samba-samba4.so.0
