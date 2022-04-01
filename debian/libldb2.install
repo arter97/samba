@@ -1,5 +1,6 @@
 #!/bin/sh
 echo 'usr/lib/*/libldb.so.*'
+# FIXME: do we really care about 32 bits here?
 if [ "$DEB_HOST_ARCH_BITS" != 32 ]; then
     echo 'usr/lib/*/samba/libldb-mdb-int-samba4.so.0'
 fi
