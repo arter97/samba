@@ -85,11 +85,11 @@ conf_args = \
 WITH_CEPH = yes
 # Ceph is not available on all platforms
 ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el ppc64 s390x x32, $(DEB_HOST_ARCH)))
-    WITH_CEPH = no
+    WITH_CEPH =
 endif
 # Ubuntu i386 binary compatibility only effort: No Ceph
 ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
-    WITH_CEPH = no
+    WITH_CEPH =
 endif
 
 ifeq ($(WITH_CEPH), yes)
@@ -104,11 +104,11 @@ endif
 WITH_GLUSTERFS = yes
 # GlusterFS is linux-only
 ifneq ($(DEB_HOST_ARCH_OS), linux)
-    WITH_CEPH = no
+    WITH_CEPH =
 endif
 # GlusterFS is not in Ubuntu main
 ifeq ($(DEB_VENDOR), Ubuntu)
-    WITH_GLUSTERFS = no
+    WITH_GLUSTERFS =
 endif
 
 
