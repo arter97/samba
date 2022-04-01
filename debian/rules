@@ -168,25 +168,20 @@ override_dh_auto_install:
 	# Already documented in debian/copyright
 	-rm $(DESTDIR)/usr/share/samba/setup/ad-schema/licence.txt
 	# pam stuff
-	mkdir -p $(DESTDIR)/usr/share/pam-configs
-	install -m 0644 debian/winbind.pam-config $(DESTDIR)/usr/share/pam-configs/winbind
+	install -Dp -m0644 debian/winbind.pam-config $(DESTDIR)/usr/share/pam-configs/winbind
 	mv $(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/libnss_* $(DESTDIR)/lib/$(DEB_HOST_MULTIARCH)/
 	# Debian goodies to set global option in smb.conf and add a share
-	install -m 0755 debian/setoption.py $(DESTDIR)/usr/share/samba
-	install -m 0755 debian/addshare.py $(DESTDIR)/usr/share/samba
+	install -p -m0755 debian/setoption.py -t $(DESTDIR)/usr/share/samba/
+	install -p -m0755 debian/addshare.py -t $(DESTDIR)/usr/share/samba/
 	# Debian goodies
-	cp debian/smb.conf* $(DESTDIR)/usr/share/samba/
-	install -m755 debian/panic-action $(DESTDIR)/usr/share/samba/panic-action
-	install -m755 debian/update-apparmor-samba-profile $(DESTDIR)/usr/share/samba/update-apparmor-samba-profile
-	cp debian/gdbcommands $(DESTDIR)/etc/samba/
-	mkdir -p $(DESTDIR)/etc/dhcp/dhclient-enter-hooks.d
-	install -m755 debian/samba-common.dhcp $(DESTDIR)/etc/dhcp/dhclient-enter-hooks.d/samba
-	install -m 0755 debian/mksmbpasswd.awk $(DESTDIR)/usr/sbin/mksmbpasswd
-	mkdir -p $(DESTDIR)/etc/ufw/applications.d
-	install -m644 debian/samba.ufw.profile $(DESTDIR)/etc/ufw/applications.d/samba
-	mkdir -p $(DESTDIR)/usr/share/apport/package-hooks
-	install -D -m 644 debian/source_samba.py $(DESTDIR)/usr/share/apport/package-hooks/source_samba.py
-	# Install other stuff not installed by "make install"
+	install -p -m0644 debian/smb.conf* -t $(DESTDIR)/usr/share/samba/
+	install -p -m755 debian/panic-action -t $(DESTDIR)/usr/share/samba/
+	install -p -m755 debian/update-apparmor-samba-profile -t $(DESTDIR)/usr/share/samba/
+	install -p -m0644 debian/gdbcommands -t $(DESTDIR)/etc/samba/
+	install -Dp -m0755 debian/samba-common.dhcp $(DESTDIR)/etc/dhcp/dhclient-enter-hooks.d/samba
+	install -p -m0755 debian/mksmbpasswd.awk $(DESTDIR)/usr/sbin/mksmbpasswd
+	install -Dp -m0644 debian/samba.ufw.profile $(DESTDIR)/etc/ufw/applications.d/samba
+	install -Dp -m0644 debian/source_samba.py -t $(DESTDIR)/usr/share/apport/package-hooks/
 	# This moves the dckeytab module to the samba package in order to avoid
 	# a circular dependency between python3-samba, samba and samba-common-bin
 	mkdir -p debian/samba/usr/lib/$(PYSHORT)/dist-packages/samba
@@ -194,8 +189,7 @@ override_dh_auto_install:
 	   debian/samba/usr/lib/$(PYSHORT)/dist-packages/samba/
 ifeq ($(DEB_HOST_ARCH_OS), linux)
 	# Install systemd configs
-	mkdir -p $(DESTDIR)/lib/systemd/system/
-	install -m 0644 ctdb/config/ctdb.service $(DESTDIR)/lib/systemd/system/
+	install -Dp -m0644 ctdb/config/ctdb.service -t $(DESTDIR)/lib/systemd/system/
 	# Services fixups
 	mv $(DESTDIR)/lib/systemd/system/nmb.service $(DESTDIR)/lib/systemd/system/nmbd.service
 	mv $(DESTDIR)/lib/systemd/system/smb.service $(DESTDIR)/lib/systemd/system/smbd.service
