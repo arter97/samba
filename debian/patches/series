@@ -12,3 +12,4 @@ ctdb-config-enable-syslog-by-default.patch
 Force-LDB-as-standalone.patch
 use-bzero-instead-of-memset_s.diff
 weak-crypto-allowed-clarify.diff
+spelling.patch
