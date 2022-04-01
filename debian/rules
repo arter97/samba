@@ -297,9 +297,6 @@ ifneq (,$(filter smbclient, ${dh_packagelist}))
 	chmod 0700 debian/smbclient/usr/lib/*/samba/smbspool_krb5_wrapper
 endif
 
-override_dh_missing:
-	dh_missing --fail-missing
-
 override_dh_makeshlibs:
 	# create symbols and shlibs files in separate wrapper script
 	# to deal with private libraries
