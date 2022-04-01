@@ -104,7 +104,7 @@ endif
 WITH_GLUSTERFS = yes
 # GlusterFS is linux-only
 ifneq ($(DEB_HOST_ARCH_OS), linux)
-    WITH_CEPH =
+    WITH_GLUSTERFS =
 endif
 # GlusterFS is not in Ubuntu main
 ifeq ($(DEB_VENDOR), Ubuntu)
