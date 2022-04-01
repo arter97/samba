@@ -408,7 +408,7 @@ Package: libwbclient-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: libwbclient0 (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Depends: libwbclient0 (= ${binary:Version}), ${misc:Depends}
 Breaks: samba-libs (<< 2:4.11.0+dfsg-1~), samba-dev (<< 2:4.11)
 Replaces: samba-dev (<< 2:4.11)
 Description: Samba winbind client library - development files
