@@ -225,16 +225,6 @@ override_dh_install:
 	DEB_PY3_INCDIR=$$(python3-config --includes | sed 's,^-I\([^ ]*\).*,\1,') \
 		dh_install
 
-override_dh_installexamples-arch:
-	# CTDB config examples and helper scripts
-	mkdir -p ctdb/doc/examples/nfs-kernel-server
-	cp debian/ctdb.example.enable.nfs.sh ctdb/doc/examples/nfs-kernel-server/enable-nfs.sh
-	cp debian/ctdb.example.nfs-common ctdb/doc/examples/nfs-kernel-server/nfs-common
-	cp debian/ctdb.example.nfs-kernel-server ctdb/doc/examples/nfs-kernel-server/nfs-kernel-server
-	cp debian/ctdb.example.services ctdb/doc/examples/nfs-kernel-server/services
-	cp debian/ctdb.example.sysctl-nfs-static-ports.conf ctdb/doc/examples/nfs-kernel-server/99-nfs-static-ports.conf
-	dh_installexamples
-
 override_dh_installchangelogs:
 	dh_installchangelogs
 
