@@ -279,23 +279,19 @@ override_dh_makeshlibs:
 	# to deal with private libraries
 	debian/make_shlibs "${LDB_DEB_VERSION}|libldb2|ldb-tools|libldb-dev|python3-ldb|python3-ldb-dev"
 
-shlibdeps := dh_shlibdeps -l${DESTDIR}/usr/lib/${DEB_HOST_MULTIARCH}/samba
-
 override_dh_shlibdeps:
-	${shlibdeps} -a -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
+# for specific executables/modules, put dependencies in separate variables
+# to change Depends to Recommends for them in d/control
+	dh_shlibdeps -a -l${DESTDIR}/usr/lib/${DEB_HOST_MULTIARCH}/samba \
+	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
 ifeq ($(WITH_CEPH), yes)
-	${shlibdeps}-a -- -pvfsceph -dRecommends \
-	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so
-	${shlibdeps} -a -- -prados -dRecommends \
-	    -e debian/ctdb/usr/lib/*/ctdb/ctdb_mutex_ceph_rados_helper
+	dpkg-shlibdeps -Tdebian/ctdb.substvars -prados \
+	    debian/ctdb/usr/lib/${DEB_HOST_MULTIARCH}/ctdb/ctdb_mutex_ceph_rados_helper
 endif
-ifeq ($(WITH_GLUSTERFS), yes)
-	${shlibdeps} -a -- -pvfsglusterfs -dRecommends \
-	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so
-endif
-	${shlibdeps} -a -- -pvfssnapper -dRecommends \
-	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so
-
+	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
+	    debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so \
+	    $(if ${WITH_CEPH}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so) \
+	    $(if ${WITH_GLUSTERFS}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
 # after shlibdeps run, check that we don't have wrong depdendencies
 	# libldb2 should not depend on samba-libs
 	# (also see debian/patches/use-bzero-instead-of-memset_s.diff)

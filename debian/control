@@ -280,7 +280,7 @@ Package: samba-vfs-modules
 Architecture: any
 Multi-Arch: same
 Depends: samba-libs (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
-Recommends: ${vfsceph:Recommends}, ${vfsglusterfs:Recommends}, ${vfssnapper:Recommends}
+Recommends: ${vfsmods:Depends}
 Enhances: samba
 Description: Samba Virtual FileSystem plugins
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
@@ -434,7 +434,7 @@ Depends: iproute2 [linux-any],
          time,
          ${misc:Depends},
          ${shlibs:Depends}
-Recommends: ethtool [linux-any], python3-etcd, ${rados:Recommends}
+Recommends: ethtool [linux-any], python3-etcd, ${rados:Depends}
 Suggests: logrotate, lsof
 Description: clustered database to store temporary data
  CTDB is a cluster implementation of the TDB database used by Samba and other
