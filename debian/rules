@@ -182,11 +182,6 @@ override_dh_auto_install:
 	install -p -m0755 debian/mksmbpasswd.awk $(DESTDIR)/usr/sbin/mksmbpasswd
 	install -Dp -m0644 debian/samba.ufw.profile $(DESTDIR)/etc/ufw/applications.d/samba
 	install -Dp -m0644 debian/source_samba.py -t $(DESTDIR)/usr/share/apport/package-hooks/
-	# This moves the dckeytab module to the samba package in order to avoid
-	# a circular dependency between python3-samba, samba and samba-common-bin
-	mkdir -p debian/samba/usr/lib/$(PYSHORT)/dist-packages/samba
-	mv $(DESTDIR)/usr/lib/$(PYSHORT)/dist-packages/samba/dckeytab*.so \
-	   debian/samba/usr/lib/$(PYSHORT)/dist-packages/samba/
 ifeq ($(DEB_HOST_ARCH_OS), linux)
 	# Install systemd configs
 	install -Dp -m0644 ctdb/config/ctdb.service -t $(DESTDIR)/lib/systemd/system/
@@ -304,6 +299,9 @@ endif
 	# (also see debian/patches/use-bzero-instead-of-memset_s.diff)
 	if egrep "^shlibs.Depends=.* (samba-libs|samba) " debian/libldb2.substvars; \
 	then echo "E: libldb2 should not depend on samba libs" >&2; exit 1; fi
+	# python3-samba should not depend on samba
+	if egrep "^shlibs.Depends=.* (samba) " debian/python3-samba.substvars; \
+	then echo "E: python3-samba should not depend on samba" >&2; exit 1; fi
 
 override_dh_gencontrol:
 	dh_gencontrol -plibldb2 -pldb-tools -plibldb-dev -ppython3-ldb -ppython3-ldb-dev \
