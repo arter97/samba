@@ -6,6 +6,7 @@ samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
     Closes: #1004692, CVE-2021-44141: UNIX extensions in SMB1 disclose whether
      the outside target of a symlink exists
     Closes: #1005642 (windows client data corruption due to cache poisoning)
+    Closes: #988197 (legacy printing support, 47d79d7e7e406f7dd2)
   * Notable changes in 4.16 series compared to 4.13:
     - modular VFS (see The_New_VFS.txt)
     - publishing printers in AD is more complete
