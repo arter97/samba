@@ -319,6 +319,12 @@ endif
 	${shlibdeps} -a -- -pvfssnapper -dRecommends \
 	    -e debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so
 
+# after shlibdeps run, check that we don't have wrong depdendencies
+	# libldb2 should not depend on samba-libs
+	# (also see debian/patches/use-bzero-instead-of-memset_s.diff)
+	if egrep "^shlibs.Depends=.* (samba-libs|samba) " debian/libldb2.substvars; \
+	then echo "E: libldb2 should not depend on samba libs" >&2; exit 1; fi
+
 override_dh_gencontrol:
 	dh_gencontrol -plibldb2 -pldb-tools -plibldb-dev -ppython3-ldb -ppython3-ldb-dev \
 	  -- -v${LDB_DEB_VERSION}
