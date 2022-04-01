@@ -238,7 +238,6 @@ Package: python3-samba
 Pre-Depends: ${misc:Pre-Depends}
 Architecture: any
 Section: python
-Provides: ${python3:Provides}
 Depends: python3-ldb,
          python3-tdb,
          samba-libs (= ${binary:Version}),
@@ -534,8 +533,6 @@ Depends: libldb2 (= ${binary:Version}),
          ${misc:Depends},
          ${python3:Depends},
          ${shlibs:Depends}
-Provides: ${python3:Provides}
-Breaks: ${python3:Breaks}
 Description: Python 3 bindings for LDB
  ldb is a LDAP-like embedded database built on top of TDB.
  .
