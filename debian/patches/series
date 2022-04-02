@@ -1,5 +1,5 @@
 07_private_lib
-bug_221618_precise-64bit-prototype.patch
+libsmbclient-ensure-lfs-221618.patch
 README_nosmbldap-tools.patch
 smbclient-pager.patch
 usershare.patch
