@@ -9,10 +9,9 @@ Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/samba/+bug/128548
 Forwarded: not-needed
 ---
  docs-xml/smbdotconf/misc/usersharemaxshares.xml | 2 +-
- docs/manpages/net.8                             | 4 ++--
  lib/param/loadparm.c                            | 2 ++
  source3/param/loadparm.c                        | 2 +-
- 4 files changed, 6 insertions(+), 4 deletions(-)
+ 3 files changed, 4 insertions(+), 2 deletions(-)
 
 diff --git a/docs-xml/smbdotconf/misc/usersharemaxshares.xml b/docs-xml/smbdotconf/misc/usersharemaxshares.xml
 index 0d69bb8..e985857 100644
@@ -25,22 +24,6 @@ index 0d69bb8..e985857 100644
 -<value type="default">0</value>
 +<value type="default">100</value>
  </samba:parameter>
-diff --git a/docs/manpages/net.8 b/docs/manpages/net.8
-index 5d9a631..5c1c8c3 100644
---- a/docs/manpages/net.8
-+++ b/docs/manpages/net.8
-@@ -1194,9 +1194,9 @@ Something we failed to parse\&. Default action is to "edit" it in interactive an
- .RE
- .SS "USERSHARE"
- .PP
--Starting with version 3\&.0\&.23, a Samba server now supports the ability for non\-root users to add user defined shares to be exported using the "net usershare" commands\&.
-+Starting with version 3\&.0\&.23, a Samba server now supports the ability for non\-root users to add user-defined shares to be exported using the "net usershare" commands\&.
- .PP
--To set this up, first set up your smb\&.conf by adding to the [global] section: usershare path = /usr/local/samba/lib/usershares Next create the directory /usr/local/samba/lib/usershares, change the owner to root and set the group owner to the UNIX group who should have the ability to create usershares, for example a group called "serverops"\&. Set the permissions on /usr/local/samba/lib/usershares to 01770\&. (Owner and group all access, no access for others, plus the sticky bit, which means that a file in that directory can be renamed or deleted only by the owner of the file)\&. Finally, tell smbd how many usershares you will allow by adding to the [global] section of smb\&.conf a line such as : usershare max shares = 100\&. To allow 100 usershare definitions\&. Now, members of the UNIX group "serverops" can create user defined shares on demand using the commands below\&.
-+Members of the UNIX group "sambashare" can create user-defined shares on demand using the commands below\&.
- .PP
- The usershare commands are:
- .RS 4
 diff --git a/lib/param/loadparm.c b/lib/param/loadparm.c
 index a221e87..c5367fd 100644
 --- a/lib/param/loadparm.c
