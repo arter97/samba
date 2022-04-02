@@ -215,11 +215,6 @@ endif
 ifeq ($(DEB_HOST_ARCH_OS), kfreebsd)
 	install -p debian/ctdb.README.kfreebsd ${DESTDIR}/ctdb/README.kfreebsd
 endif
-	# FIXME: ctdb_etcd_lock is a python script which uses etcd python module,
-	# it should be either packaged separately or etcd deps are added.
-	# Also it should not be in arch-specific libdir,
-	# and all referencs to it in docs/manpages/examples should be fixed.
-	chmod -x ${DESTDIR}/usr/libexec/ctdb/ctdb_etcd_lock
 
 override_dh_install:
 	DEB_PY3_INCDIR=$$(python3-config --includes | sed 's,^-I\([^ ]*\).*,\1,') \
