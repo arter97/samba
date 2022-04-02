@@ -295,6 +295,9 @@ endif
 	# python3-samba should not depend on samba
 	if egrep "^shlibs.Depends=.* (samba) " debian/python3-samba.substvars; \
 	then echo "E: python3-samba should not depend on samba" >&2; exit 1; fi
+	# libwbclient0 should not depend on samba-libs (probably)
+	if egrep "^shlibs.Depends=.* (samba-libs|samba) " debian/libwbclient0.substvars; \
+	then echo "E: libwbclient0 should not depend on samba libs" >&2; exit 1; fi
 
 override_dh_gencontrol:
 	dh_gencontrol -plibldb2 -pldb-tools -plibldb-dev -ppython3-ldb -ppython3-ldb-dev \
