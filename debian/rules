@@ -50,7 +50,7 @@ conf_args = \
 		--enable-fhs \
 		--sysconfdir=/etc \
 		--localstatedir=/var \
-		--libexecdir=/usr/lib/$(DEB_HOST_MULTIARCH) \
+		--libexecdir=/usr/libexec \
 		--with-privatedir=/var/lib/samba/private \
 		--with-smbpasswd-file=/etc/samba/smbpasswd \
 		--with-piddir=/run/samba \
@@ -219,7 +219,7 @@ endif
 	# it should be either packaged separately or etcd deps are added.
 	# Also it should not be in arch-specific libdir,
 	# and all referencs to it in docs/manpages/examples should be fixed.
-	chmod -x ${DESTDIR}/usr/lib/${DEB_HOST_MULTIARCH}/ctdb/ctdb_etcd_lock
+	chmod -x ${DESTDIR}/usr/libexec/ctdb/ctdb_etcd_lock
 
 override_dh_install:
 	DEB_PY3_INCDIR=$$(python3-config --includes | sed 's,^-I\([^ ]*\).*,\1,') \
@@ -271,7 +271,7 @@ ifneq (,$(filter samba, ${dh_packagelist}))
 	chmod 1777 debian/samba/var/spool/samba/
 endif
 ifneq (,$(filter smbclient, ${dh_packagelist}))
-	chmod 0700 debian/smbclient/usr/lib/*/samba/smbspool_krb5_wrapper
+	chmod 0700 debian/smbclient/usr/libexec/samba/smbspool_krb5_wrapper
 endif
 
 override_dh_makeshlibs:
@@ -286,7 +286,7 @@ override_dh_shlibdeps:
 	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
 ifeq ($(WITH_CEPH), yes)
 	dpkg-shlibdeps -Tdebian/ctdb.substvars -prados \
-	    debian/ctdb/usr/lib/${DEB_HOST_MULTIARCH}/ctdb/ctdb_mutex_ceph_rados_helper
+	    debian/ctdb/usr/libexec/ctdb/ctdb_mutex_ceph_rados_helper
 endif
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
 	    debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so \

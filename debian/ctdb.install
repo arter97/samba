@@ -10,22 +10,7 @@ usr/bin/ctdb_diagnostics
 usr/bin/ltdbtool
 usr/bin/onnode
 usr/bin/ping_pong
-usr/lib/*/ctdb/ctdb-config
-usr/lib/*/ctdb/ctdb_etcd_lock
-usr/lib/*/ctdb/ctdb-event
-usr/lib/*/ctdb/ctdb-eventd
-usr/lib/*/ctdb/ctdb-path
-usr/lib/*/ctdb/ctdb_killtcp
-usr/lib/*/ctdb/ctdb_lock_helper
-usr/lib/*/ctdb/ctdb_lvs
-[amd64 arm64 armel armhf i386 mips64el mipsel ppc64el ppc64 s390x x32] usr/lib/*/ctdb/ctdb_mutex_ceph_rados_helper
-usr/lib/*/ctdb/ctdb_mutex_fcntl_helper
-usr/lib/*/ctdb/ctdb_natgw
-usr/lib/*/ctdb/ctdb_recovery_helper
-usr/lib/*/ctdb/ctdb_takeover_helper
-usr/lib/*/ctdb/smnotify
-# helper for /etc/ctdb/debug_locks.sh
-usr/lib/*/ctdb/tdb_mutex_check
+usr/libexec/ctdb/
 usr/lib/*/samba/libctdb-event-client-samba4.so.0
 usr/lib/tmpfiles.d/ctdb.conf
 usr/sbin/ctdbd
