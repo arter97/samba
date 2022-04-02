@@ -35,8 +35,8 @@ debian/ldb-version.mk: lib/ldb/wscript
 include debian/ldb-version.mk
 
 V = 1
-WAF := PYTHONHASHSEED=1 $(PYTHON) ./buildtools/bin/waf $(if ${V},-v)
-WAF_NO_PARALLEL := $(WAF) -j 1
+WAF_CMD := PYTHONHASHSEED=1 ${PYTHON} ./buildtools/bin/waf
+WAF := ${WAF_CMD} $(if ${V},-v)
 
 # wrapper around cups-config, to work around #726726
 export PATH:=$(CURDIR)/debian/bin:$(PATH)
@@ -136,7 +136,8 @@ clean install install-arch install-indep: %:
 	dh $* --with python3 $(BUILD_PACKAGES)
 
 override_dh_auto_configure:
-	$(WAF_NO_PARALLEL) configure $(conf_args)
+	${WAF_CMD} -j 1 configure ${conf_args} || \
+	  { echo "== last 20 lines of config.log:"; tail -n20 bin/config.log; false; }
 
 override_dh_auto_build:
 # samba build system is designed so that default build (what is produced
