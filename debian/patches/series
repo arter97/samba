@@ -15,3 +15,4 @@ weak-crypto-allowed-clarify.diff
 spelling.patch
 waf-add-support-for-GNU-kFreeBSD.patch
 ctdb_etcd_lock-path.patch
+silence-waf-uselib_local.diff
