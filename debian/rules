@@ -92,7 +92,7 @@ ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
     WITH_CEPH =
 endif
 
-ifeq ($(WITH_CEPH), yes)
+ifneq ($(WITH_CEPH),)
 	conf_args += \
 		--enable-ceph-reclock
 else
@@ -280,7 +280,7 @@ override_dh_shlibdeps:
 # to change Depends to Recommends for them in d/control
 	dh_shlibdeps -a -l${DESTDIR}/usr/lib/${DEB_HOST_MULTIARCH}/samba \
 	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
-ifeq ($(WITH_CEPH), yes)
+ifneq ($(WITH_CEPH),)
 	dpkg-shlibdeps -Tdebian/ctdb.substvars -prados \
 	    debian/ctdb/usr/libexec/ctdb/ctdb_mutex_ceph_rados_helper
 endif
