@@ -137,7 +137,7 @@ clean install install-arch install-indep: %:
 
 override_dh_auto_configure:
 	${WAF_CMD} -j 1 configure ${conf_args} || \
-	  { echo "== last 20 lines of config.log:"; tail -n20 bin/config.log; false; }
+	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
 
 override_dh_auto_build:
 # samba build system is designed so that default build (what is produced
