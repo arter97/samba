@@ -127,9 +127,12 @@ binary binary-arch binary-indep build build-arch build-indep \
 clean install install-arch install-indep: %:
 	dh $* --with python3 $(BUILD_PACKAGES)
 
-override_dh_auto_configure:
+override_dh_auto_configure configure: bin/configured.stamp
+.PHONY: configure
+bin/configured.stamp:
 	${WAF_CMD} -j 1 configure ${conf_args} || \
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
+	touch $@
 
 override_dh_auto_build:
 # samba build system is designed so that default build (what is produced
