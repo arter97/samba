@@ -83,7 +83,6 @@ usr/lib/*/samba/libndr-samba4.so.0
 usr/lib/*/samba/libnet-keytab-samba4.so.0
 usr/lib/*/samba/libnetif-samba4.so.0
 usr/lib/*/samba/libnpa-tstream-samba4.so.0
-usr/lib/*/samba/libnss-info-samba4.so.0
 usr/lib/*/samba/libposix-eadb-samba4.so.0
 usr/lib/*/samba/libprinter-driver-samba4.so.0
 usr/lib/*/samba/libprinting-migrate-samba4.so.0

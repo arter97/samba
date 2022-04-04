@@ -6,6 +6,7 @@ usr/lib/*/samba/idmap
 usr/lib/*/samba/krb5/async_dns_krb5_locator.so
 usr/lib/*/samba/krb5/winbind_krb5_locator.so
 usr/lib/*/samba/libidmap-samba4.so.0
+usr/lib/*/samba/libnss-info-samba4.so.0
 usr/lib/*/samba/nss_info/hash.so
 usr/lib/*/samba/nss_info/rfc2307.so
 usr/lib/*/samba/nss_info/sfu.so
