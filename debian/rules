@@ -34,9 +34,6 @@ V = 1
 WAF_CMD := PYTHONHASHSEED=1 ${PYTHON} ./buildtools/bin/waf
 WAF := ${WAF_CMD} $(if ${V},-v)
 
-# wrapper around cups-config, to work around #726726
-export PATH:=$(CURDIR)/debian/bin:$(PATH)
-
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     WAF += -j $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
