@@ -256,9 +256,6 @@ override_dh_installpam:
 
 override_dh_fixperms:
 	dh_fixperms
-ifneq (,$(filter samba-common, ${dh_packagelist}))
-	chmod a+x debian/samba-common/usr/share/samba/panic-action
-endif
 ifneq (,$(filter samba, ${dh_packagelist}))
 	chmod 1777 debian/samba/var/spool/samba/
 endif
