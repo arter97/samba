@@ -12,8 +12,7 @@ include /usr/share/dpkg/vendor.mk
 $(foreach var,DEB_HOST_ARCH DEB_HOST_ARCH_OS DEB_HOST_MULTIARCH,\
 	$(eval export ${var} ?= $(shell dpkg-architecture -q${var})))
 
-export PYSHORT=python3
-export PYTHON=$(shell which $(PYSHORT))
+export PYTHON = python3
 
 dh_packagelist := $(shell dh_listpackages)
 
