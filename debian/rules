@@ -18,7 +18,8 @@ debian/ldb-version.mk: lib/ldb/wscript
 # define two variables based on local version of ldb
 # samba ships ldb modules, which are specific to the ldb version,
 # so we need a strict dependency on the upstream ldb version
-	set -e; \
+	@echo "(Re)checkig version of LDB library.."
+	@set -e; \
 	v=$$(grep ^VERSION $< | cut -d\' -f2); \
 	[ -n "$$v" ] || { echo "E: unable to get LDB version from $<" >&2; exit 1; }; \
 	v="\$${LDB_EPOCH}$$v"; n="$${v%.*}.$$(($${v##*.}+1))"; exec 3>$@.tmp; \
