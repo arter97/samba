@@ -14,9 +14,7 @@ $(foreach var,DEB_HOST_ARCH DEB_HOST_ARCH_OS DEB_HOST_MULTIARCH,\
 
 export PYSHORT=python3
 export PYTHON=$(shell which $(PYSHORT))
-export PYTHON_CONFIG=$(PYTHON)-config
-PYTHON_SUFFIX = $(call dpkg_late_eval,PYTHON_SUFFIX,\
-	${PYTHON_CONFIG} --extension-suffix | sed 's/\.so$$//')
+
 dh_packagelist := $(shell dh_listpackages)
 
 LDB_EPOCH := 2:
