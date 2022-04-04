@@ -66,6 +66,20 @@ samba (2:4.16.0+dfsg-1) UNRELEASED; urgency=medium
   * d/control: remove breaks/replaces/depends on ancient versions of some
     packages (ancient dpkg version in Pre-Depends, ancient samba-libs)
   * d/rules: rework wrong shlibdeps handling
+  * move helper programs from /usr/lib/$multiarch/ to /usr/libexec/
+    where they belongs. This should not affect users.
+  * smbclient: re-do the fix for an old bug, #221618. The original "fix"
+    did not fix anything (it is too late already to #define _FILE_OFFSET_BITS
+    when all types has already been defined).  From now on, raise an error
+    if off_t is less than 64bits (it should >=64 when #include'ing
+    <libsmbclient.h> with proper LFS defines).  In theory this can break
+    some sources which either included libsmbclient.h without a reason or
+    which didn't use any of the functions which deals with off_t (smbc_lseek
+    etc), - which did not explicitly enable LFS on a 32bit system.
+    Please email us if you faced such situation.
+  * drop 07_private_lib patch: we do not need to force rpath for
+    private libraries into every samba binary, upstream build system
+    does a good job here.
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 24 Mar 2022 13:54:07 +0300
 
