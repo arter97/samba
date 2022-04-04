@@ -150,14 +150,14 @@ override_dh_auto_build:
 # we'll repeat during actual install stage, but this is definitely
 # better/faster than building whole thing for _not_ running from the build dir.
 	${WAF} --targets=compile_et,asn1_compile
-	DESTDIR="$(DESTDIR)" $(WAF) install
+	${WAF} install --destdir="${DESTDIR}"
 
 override_dh_auto_test:
 	# Running make test requires configuration with --enable-selftest,
 	# which we don't want to do for production systems.
 
 override_dh_auto_install:
-	DESTDIR="$(DESTDIR)" $(WAF) install
+	$(WAF) install --destdir="${DESTDIR}"
 	# get list of files in build log
 	find ${DESTDIR}
 	# Included in python-tevent
