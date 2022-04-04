@@ -153,8 +153,8 @@ override_dh_auto_build:
 	DESTDIR="$(DESTDIR)" $(WAF) install
 
 override_dh_auto_test:
-	# Running make test requires configuration with --enable-selftest, which
-	# we don't want to do for production systems.
+	# Running make test requires configuration with --enable-selftest,
+	# which we don't want to do for production systems.
 
 override_dh_auto_install:
 	DESTDIR="$(DESTDIR)" $(WAF) install
