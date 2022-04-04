@@ -74,7 +74,7 @@ conf_args = \
 		--enable-avahi \
 		--disable-rpath \
 		--disable-rpath-install \
-		--bundled-libraries=NONE,pytevent,ldb,pyldb,pyldb-util$(PYTHON_SUFFIX) \
+		--bundled-libraries=NONE,pytevent,ldb \
 		--with-cluster-support \
 		--with-socketpath=/run/ctdb/ctdbd.socket \
 		--with-logdir=/var/log/ctdb \
