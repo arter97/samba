@@ -108,7 +108,6 @@ usr/lib/*/samba/libsmbd-shim-samba4.so.0
 usr/lib/*/samba/libsmbldaphelper-samba4.so.0
 usr/lib/*/samba/libsmbpasswdparser-samba4.so.0
 usr/lib/*/samba/libtalloc-report-printf-samba4.so.0
-usr/lib/*/samba/libtalloc-report-samba4.so.0
 usr/lib/*/samba/libtdb-wrap-samba4.so.0
 usr/lib/*/samba/libtrusts-util-samba4.so.0
 usr/lib/*/samba/libutil-reg-samba4.so.0
