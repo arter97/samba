@@ -149,7 +149,7 @@ override_dh_auto_build:
 # This will pefrorm unnecessary/extra install step (into d/tmp), which
 # we'll repeat during actual install stage, but this is definitely
 # better/faster than building whole thing for _not_ running from the build dir.
-	DESTDIR="$(DESTDIR)" $(WAF) --targets=compile_et,asn1_compile
+	${WAF} --targets=compile_et,asn1_compile
 	DESTDIR="$(DESTDIR)" $(WAF) install
 
 override_dh_auto_test:
