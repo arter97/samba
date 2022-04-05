@@ -11,8 +11,6 @@ $(foreach var,DEB_HOST_ARCH DEB_HOST_ARCH_OS DEB_HOST_MULTIARCH,\
 
 export PYTHON = python3
 
-dh_packagelist := $(shell dh_listpackages)
-
 LDB_EPOCH := 2:
 debian/ldb-version.mk: lib/ldb/wscript
 # define two variables based on local version of ldb
@@ -103,7 +101,6 @@ ifeq ($(DEB_VENDOR), Ubuntu)
     WITH_GLUSTERFS =
 endif
 
-
 ifeq ($(DEB_HOST_ARCH_OS), linux)
 	conf_args += \
 		--with-systemd \
@@ -114,18 +111,20 @@ else
 		--without-systemd
 endif
 
+omit_packages =
+
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages
 ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
-	BUILD_PACKAGES += \
-		-Nctdb \
-		-Nlibpam-winbind \
-		-Nsamba \
-		-Nsamba-testsuite
+	omit_packages += \
+		ctdb \
+		libpam-winbind \
+		samba \
+		samba-testsuite
 endif
 
 binary binary-arch binary-indep build build-arch build-indep \
 clean install install-arch install-indep: %:
-	dh $* --with python3 $(BUILD_PACKAGES)
+	dh $* --with python3 $(addprefix -N,${omit_packages})
 
 override_dh_auto_configure configure: bin/configured.stamp
 .PHONY: configure
@@ -217,15 +216,15 @@ override_dh_install:
 		dh_install
 
 override_dh_installinit:
-ifneq (,$(filter samba, ${dh_packagelist}))
+ifeq (,$(filter samba, ${omit_packages}))
 	dh_installinit -psamba --name smbd
 	dh_installinit -psamba --name nmbd --error-handler nmbd_error_handler
 	dh_installinit -psamba --name samba-ad-dc
 endif
-ifneq (,$(filter winbind, ${dh_packagelist}))
+ifeq (,$(filter winbind, ${omit_packages}))
 	dh_installinit -pwinbind
 endif
-ifneq (,$(filter ctdb, ${dh_packagelist}))
+ifeq (,$(filter ctdb, ${omit_packages}))
 	# Install /etc/init.d/ctdb
 	mkdir -p debian/ctdb/etc/init.d
 	install -m755 ctdb/config/ctdb.init debian/ctdb/etc/init.d/ctdb
@@ -234,13 +233,13 @@ ifneq (,$(filter ctdb, ${dh_packagelist}))
 endif
 
 override_dh_installsystemd:
-ifneq (,$(filter samba, ${dh_packagelist}))
+ifeq (,$(filter samba, ${omit_packages}))
 	dh_installsystemd -psamba
 endif
-ifneq (,$(filter winbind, ${dh_packagelist}))
+ifeq (,$(filter winbind, ${omit_packages}))
 	dh_installsystemd -pwinbind
 endif
-ifneq (,$(filter ctdb, ${dh_packagelist}))
+ifeq (,$(filter ctdb, ${omit_packages}))
 	dh_installsystemd -pctdb --no-start --no-stop-on-upgrade
 endif
 
@@ -255,10 +254,10 @@ override_dh_installpam:
 
 override_dh_fixperms:
 	dh_fixperms
-ifneq (,$(filter samba, ${dh_packagelist}))
+ifeq (,$(filter samba, ${omit_packages}))
 	chmod 1777 debian/samba/var/spool/samba/
 endif
-ifneq (,$(filter smbclient, ${dh_packagelist}))
+ifeq (,$(filter smbclient, ${omit_packages}))
 	chmod 0700 debian/smbclient/usr/libexec/samba/smbspool_krb5_wrapper
 endif
 
@@ -272,9 +271,11 @@ override_dh_shlibdeps:
 # to change Depends to Recommends for them in d/control
 	dh_shlibdeps -l${CURDIR}/debian/tmp/usr/lib/${DEB_HOST_MULTIARCH}/samba \
 	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
+ifeq (,$(filter ctdb, ${omit_packages}))
 ifneq ($(WITH_CEPH),)
 	dpkg-shlibdeps -Tdebian/ctdb.substvars -prados \
 	    debian/ctdb/usr/libexec/ctdb/ctdb_mutex_ceph_rados_helper
+endif
 endif
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
 	    debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so \

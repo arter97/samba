@@ -58,7 +58,7 @@ make_shlibs() {
 	fi
 }
 
-
+# dh_shlibdeps handles -Nfoo passed from dh sequence in d/rules, too
 for pkg in $(dh_listpackages)
 do
 	make_shlibs $pkg
