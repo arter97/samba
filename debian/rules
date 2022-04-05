@@ -11,9 +11,12 @@ $(foreach var,DEB_HOST_ARCH DEB_HOST_ARCH_OS DEB_HOST_MULTIARCH,\
 
 export PYTHON = python3
 
+# just the debian revision number from the package version
+DEB_REVISION = $(call dpkg_late_eval,DEB_REVISION,v='${DEB_VERSION}'; echo "$${v##*-}")
+
 LDB_EPOCH := 2:
-LDB_VERSION := $(shell grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
-LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}+samba${DEB_VERSION_UPSTREAM_REVISION}
+LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
+LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}-${DEB_REVISION}+samba${DEB_VERSION_UPSTREAM}
 LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
 
 V = 1
@@ -255,7 +258,7 @@ override_dh_makeshlibs:
 	pyext=$$(python3-config --extension-suffix | tr _ -); \
 	pyUP=$$(echo $${pyext%.so} | tr a-z- A-Z_); \
 	{ echo "libpyldb-util$${pyext}.2 python3-ldb #MINVER#"; \
-	  echo " PYLDB_UTIL$${pyUP}_${LDB_VERSION}@PYLDB_UTIL$${pyUP}_${LDB_VERSION} ${LDB_DEB_VERSION}"; \
+	  echo " PYLDB_UTIL$${pyUP}_${LDB_VERSION}@PYLDB_UTIL$${pyUP}_${LDB_VERSION} ${LDB_EPOCH}${LDB_VERSION}"; \
 	  cat debian/python3-ldb.symbols.in; } > debian/python3-ldb.symbols
 
 	# create symbols and shlibs files in separate wrapper script
