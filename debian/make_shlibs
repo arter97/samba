@@ -28,7 +28,7 @@ make_shlibs() {
 	#     the symbols file (dpkg-gensymbols -c4)
 	# - create first part of the shlibs file:
 	#   for public libraries, we want a weak version dependency
-	dh_makeshlibs -p$pkg -V"$pkg (>= ${ver%-*})" -X/usr/lib/${DEB_HOST_MULTIARCH}/samba -- -c4 -v$ver
+	dh_makeshlibs -p$pkg -V"$pkg (>= ${ver%-*})" -X/usr/lib/${DEB_HOST_MULTIARCH}/samba -X/usr/lib/python3 -- -c4 -v$ver
 	[ -e $PKGDIR/shlibs ] && mv $PKGDIR/shlibs $PKGDIR/shlibs.1
 
 	# step 2:

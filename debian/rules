@@ -253,9 +253,9 @@ endif
 override_dh_makeshlibs:
 	# generate symbols file with correct cpython suffix in there
 	pyext=$$(python3-config --extension-suffix | tr _ -); \
-	pyUP=$$(echo $${pyext%.so} | tr a-z A-Z); \
+	pyUP=$$(echo $${pyext%.so} | tr a-z- A-Z_); \
 	{ echo "libpyldb-util$${pyext}.2 python3-ldb #MINVER#"; \
-	  echo " PYLDB_UTIL$${pyUP}_${LDB_VERSION}@PYLDB_UTIL$${pyUP}_${LDB_VERSION} ${LDB_EPOCH}${LDB_VERSION}"; \
+	  echo " PYLDB_UTIL$${pyUP}_${LDB_VERSION}@PYLDB_UTIL$${pyUP}_${LDB_VERSION} ${LDB_DEB_VERSION}"; \
 	  cat debian/python3-ldb.symbols.in; } > debian/python3-ldb.symbols
 
 	# create symbols and shlibs files in separate wrapper script
