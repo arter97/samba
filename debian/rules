@@ -255,7 +255,7 @@ override_dh_makeshlibs:
 	pyext=$$(python3-config --extension-suffix | tr _ -); \
 	pyUP=$$(echo $${pyext%.so} | tr a-z A-Z); \
 	{ echo "libpyldb-util$${pyext}.2 python3-ldb #MINVER#"; \
-	  echo " PYLDB_UTIL$${pyUP}_2.5.0@PYLDB_UTIL$${pyUP}_2.5.0 2:2.5.0"; \
+	  echo " PYLDB_UTIL$${pyUP}_${LDB_VERSION}@PYLDB_UTIL$${pyUP}_${LDB_VERSION} ${LDB_EPOCH}${LDB_VERSION}"; \
 	  cat debian/python3-ldb.symbols.in; } > debian/python3-ldb.symbols
 
 	# create symbols and shlibs files in separate wrapper script
