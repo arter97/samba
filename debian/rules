@@ -262,9 +262,18 @@ ifeq (,$(filter smbclient, ${omit_packages}))
 endif
 
 override_dh_makeshlibs:
+	# generate symbols file with correct cpython suffix in there
+	pyext=$$(python3-config --extension-suffix | tr _ -); \
+	pyUP=$$(echo $${pyext%.so} | tr a-z A-Z); \
+	{ echo "libpyldb-util$${pyext}.2 python3-ldb #MINVER#"; \
+	  echo " PYLDB_UTIL$${pyUP}_2.5.0@PYLDB_UTIL$${pyUP}_2.5.0 2:2.5.0"; \
+	  cat debian/python3-ldb.symbols.in; } > debian/python3-ldb.symbols
+
 	# create symbols and shlibs files in separate wrapper script
 	# to deal with private libraries
 	debian/make_shlibs "${LDB_DEB_VERSION}|libldb2|ldb-tools|libldb-dev|python3-ldb|python3-ldb-dev"
+
+	rm -f debian/python3-ldb.symbols
 
 override_dh_shlibdeps:
 # for specific executables/modules, put dependencies in separate variables
