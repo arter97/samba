@@ -180,7 +180,7 @@ selftest-quick: testbuild/configured.stamp
 
 override_dh_auto_test: # $(if $(findstring nocheck, ${DEB_BUILD_OPTIONS}),, selftest-quick)
 
-override_dh_auto_install:
+override_dh_auto_install-arch:
 # the same "waf install" as in the build target
 	${WAF} install --destdir="${CURDIR}/debian/tmp"
 	# get list of files in build log
@@ -196,12 +196,7 @@ override_dh_auto_install:
 	# Debian goodies to set global option in smb.conf and add a share
 	install -p -m0755 debian/setoption.py -t debian/tmp/usr/share/samba/
 	install -p -m0755 debian/addshare.py -t debian/tmp/usr/share/samba/
-	# Debian goodies
-	install -p -m0644 debian/smb.conf* -t debian/tmp/usr/share/samba/
-	install -p -m755 debian/panic-action -t debian/tmp/usr/share/samba/
 	install -p -m755 debian/update-apparmor-samba-profile -t debian/tmp/usr/share/samba/
-	install -p -m0644 debian/gdbcommands -t debian/tmp/etc/samba/
-	install -Dp -m0755 debian/samba-common.dhcp debian/tmp/etc/dhcp/dhclient-enter-hooks.d/samba
 	install -p -m0755 debian/mksmbpasswd.awk debian/tmp/usr/sbin/mksmbpasswd
 	install -Dp -m0644 debian/samba.ufw.profile debian/tmp/etc/ufw/applications.d/samba
 	install -Dp -m0644 debian/source_samba.py -t debian/tmp/usr/share/apport/package-hooks/
@@ -239,6 +234,19 @@ ifeq ($(DEB_HOST_ARCH_OS), kfreebsd)
 	install -p debian/ctdb.README.kfreebsd debian/tmp/ctdb/README.kfreebsd
 endif
 
+override_dh_auto_install-indep:
+# only arch-all package is samba-common containing a few debian-specific files
+# Most of files needs are renamed during install so lets put them
+# directly into the right place without d/samba-common.install indirection
+	# Debian goodies
+	install -Dp -m0644 debian/smb.conf* -t debian/samba-common/usr/share/samba/
+	install -Dp -m755 debian/panic-action -t debian/samba-common/usr/share/samba/
+	install -Dp -m0644 debian/gdbcommands -t debian/samba-common/etc/samba/
+	install -Dp -m0755 debian/samba-common.dhcp debian/samba-common/etc/dhcp/dhclient-enter-hooks.d/samba
+	# don't actually need installpam here, it just installs one file
+	# we wrongly have pam file in samba-common instead of samba, should move it one day
+	dh_installpam -psamba-common --name=samba
+
 # include a command only if the given package is being built
 ifpkg = $(if $(filter ${1},${build_packages}),${2})
 
@@ -259,9 +267,6 @@ override_dh_installsystemd:
 	$(call ifpkg, samba, dh_installsystemd -psamba)
 	$(call ifpkg, winbind, dh_installsystemd -pwinbind)
 	$(call ifpkg, ctdb, dh_installsystemd -pctdb --no-start --no-stop-on-upgrade)
-
-override_dh_installpam:
-	dh_installpam -psamba-common --name=samba
 
 #override_dh_perl-arch:
 #	dh_perl -a
