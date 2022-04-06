@@ -113,18 +113,19 @@ endif
 # build_pakages will honour arch/indep and the above disabled list
 build_packages := $(shell dh_listpackages)
 
-binary binary-arch binary-indep build build-arch build-indep \
+binary binary-arch binary-indep \
 clean install install-arch install-indep: %:
 	dh $*
 
-override_dh_auto_configure configure: bin/configured.stamp
+configure: bin/configured.stamp
 .PHONY: configure
 bin/configured.stamp:
 	${WAF_CMD} -j 1 configure ${conf_args} || \
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
 	touch $@
 
-override_dh_auto_build:
+build-arch: bin/built.stamp
+bin/built.stamp: bin/configured.stamp
 # samba build system is designed so that default build (what is produced
 # by waf build) supposed to be run directly from the build directory,
 # with all the paths pointing there.  At the install stage, quite some
@@ -139,6 +140,9 @@ override_dh_auto_build:
 # better/faster than building whole thing for _not_ running from the build dir.
 	${WAF} --targets=compile_et,asn1_compile
 	${WAF} install --destdir="${CURDIR}/debian/tmp"
+	touch $@
+build-indep:
+build: build-arch build-indep
 
 ##############  Tests ##############
 # We should use separate build for tests since it requires configuration
