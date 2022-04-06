@@ -105,22 +105,17 @@ else
 		--without-systemd
 endif
 
-# only a few packages can be omitted (handled below)
-omit_packages =
-
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages
 ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
-	omit_packages += \
-		ctdb \
-		libpam-winbind \
-		samba \
-		samba-testsuite \
-		samba-vfs-modules
+export DH_OPTIONS += $(addprefix -N,\
+	ctdb libpam-winbind samba samba-testsuite samba-vfs-modules )
 endif
+# build_pakages will honour arch/indep and the above disabled list
+build_packages := $(shell dh_listpackages)
 
 binary binary-arch binary-indep build build-arch build-indep \
 clean install install-arch install-indep: %:
-	dh $* --with python3 $(addprefix -N,${omit_packages})
+	dh $* --with python3
 
 override_dh_auto_configure configure: bin/configured.stamp
 .PHONY: configure
@@ -245,16 +240,16 @@ override_dh_install:
 		dh_install
 
 # include a command only if the given package is being built
-ifpkg = $(if $(filter ${1},${omit_packages}),,${2})
+ifpkg = $(if $(filter ${1},${build_packages}),${2})
 
 override_dh_installinit:
-ifeq (,$(filter samba, ${omit_packages}))
+ifneq (,$(filter samba, ${build_packages}))
 	dh_installinit -psamba --name smbd
 	dh_installinit -psamba --name nmbd --error-handler nmbd_error_handler
 	dh_installinit -psamba --name samba-ad-dc
 endif
 	$(call ifpkg, winbind, dh_installinit -pwinbind)
-ifeq (,$(filter ctdb, ${omit_packages}))
+ifneq (,$(filter ctdb, ${build_packages}))
 	# Install /etc/init.d/ctdb
 	mkdir -p debian/ctdb/etc/init.d
 	install -m755 ctdb/config/ctdb.init debian/ctdb/etc/init.d/ctdb
@@ -300,13 +295,13 @@ override_dh_shlibdeps:
 # to change Depends to Recommends for them in d/control
 	dh_shlibdeps -l${CURDIR}/debian/tmp/usr/lib/${DEB_HOST_MULTIARCH}/samba \
 	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
-ifeq (,$(filter ctdb, ${omit_packages}))
+ifneq (,$(filter ctdb, ${build_packages}))
 ifneq ($(WITH_CEPH),)
 	dpkg-shlibdeps -Tdebian/ctdb.substvars -prados \
 	    debian/ctdb/usr/libexec/ctdb/ctdb_mutex_ceph_rados_helper
 endif
 endif
-ifeq (,$(filter samba-vfs-modules,${omit_packages}))
+ifneq (,$(filter samba-vfs-modules,${build_packages}))
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
 	    debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so \
 	    $(if ${WITH_CEPH}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so) \
