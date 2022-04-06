@@ -1,2 +1,0 @@
-# this variable is set in d/rules
-samba source: dh-exec-subst-unknown-variable DEB_PY3_INCDIR [debian/python3-ldb-dev.install:2]
