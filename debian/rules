@@ -246,9 +246,7 @@ ifneq (,$(filter samba, ${build_packages}))
 endif
 	$(call ifpkg, winbind, dh_installinit -pwinbind)
 ifneq (,$(filter ctdb, ${build_packages}))
-	# Install /etc/init.d/ctdb
-	mkdir -p debian/ctdb/etc/init.d
-	install -m755 ctdb/config/ctdb.init debian/ctdb/etc/init.d/ctdb
+	install -Dp -m755 ctdb/config/ctdb.init debian/ctdb/etc/init.d/ctdb
 	# Install dh scripts
 	dh_installinit -pctdb --no-start --no-stop-on-upgrade --onlyscripts
 endif
