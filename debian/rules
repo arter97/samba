@@ -143,11 +143,37 @@ override_dh_auto_build:
 	${WAF} --targets=compile_et,asn1_compile
 	${WAF} install --destdir="${CURDIR}/debian/tmp"
 
-override_dh_auto_test:
-	# Running make test requires configuration with --enable-selftest,
-	# which we don't want to do for production systems.
+##############  Tests ##############
+# We should use separate build for tests since it requires configuration
+# with --enable-selftest which is not compatible with production build.
+# Since samba build system always builds in bin/, we save whole source
+# into a subdir (testbuild/) and run everything from there.
+
+testbuild/copied.stamp:
+	rm -rf testbuild; mkdir testbuild
+	cp -a -l $$(ls -1 | egrep -v '^(bin|testbuild)$$') testbuild/
+# cleanup some file just in case, do not interfere with production build
+	find testbuild -name __pycache__ -exec rm -rf {} +
+	rm -f testbuild/compile_commands.json
+	touch $@
+testbuild/configured.stamp: testbuild/copied.stamp
+	@echo "############## selftest configure ##############"
+# allow some bundled "lib" for now just for the test build. Debian has them
+# (libsocket-wrapper &Co), but let's just build the bundled ones. There's no
+# good reason to use externally-packaged wrappers, they're small to build and
+# we don't use them for production build, and extra versioned build-dep hurts.
+	cd testbuild && ${WAF_CMD} -j 1 configure --enable-selftest -C \
+		$$(echo '${conf_args}' | \
+		   sed 's|--bundled-libraries=NONE|&,nss_wrapper,pam_wrapper,resolv_wrapper,socket_wrapper,uid_wrapper|')
+	touch $@
+selftest-quick: testbuild/configured.stamp
+	@echo "############## selftest run ##############"
+	cd testbuild && ${WAF} test --quick
+
+override_dh_auto_test: $(if $(findstring nocheck, ${DEB_BUILD_OPTIONS}),, selftest-quick)
 
 override_dh_auto_install:
+# the same "waf install" as in the build target
 	${WAF} install --destdir="${CURDIR}/debian/tmp"
 	# get list of files in build log
 	find debian/tmp
@@ -295,7 +321,7 @@ override_dh_gencontrol:
 	dh_gencontrol --remaining-packages -- -Vldb:Depends="${LDB_DEPENDS}"
 
 override_dh_auto_clean:
-	rm -rf bin/
+	rm -rf bin/ testbuild/
 	find -name __pycache__ -exec rm -rf {} +
 	rm -f .lock-wscript
 	rm -f compile_commands.json

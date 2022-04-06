@@ -22,7 +22,12 @@ Build-Depends: bison,
                libtevent-dev (>= 0.11.0~),
                libtdb-dev (>= 1.4.6-2~),
                python3-tdb (>= 1.4.6~),
-# ..end embedded libraries
+# dependencies needed for selftest:
+               openssl <!nocheck>,
+               python3-cryptography <!nocheck>,
+               python3-iso8601 <!nocheck>,
+               python3-pyasn1 <!nocheck>,
+# ..end
                libacl1-dev,
                libarchive-dev,
                libavahi-client-dev,
