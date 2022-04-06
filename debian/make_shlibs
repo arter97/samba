@@ -13,6 +13,11 @@ make_shlibs() {
 	pkg=$1
 	PKGDIR=debian/$pkg/DEBIAN
 
+	# shorctcut if no libs and no python libs
+	# (or no package at all)
+	[ -d $PKGDIR/usr/lib/$DEB_HOST_MULTIARCH -o \
+	  -d $PKGDIR/usr/lib/python3 ] || continue
+
 	ver=${DEB_VERSION}
 	for v in $custvers; do
 	    case "$v|" in
