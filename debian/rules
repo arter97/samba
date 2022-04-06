@@ -177,7 +177,7 @@ selftest-quick: testbuild/configured.stamp
 	@echo "############## selftest run ##############"
 	cd testbuild && ${WAF} test --quick
 
-override_dh_auto_test: $(if $(findstring nocheck, ${DEB_BUILD_OPTIONS}),, selftest-quick)
+override_dh_auto_test: # $(if $(findstring nocheck, ${DEB_BUILD_OPTIONS}),, selftest-quick)
 
 override_dh_auto_install:
 # the same "waf install" as in the build target
