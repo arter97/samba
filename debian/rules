@@ -16,8 +16,8 @@ DEB_REVISION = $(call dpkg_late_eval,DEB_REVISION,v='${DEB_VERSION}'; echo "$${v
 
 LDB_EPOCH := 2:
 LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
- # for 2.5.0 we uploaded wrongly versioned ldb to experimental (2.5.0+samba should be 2.5.0)
- # temporarily add a suffix. This can be removed for 2.5.1+.
+ # For 2.5.0 we uploaded wrongly versioned ldb to experimental (2.5.0+samba should be 2.5.0)
+ # Temporarily add a suffix so it sorts after the wrong version. Remove for 2.5.1+.
 LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}$(if $(filter ${LDB_VERSION},2.5.0),+smb)-${DEB_REVISION}+samba${DEB_VERSION_UPSTREAM}
 LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
 
@@ -154,7 +154,7 @@ override_dh_auto_build:
 testbuild/copied.stamp:
 	rm -rf testbuild; mkdir testbuild
 	cp -a -l $$(ls -1 | egrep -v '^(bin|testbuild)$$') testbuild/
-# cleanup some file just in case, do not interfere with production build
+# cleanup some files just in case, do not interfere with production build
 	find testbuild -name __pycache__ -exec rm -rf {} +
 	rm -f testbuild/compile_commands.json
 	touch $@
@@ -244,7 +244,7 @@ override_dh_install:
 	DEB_PY3_INCDIR=$$(${PYTHON}-config --includes | sed 's,^-I\([^ ]*\).*,\1,') \
 		dh_install
 
-# include a command only if the given package is being build
+# include a command only if the given package is being built
 ifpkg = $(if $(filter ${1},${omit_packages}),,${2})
 
 override_dh_installinit:

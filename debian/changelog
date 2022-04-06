@@ -10,7 +10,7 @@ samba (2:4.16.0+dfsg-2) UNRELEASED; urgency=medium
     so that symbols versioning works correctly.  Unfortunately the previous
     upload to experimental used the first form which is greather than the
     correct one, so temporarily (just for this 2.5.0 version of ldb) use
-     this:  ldb_2:2.5.0+smb-1+samba4.16.0
+    this:   ldb_2:2.5.0+smb-1+samba4.16.0
     (with "+smb" suffix to be removed for 2.5.1+)
   * exclude samba-vfs-modules for i386 ubuntu build since this package
     is useless without samba itself (which is not built on this environment)
