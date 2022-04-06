@@ -274,8 +274,7 @@ override_dh_installsystemd:
 #	sed -i '1s@^#!/usr/bin/env perl@#!/usr/bin/perl@' \
 #	  debian/smbclient/usr/bin/findsmb
 
-override_dh_fixperms:
-	dh_fixperms
+execute_after_dh_fixperms-arch:
 	$(call ifpkg, samba, chmod 1777 debian/samba/var/spool/samba/)
 	$(call ifpkg, smbclient, chmod 0700 debian/smbclient/usr/libexec/samba/smbspool_krb5_wrapper)
 
