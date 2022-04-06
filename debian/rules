@@ -16,7 +16,9 @@ DEB_REVISION = $(call dpkg_late_eval,DEB_REVISION,v='${DEB_VERSION}'; echo "$${v
 
 LDB_EPOCH := 2:
 LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
-LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}-${DEB_REVISION}+samba${DEB_VERSION_UPSTREAM}
+ # for 2.5.0 we uploaded wrongly versioned ldb to experimental (2.5.0+samba should be 2.5.0)
+ # temporarily add a suffix. This can be removed for 2.5.1+.
+LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}$(if $(filter ${LDB_VERSION},2.5.0),+smb)-${DEB_REVISION}+samba${DEB_VERSION_UPSTREAM}
 LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
 
 V = 1
