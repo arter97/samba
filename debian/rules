@@ -103,6 +103,7 @@ else
 		--without-systemd
 endif
 
+# only a few packages can be omitted (handled below)
 omit_packages =
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages
@@ -111,7 +112,8 @@ ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
 		ctdb \
 		libpam-winbind \
 		samba \
-		samba-testsuite
+		samba-testsuite \
+		samba-vfs-modules
 endif
 
 binary binary-arch binary-indep build build-arch build-indep \
@@ -207,15 +209,16 @@ override_dh_install:
 	DEB_PY3_INCDIR=$$(${PYTHON}-config --includes | sed 's,^-I\([^ ]*\).*,\1,') \
 		dh_install
 
+# include a command only if the given package is being build
+ifpkg = $(if $(filter ${1},${omit_packages}),,${2})
+
 override_dh_installinit:
 ifeq (,$(filter samba, ${omit_packages}))
 	dh_installinit -psamba --name smbd
 	dh_installinit -psamba --name nmbd --error-handler nmbd_error_handler
 	dh_installinit -psamba --name samba-ad-dc
 endif
-ifeq (,$(filter winbind, ${omit_packages}))
-	dh_installinit -pwinbind
-endif
+	$(call ifpkg, winbind, dh_installinit -pwinbind)
 ifeq (,$(filter ctdb, ${omit_packages}))
 	# Install /etc/init.d/ctdb
 	mkdir -p debian/ctdb/etc/init.d
@@ -225,15 +228,9 @@ ifeq (,$(filter ctdb, ${omit_packages}))
 endif
 
 override_dh_installsystemd:
-ifeq (,$(filter samba, ${omit_packages}))
-	dh_installsystemd -psamba
-endif
-ifeq (,$(filter winbind, ${omit_packages}))
-	dh_installsystemd -pwinbind
-endif
-ifeq (,$(filter ctdb, ${omit_packages}))
-	dh_installsystemd -pctdb --no-start --no-stop-on-upgrade
-endif
+	$(call ifpkg, samba, dh_installsystemd -psamba)
+	$(call ifpkg, winbind, dh_installsystemd -pwinbind)
+	$(call ifpkg, ctdb, dh_installsystemd -pctdb --no-start --no-stop-on-upgrade)
 
 override_dh_installpam:
 	dh_installpam -psamba-common --name=samba
@@ -246,12 +243,8 @@ override_dh_installpam:
 
 override_dh_fixperms:
 	dh_fixperms
-ifeq (,$(filter samba, ${omit_packages}))
-	chmod 1777 debian/samba/var/spool/samba/
-endif
-ifeq (,$(filter smbclient, ${omit_packages}))
-	chmod 0700 debian/smbclient/usr/libexec/samba/smbspool_krb5_wrapper
-endif
+	$(call ifpkg, samba, chmod 1777 debian/samba/var/spool/samba/)
+	$(call ifpkg, smbclient, chmod 0700 debian/smbclient/usr/libexec/samba/smbspool_krb5_wrapper)
 
 override_dh_makeshlibs:
 	# generate symbols file with correct cpython suffix in there
@@ -278,10 +271,12 @@ ifneq ($(WITH_CEPH),)
 	    debian/ctdb/usr/libexec/ctdb/ctdb_mutex_ceph_rados_helper
 endif
 endif
+ifeq (,$(filter samba-vfs-modules,${omit_packages}))
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
 	    debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so \
 	    $(if ${WITH_CEPH}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so) \
 	    $(if ${WITH_GLUSTERFS}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
+endif
 # after shlibdeps run, check that we don't have wrong depdendencies
 	# libldb2 should not depend on samba-libs
 	# (also see debian/patches/use-bzero-instead-of-memset_s.diff)
