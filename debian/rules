@@ -115,7 +115,7 @@ build_packages := $(shell dh_listpackages)
 
 binary binary-arch binary-indep build build-arch build-indep \
 clean install install-arch install-indep: %:
-	dh $* --with python3
+	dh $*
 
 override_dh_auto_configure configure: bin/configured.stamp
 .PHONY: configure

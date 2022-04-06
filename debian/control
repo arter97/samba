@@ -70,6 +70,7 @@ Build-Depends: bison,
                xfslibs-dev [linux-any],
                xsltproc,
                zlib1g-dev (>= 1:1.2.3)
+Build-Depends-Arch: dh-sequence-python3
 Build-Conflicts: libtracker-miner-2.0-dev,
                  libtracker-sparql-2.0-dev
 Rules-Requires-Root: binary-targets
