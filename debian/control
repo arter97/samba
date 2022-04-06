@@ -14,22 +14,22 @@ Build-Depends:
 	dh-exec,
 Build-Depends-Arch:
 	dh-sequence-python3,
+# tools:
 	bison,
 	docbook-xml,
 	docbook-xsl,
 	flex,
+	perl,
+	po-debconf,
+	xsltproc,
 # libraries which we embed but use system versions of:
 	libtalloc-dev (>= 2.3.3-3~),
 	python3-talloc-dev (>= 2.3.3~),
 	libtevent-dev (>= 0.11.0~),
 	libtdb-dev (>= 1.4.6-2~),
 	python3-tdb (>= 1.4.6~),
-# dependencies needed for selftest:
-	openssl <!nocheck>,
-	python3-cryptography <!nocheck>,
-	python3-iso8601 <!nocheck>,
-	python3-pyasn1 <!nocheck>,
-# ..end
+# system libraries:
+	pkg-config,
 	libacl1-dev,
 	libarchive-dev,
 	libavahi-client-dev,
@@ -60,18 +60,20 @@ Build-Depends-Arch:
 	libtasn1-6-dev (>= 3.8),
 	libtasn1-bin,
 	liburing-dev [linux-any],
-	perl,
-	pkg-config,
-	po-debconf,
+	xfslibs-dev [linux-any],
+	zlib1g-dev (>= 1:1.2.3),
+# python:
+	python3,
 	python3-dev,
 	python3-dnspython,
 	python3-etcd,
 	python3-markdown,
 	python3-testtools,
-	python3,
-	xfslibs-dev [linux-any],
-	xsltproc,
-	zlib1g-dev (>= 1:1.2.3),
+# dependencies needed for selftest:
+	openssl <!nocheck>,
+	python3-cryptography <!nocheck>,
+	python3-iso8601 <!nocheck>,
+	python3-pyasn1 <!nocheck>,
 Build-Conflicts: libtracker-miner-2.0-dev,
                  libtracker-sparql-2.0-dev
 Rules-Requires-Root: binary-targets
