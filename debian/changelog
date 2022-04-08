@@ -1,3 +1,11 @@
+samba (2:4.16.0+dfsg-3) unstable; urgency=medium
+
+  * d/control: comment out the selftest-mode build deps for now
+  * d/control: forgotten python3-samba:Replaces against samba package too,
+    not just samba-libs, when moving dckeytab python lib (Closes: #1009175)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 08 Apr 2022 10:18:23 +0300
+
 samba (2:4.16.0+dfsg-2) unstable; urgency=medium
 
   * use strict versioned dependency between samba-dsdb-modules and libldb2,
