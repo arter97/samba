@@ -70,10 +70,10 @@ Build-Depends-Arch:
 	python3-markdown,
 	python3-testtools,
 # dependencies needed for selftest:
-	openssl <!nocheck>,
-	python3-cryptography <!nocheck>,
-	python3-iso8601 <!nocheck>,
-	python3-pyasn1 <!nocheck>,
+#	openssl <!nocheck>,
+#	python3-cryptography <!nocheck>,
+#	python3-iso8601 <!nocheck>,
+#	python3-pyasn1 <!nocheck>,
 Build-Conflicts: libtracker-miner-2.0-dev,
                  libtracker-sparql-2.0-dev
 Rules-Requires-Root: binary-targets
