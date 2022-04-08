@@ -38,13 +38,14 @@ replacing it with #error if sizeof(off_t) < 8.  But this
 requires quite some hackery...
 
 diff --git a/source3/include/libsmbclient.h b/source3/include/libsmbclient.h
-index 84c98089251..5421b34d57f 100644
+index 84c98089251..1a6ea599cfa 100644
 --- a/source3/include/libsmbclient.h
 +++ b/source3/include/libsmbclient.h
-@@ -82,4 +82,7 @@ extern "C" {
+@@ -82,4 +82,8 @@ extern "C" {
  #include <utime.h>
  
-+_Static_assert(sizeof(off_t) >= 8, /* C11 keyword */
++#include <assert.h>
++static_assert(sizeof(off_t) >= 8,
 + "libsmbclient.h needs LFS (-D_FILE_OFFSET_BITS=64) on this platform please report to pkg-samba-maint@lists.alioth.debian.org");
 +
  #define SMBC_BASE_FD        10000 /* smallest file descriptor returned */
