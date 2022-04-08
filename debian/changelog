@@ -1,3 +1,23 @@
+samba (2:4.16.0+dfsg-4) unstable; urgency=medium
+
+  * libsmbclient-ensure-lfs-221618.patch: replace _Static_assert with
+    static_assert (and include <assert.h> to make C++ happy too
+    (Closes: #1009211)
+  * disable-setuid-confchecks.patch: when running configure tests,
+    samba tries to verify setuid/setgid etc calls are actually
+    *working*, not just exists. This is only possible when the
+    configure is running as root. But it turns out in some salsa-ci
+    configuration (namely in the reprotest), the second build is
+    actually running as root, and in that environment, actual
+    setegid call is failing somehow. Just disable the config-time
+    check for correctly working setgid and assume it "just works"
+    if present, exactly like non-root build will do.
+  * d/salsa-ci.yml: do not expect failure in blhc test (the original
+    prob has been fixed long ago), and stop requiring experimental
+  * mention closing of #999876 by 4.16
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 09 Apr 2022 00:42:38 +0300
+
 samba (2:4.16.0+dfsg-3) unstable; urgency=medium
 
   * d/control: comment out the selftest-mode build deps for now
