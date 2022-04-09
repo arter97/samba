@@ -1,3 +1,14 @@
+samba (2:4.16.0+dfsg-6) unstable; urgency=medium
+
+  * another attempt to fix/work around #221618. Re-enable
+    libsmbclient-ensure-lfs-221618.patch and change it to just define
+    an extra type array int[sizeof(off_t)-7]. If off_t is small it will
+    become a compile error.  It is an ugly way to do it, but it should
+    actually work, unlike various static_assert/_Static_assert which are
+    language (C/C++) and standard-dependent.  Closes: #221618.
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 09 Apr 2022 17:27:09 +0300
+
 samba (2:4.16.0+dfsg-5) unstable; urgency=medium
 
   * disable libsmbclient-ensure-lfs-221618.patch for now.
