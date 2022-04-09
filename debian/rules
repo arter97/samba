@@ -278,11 +278,13 @@ execute_after_dh_fixperms-arch:
 
 override_dh_makeshlibs:
 	# generate symbols file with correct cpython suffix in there
-	pyext=$$(python3-config --extension-suffix | tr _ -); \
-	pyUP=$$(echo $${pyext%.so} | tr a-z- A-Z_); \
-	{ echo "libpyldb-util$${pyext}.2 python3-ldb #MINVER#"; \
-	  echo " PYLDB_UTIL$${pyUP}_${LDB_VERSION}@PYLDB_UTIL$${pyUP}_${LDB_VERSION} ${LDB_EPOCH}${LDB_VERSION}"; \
-	  cat debian/python3-ldb.symbols.in; } > debian/python3-ldb.symbols
+	{ \
+	    suff=$$(python3-config --extension-suffix | tr _ -); \
+	    SUFF=$$(echo "$${suff%.so}" | tr a-z- A-Z_); \
+	    echo "libpyldb-util$${suff}.2 python3-ldb #MINVER#"; \
+	    echo " PYLDB_UTIL$${SUFF}_${LDB_VERSION}@PYLDB_UTIL$${SUFF}_${LDB_VERSION} ${LDB_EPOCH}${LDB_VERSION}"; \
+	    cat debian/python3-ldb.symbols.in; \
+	} > debian/python3-ldb.symbols
 
 	# create symbols and shlibs files in separate wrapper script
 	# to deal with private libraries
