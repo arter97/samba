@@ -1,4 +1,4 @@
-libsmbclient-ensure-lfs-221618.patch
+#libsmbclient-ensure-lfs-221618.patch
 README_nosmbldap-tools.patch
 smbclient-pager.patch
 usershare.patch
