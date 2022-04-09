@@ -3,6 +3,7 @@
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
+include /usr/share/dpkg/buildopts.mk
 include /usr/share/dpkg/pkg-info.mk
 include /usr/share/dpkg/vendor.mk
 # faster version of dpkg/architecture.mk defining only vars we actually need
@@ -22,12 +23,9 @@ LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}$(if $(filter ${LDB_VERSION},2.5.0)
 LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
 
 V = 1
-WAF_CMD := PYTHONHASHSEED=1 ${PYTHON} ./buildtools/bin/waf
-WAF := ${WAF_CMD} $(if ${V},-v)
-
-ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-    WAF += -j $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-endif
+WAF := PYTHONHASHSEED=1 ${PYTHON} ./buildtools/bin/waf \
+	$(if ${DEB_BUILD_OPTION_PARALLEL},-j${DEB_BUILD_OPTION_PARALLEL})
+WAFv := ${WAF} $(if $V, -v)
 
 conf_args = \
 		--prefix=/usr \
@@ -120,7 +118,7 @@ clean install install-arch install-indep: %:
 configure: bin/configured.stamp
 .PHONY: configure
 bin/configured.stamp:
-	${WAF_CMD} -j 1 configure ${conf_args} || \
+	${WAF} -j1 configure -C ${conf_args} || \
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
 	touch $@
 
@@ -138,8 +136,8 @@ bin/built.stamp: bin/configured.stamp
 # This will pefrorm unnecessary/extra install step (into d/tmp), which
 # we'll repeat during actual install stage, but this is definitely
 # better/faster than building whole thing for _not_ running from the build dir.
-	${WAF} --targets=compile_et,asn1_compile
-	${WAF} install --destdir="${CURDIR}/debian/tmp"
+	${WAFv} --targets=compile_et,asn1_compile
+	${WAFv} install --destdir="${CURDIR}/debian/tmp"
 	touch $@
 build-indep:
 build: build-arch build-indep
@@ -163,7 +161,7 @@ testbuild/configured.stamp: testbuild/copied.stamp
 # (libsocket-wrapper &Co), but let's just build the bundled ones. There's no
 # good reason to use externally-packaged wrappers, they're small to build and
 # we don't use them for production build, and extra versioned build-dep hurts.
-	cd testbuild && ${WAF_CMD} -j 1 configure --enable-selftest -C \
+	cd testbuild && ${WAF} -j1 configure --enable-selftest -C \
 		$$(echo '${conf_args}' | \
 		   sed 's|--bundled-libraries=NONE|&,nss_wrapper,pam_wrapper,resolv_wrapper,socket_wrapper,uid_wrapper|')
 # FIXME: some tests fail for now, handle them later
