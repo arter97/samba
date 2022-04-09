@@ -1,3 +1,13 @@
+samba (2:4.16.0+dfsg-5) unstable; urgency=medium
+
+  * disable libsmbclient-ensure-lfs-221618.patch for now.
+    It throws errors in one or another configuration no matter what.
+    Repoens: #221618
+  * d/salsa-ci.yml: re-allow blhc salsa-ci test to fail again
+    due to different bug in blhc
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 09 Apr 2022 16:33:57 +0300
+
 samba (2:4.16.0+dfsg-4) unstable; urgency=medium
 
   * libsmbclient-ensure-lfs-221618.patch: replace _Static_assert with
