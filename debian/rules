@@ -38,35 +38,35 @@ conf_args = \
 	--sysconfdir=/etc \
 	--localstatedir=/var \
 	--libexecdir=/usr/libexec \
+	--libdir=/usr/lib/${DEB_HOST_MULTIARCH} \
+	--datadir=/usr/share \
+	--with-modulesdir=/usr/lib/${DEB_HOST_MULTIARCH}/samba \
+	--with-pammodulesdir=/lib/${DEB_HOST_MULTIARCH}/security \
 	--with-privatedir=/var/lib/samba/private \
 	--with-smbpasswd-file=/etc/samba/smbpasswd \
 	--with-piddir=/run/samba \
-	--with-pammodulesdir=/lib/$(DEB_HOST_MULTIARCH)/security \
+	--with-lockdir=/run/samba \
+	--with-statedir=/var/lib/samba \
+	--with-cachedir=/var/cache/samba \
 	--with-pam \
 	--with-syslog \
 	--with-utmp \
 	--with-winbind \
 	--with-quota \
-	--with-shared-modules=idmap_rid,idmap_ad,idmap_adex,idmap_hash,idmap_ldap,idmap_tdb2,vfs_dfs_samba4,auth_samba4,vfs_nfs4acl_xattr \
 	--with-automount \
 	--with-ldap \
 	--with-ads \
 	--with-gpgme \
-	--libdir=/usr/lib/$(DEB_HOST_MULTIARCH) \
-	--with-modulesdir=/usr/lib/$(DEB_HOST_MULTIARCH)/samba \
-	--datadir=/usr/share \
-	--with-lockdir=/run/samba \
-	--with-statedir=/var/lib/samba \
-	--with-cachedir=/var/cache/samba \
 	--enable-avahi \
-	--disable-rpath \
-	--disable-rpath-install \
+	--enable-spotlight \
+	--disable-rpath --disable-rpath-install \
+	--with-shared-modules=idmap_rid,idmap_ad,idmap_adex,idmap_hash,idmap_ldap,idmap_tdb2,vfs_dfs_samba4,auth_samba4,vfs_nfs4acl_xattr \
 	--bundled-libraries=NONE,pytevent,ldb \
+	\
 	--with-cluster-support \
+	--enable-etcd-reclock \
 	--with-socketpath=/run/ctdb/ctdbd.socket \
 	--with-logdir=/var/log/ctdb \
-	--enable-etcd-reclock \
-	--enable-spotlight \
 
 WITH_CEPH = yes
 # Ceph is not available on all platforms
