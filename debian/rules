@@ -89,13 +89,12 @@ ifneq ($(DEB_HOST_ARCH_OS), linux)
 endif
 
 ifeq ($(DEB_HOST_ARCH_OS), linux)
-	conf_args += \
-		--with-systemd \
-		--systemd-install-services \
-		--with-systemddir=/lib/systemd/system
+conf_args += \
+	--with-systemd \
+	--systemd-install-services \
+	--with-systemddir=/lib/systemd/system
 else
-	conf_args += \
-		--without-systemd
+conf_args += --without-systemd
 endif
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages
