@@ -20,7 +20,10 @@ LDB_EPOCH := 2:
 LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
  # For 2.5.0 we uploaded wrongly versioned ldb to experimental (2.5.0+samba should be 2.5.0)
  # Temporarily add a suffix so it sorts after the wrong version. Remove for 2.5.1+.
-LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}$(if $(filter ${LDB_VERSION},2.5.0),+smb)-${DEB_REVISION}+samba${DEB_VERSION_UPSTREAM}
+ifneq (${LDB_VERSION}, 2.5.0)
+$(error update LDB version number expression below:)
+endif
+LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}+smb-${DEB_REVISION}+samba${DEB_VERSION_UPSTREAM}
 LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
 
 V = 1
