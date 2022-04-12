@@ -78,14 +78,9 @@ ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
     WITH_CEPH =
 endif
 
-ifneq ($(WITH_CEPH),)
-	conf_args += \
-		--enable-ceph-reclock
-else
-	conf_args += \
-		--disable-cephfs
-endif
-
+conf_args += $(if ${WITH_CEPH},\
+	--enable-cephfs --enable-ceph-reclock,\
+	--disable-cephfs)
 
 WITH_GLUSTERFS = yes
 # GlusterFS is linux-only
