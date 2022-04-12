@@ -116,7 +116,7 @@ endif
 build_packages := $(shell dh_listpackages)
 
 binary binary-arch binary-indep \
-clean install install-arch install-indep: %:
+install install-arch install-indep: %:
 	dh $*
 
 configure: bin/configured.stamp
@@ -330,8 +330,6 @@ override_dh_gencontrol:
 	  -- -v${LDB_DEB_VERSION}
 	dh_gencontrol --remaining-packages -- -Vldb:Depends="${LDB_DEPENDS}"
 
-override_dh_auto_clean:
-	rm -rf bin/ testbuild/
-	find -name __pycache__ -exec rm -rf {} +
-	rm -f .lock-wscript
-	rm -f compile_commands.json
+clean:
+	# see also debian/clean
+	dh_clean bin/ testbuild/
