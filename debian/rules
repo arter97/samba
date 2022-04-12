@@ -93,10 +93,6 @@ WITH_GLUSTERFS = yes
 ifneq ($(DEB_HOST_ARCH_OS), linux)
     WITH_GLUSTERFS =
 endif
-# GlusterFS is not in Ubuntu main
-ifeq ($(DEB_VENDOR), Ubuntu)
-    WITH_GLUSTERFS =
-endif
 
 ifeq ($(DEB_HOST_ARCH_OS), linux)
 	conf_args += \
