@@ -80,6 +80,7 @@ samba (2:4.16.0+dfsg-1) experimental; urgency=medium
     Closes: #1004692, CVE-2021-44141: UNIX extensions in SMB1 disclose whether
      the outside target of a symlink exists
     Closes: #1005642 (windows client data corruption due to cache poisoning)
+    Closes: #1001053 (MIT-kerberos config broken after fix for CVE-2020-25717)
     Closes: #988197 (legacy printing support, 47d79d7e7e406f7dd2)
     Closes: #998423 (coredump connecting from macos to shares with var substs)
     Closes: #999876 (winbind allow trusted domains = no regression)
