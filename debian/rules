@@ -24,7 +24,7 @@ LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | 
 ifneq (${LDB_VERSION}, 2.5.0)
 $(error update LDB version number expression below:)
 endif
-LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}+smb-${DEB_REVISION}+samba${DEB_VERSION_UPSTREAM}
+LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}+smb-${DEB_REVISION}
 LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
 
 V = 1
