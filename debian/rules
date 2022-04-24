@@ -145,7 +145,7 @@ build: build-arch build-indep
 
 testbuild/copied.stamp:
 	rm -rf testbuild; mkdir testbuild
-	cp -a -l $$(ls -1 | egrep -v '^(bin|testbuild)$$') testbuild/
+	cp -a -l $$(ls -1 | egrep -v '^(bin|testbuild|debian)$$') testbuild/
 # cleanup some files just in case, do not interfere with production build
 	find testbuild -name __pycache__ -exec rm -rf {} +
 	rm -f testbuild/compile_commands.json
