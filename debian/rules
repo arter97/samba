@@ -26,6 +26,7 @@ $(error update LDB version number expression below:)
 endif
 LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}+smb-${DEB_REVISION}
 LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
+LDB_PACKAGES := libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 
 V = 1
 WAF := PYTHONHASHSEED=1 ${PYTHON} ./buildtools/bin/waf \
@@ -282,7 +283,7 @@ override_dh_makeshlibs:
 
 	# create symbols and shlibs files in separate wrapper script
 	# to deal with private libraries
-	debian/make_shlibs "${LDB_DEB_VERSION}|libldb2|ldb-tools|libldb-dev|python3-ldb|python3-ldb-dev"
+	debian/make_shlibs "${LDB_DEB_VERSION}|$(subst  ,|,${LDB_PACKAGES})"
 
 	rm -f debian/python3-ldb.symbols
 
@@ -316,8 +317,7 @@ endif
 	then echo "E: libwbclient0 should not depend on samba libs" >&2; exit 1; fi
 
 override_dh_gencontrol:
-	dh_gencontrol -plibldb2 -pldb-tools -plibldb-dev -ppython3-ldb -ppython3-ldb-dev \
-	  -- -v${LDB_DEB_VERSION}
+	dh_gencontrol $(addprefix -p,${LDB_PACKAGES}) -- -v${LDB_DEB_VERSION}
 	dh_gencontrol --remaining-packages -- -Vldb:Depends="${LDB_DEPENDS}"
 
 clean:
