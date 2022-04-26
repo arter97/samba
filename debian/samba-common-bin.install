@@ -5,7 +5,6 @@ usr/bin/samba-regedit
 usr/bin/samba-tool
 usr/bin/smbpasswd
 usr/bin/testparm
-usr/lib/tmpfiles.d/samba.conf
 usr/sbin/samba_kcc
 usr/share/apport/package-hooks/source_samba.py
 usr/share/man/man1/dbwrap_tool.1

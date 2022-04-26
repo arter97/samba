@@ -213,7 +213,6 @@ endif
 	# Harmless on systems without systemd-tmpfiles, and other consumers exist
 	# such as OpenRC's opentmpfiles
 	mkdir -p debian/tmp/usr/lib/tmpfiles.d
-	echo "d /run/samba 0755 root root -" > debian/tmp/usr/lib/tmpfiles.d/samba.conf
 	echo "d /run/ctdb 0755 root root -" > debian/tmp/usr/lib/tmpfiles.d/ctdb.conf
 
 	# install-and-rename docs for ctdb (also arch-specific)
