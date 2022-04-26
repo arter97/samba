@@ -16,3 +16,4 @@ waf-add-support-for-GNU-kFreeBSD.patch
 ctdb_etcd_lock-path.patch
 silence-waf-uselib_local.diff
 disable-setuid-confchecks.patch
+move-msg.sock-from-var-lib-samba-to-run-samba.patch
