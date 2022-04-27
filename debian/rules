@@ -210,11 +210,6 @@ ifeq ($(DEB_HOST_ARCH_OS), linux)
 	  debian/tmp/lib/systemd/system/smbd.service \
 	  debian/tmp/lib/systemd/system/winbind.service
 endif
-	# Harmless on systems without systemd-tmpfiles, and other consumers exist
-	# such as OpenRC's opentmpfiles
-	mkdir -p debian/tmp/usr/lib/tmpfiles.d
-	echo "d /run/ctdb 0755 root root -" > debian/tmp/usr/lib/tmpfiles.d/ctdb.conf
-
 	# install-and-rename docs for ctdb (also arch-specific)
 	mkdir -p debian/tmp/ctdb
 	install -p ctdb/config/events/README debian/tmp/ctdb/README.notification

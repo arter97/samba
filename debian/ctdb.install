@@ -13,7 +13,6 @@ usr/bin/ping_pong
 usr/libexec/ctdb/
 usr/lib/*/samba/libctdb-event-client-samba4.so.0
 usr/lib/*/samba/libtalloc-report-samba4.so.0
-usr/lib/tmpfiles.d/ctdb.conf
 usr/sbin/ctdbd
 usr/sbin/ctdbd_wrapper
 usr/share/ctdb/events/legacy/*.script
