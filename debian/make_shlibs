@@ -6,7 +6,7 @@ umask 022
 DEB_VERSION=$(dpkg-parsechangelog -S Version)
 DEB_HOST_MULTIARCH=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
 
-# arguments in form custom-version|pkg1|pkg2|pkg3|...
+# arguments in form pkg1=custom-version pkg2=version2...
 custvers="$*"
 
 make_shlibs() {
@@ -20,8 +20,8 @@ make_shlibs() {
 
 	ver=${DEB_VERSION}
 	for v in $custvers; do
-	    case "$v|" in
-		(*"|$pkg|"*) ver="${v%%|*}"; break;;
+	    case "$v" in
+		( $pkg=* ) ver=${v#*=}; break;;
 	    esac
 	done
 	echo $pkg $ver
