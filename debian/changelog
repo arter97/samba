@@ -1,3 +1,11 @@
+samba (2:4.16.1+dfsg-3) unstable; urgency=medium
+
+  * fix ldb package version generation in d/make_shlibs
+    which was wrong in 2 previous uploads.
+    Will I *ever* make it actually work someday?
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 02 May 2022 18:32:24 +0300
+
 samba (2:4.16.1+dfsg-2) unstable; urgency=medium
 
   * rethink ldb version *again*, to be 2.5.0+smb4.16.1-2
