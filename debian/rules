@@ -13,9 +13,6 @@ endif
 
 export PYTHON = python3
 
-# just the debian revision number from the package version
-DEB_REVISION = $(lastword $(subst -, ,${DEB_VERSION}))
-
 LDB_EPOCH := 2:
 LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
  # For 2.5.0 we uploaded wrongly versioned ldb to experimental (2.5.0+samba should be 2.5.0)
@@ -23,7 +20,7 @@ LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | 
 ifneq (${LDB_VERSION}, 2.5.0)
 $(error update LDB version number expression below:)
 endif
-LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}+smb-${DEB_REVISION}
+LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}+smb$(subst +dfsg,,${DEB_VERSION_UPSTREAM_REVISION})
 LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
 LDB_PACKAGES := libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 
