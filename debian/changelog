@@ -1,3 +1,27 @@
+samba (2:4.16.1+dfsg-1) unstable; urgency=medium
+
+  * new upstream minor release 4.16.1
+  * move-msg.sock-from-var-lib-samba-to-run-samba.patch:
+    move /var/lib/samba/private/msg.sock/ to /run/samba/msg.sock/.
+    This is a (private) socket directory for IPC, it should not be in /var.
+  * Remove /var/lib/samba/private/msg.sock/ in postinst
+  * testparm-do-not-fail-if-pid-dir-does-not-exist.patch:
+    testparm deliberately fails if /run/samba does not exist,
+    while testparam itself does not use it and daemons will
+    create it on demand.  Just make it a warning instead of a
+    fatal error, and we'll not need to pre-create this dir
+    in a random place using hackish ways
+  * ctdb-create-piddir.patch: create /run/ctdb/ in ctdb.service
+    and ctdb.init before invoking ctdbd (as the latter does not
+    create its pid directory on demand).
+  * stop (ab)using tmpfiles.d to pre-create /run/samba/ and /run/ctdb/
+    and stop creating /run/samba/ in samba-common-bin.postinst just to
+    make testparam happy.
+  * dch.conf: specify upstream-vcs-tag and stop ignoring branch
+  * d/rules: minor tweaks
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 02 May 2022 13:16:12 +0300
+
 samba (2:4.16.0+dfsg-7) unstable; urgency=medium
 
   * another bunch of small tweaks to d/rules:
