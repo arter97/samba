@@ -55,15 +55,17 @@ mask_services() {
 #	them to be readable only by root.
 umask 022
 
-# add the sambashare group
-if ! getent group sambashare > /dev/null 2>&1
+if [ configure = "$1" -a -z "$2" ] # only do this if not upgrading
 then
+    # add the sambashare group
+    if ! getent group sambashare > /dev/null 2>&1
+    then
 	addgroup --system sambashare
-fi
-
-if [ ! -e /var/lib/samba/usershares ]
-then
+    fi
+    if [ ! -e /var/lib/samba/usershares ]
+    then
 	install -d -m 1770 -g sambashare /var/lib/samba/usershares
+    fi
 fi
 
 # mimic source4/smbd/server.c and mask service before it fails
