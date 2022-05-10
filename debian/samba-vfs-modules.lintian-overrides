@@ -1,4 +1,6 @@
 # False positives, see #896012
 samba-vfs-modules: library-not-linked-against-libc *
+# manpages describing vfs modules:
+samba-vfs-modules: spare-manual-page usr/share/man/man8/vfs_*.8.gz
 # this is intentional: it was a typo in old config parser so we allow old config to work
 samba-vfs-modules: spelling-error-in-binary usr/lib/*/samba/vfs/fruit.so ressource resource
