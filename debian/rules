@@ -225,8 +225,8 @@ endif
 # This compat symlink should go away after bookworm
 # (needed mostly for bullseye sssd)
 	dh_installdirs -plibldb2 /usr/lib/${DEB_HOST_MULTIARCH}/ldb/modules/ldb
-	dh_link -pldb2 /usr/lib/${DEB_HOST_MULTIARCH}/ldb/modules/ldb \
-	               /usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/compat
+	dh_link -plibldb2 /usr/lib/${DEB_HOST_MULTIARCH}/ldb/modules/ldb \
+	                  /usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/compat
 
 override_dh_auto_install-indep:
 # only arch-all package is samba-common containing a few debian-specific files
