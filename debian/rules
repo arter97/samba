@@ -278,6 +278,7 @@ override_dh_makeshlibs:
 	    suff=$$(python3-config --extension-suffix | tr _ -); \
 	    SUFF=$$(echo "$${suff%.so}" | tr a-z- A-Z_); \
 	    echo "libpyldb-util$${suff}.2 python3-ldb #MINVER#"; \
+	    echo "* Build-Depends-Package: python3-ldb-dev" ; \
 	    echo " PYLDB_UTIL$${SUFF}_${LDB_VERSION}@PYLDB_UTIL$${SUFF}_${LDB_VERSION} ${LDB_EPOCH}${LDB_VERSION}"; \
 	    cat debian/python3-ldb.symbols.in; \
 	} > debian/python3-ldb.symbols
