@@ -217,6 +217,17 @@ ifeq ($(DEB_HOST_ARCH_OS), kfreebsd)
 	install -p debian/ctdb.README.kfreebsd debian/tmp/ctdb/README.kfreebsd
 endif
 
+# compatibility link. When ldb was built by its own it stored modules in
+# /usr/lib/<triple>/ldb/modules/ldb/. Now as part of samba it stores modules in
+# /usr/lib/<triple>/samba/ldb/.  Keep them together instead of d/*.{links,dirs}.
+# (sssd 2.6.3-3 moved their module to the new location;
+#  samba-dsdb-modules always had their modules in ..../samba/ldb/)
+# This compat symlink should go away after bookworm
+# (needed mostly for bullseye sssd)
+	dh_installdirs -plibldb2 /usr/lib/${DEB_HOST_MULTIARCH}/ldb/modules/ldb
+	dh_link -pldb2 /usr/lib/${DEB_HOST_MULTIARCH}/ldb/modules/ldb \
+	               /usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/compat
+
 override_dh_auto_install-indep:
 # only arch-all package is samba-common containing a few debian-specific files
 # Most of files needs are renamed during install so lets put them

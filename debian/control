@@ -482,12 +482,8 @@ Section: libs
 Depends: ${misc:Depends},
          ${shlibs:Depends}
 Breaks: ldb-tools (<<1.1.30~),
-# sssd had --with-ldb-lib-dir hardcoded until 2.6.3-3
-# and we moved our modules when built from samba sources
-# samba-dsdb-modules is also broken by this move
-        sssd (<< 2.6.3-3~),
         samba (<<2:4.7.0~),
-        samba-dsdb-modules (<< 2:4.16.0~),
+        samba-dsdb-modules (<< 2:4.7.0~),
         samba-libs (<< 2:4.7.0~),
         samba-testsuite (<< 2:4.7.0~)
 Description: LDAP-like embedded database - shared library
