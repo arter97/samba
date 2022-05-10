@@ -1,0 +1,2 @@
+# manpages for idmap modules:
+winbind: spare-manual-page usr/share/man/man8/idmap_*.8.gz
