@@ -1,3 +1,21 @@
+samba (2:4.16.1+dfsg-4) unstable; urgency=medium
+
+  [ Michael Tokarev ]
+  * fix spelling in disable-setuid-confchecks.patch
+  * d/NEWS: split it into different $package.NEWS files
+  * d/upstream/metadata: add Bug-Database
+  * d/samba.postinst: create sambashare group and usershare directory
+    on new install only
+  * libldb2: provide compat symlinks for bullseye ldb modules dir
+  * d/rules: provide Build-Depends-Package: for python3-ldb
+  * samba-vfs-modules.lintian-overrides: add spare-manual-page vfs_*.8 override
+  * winbind.lintian-overrides: add spare-manual-page idmap_*.8 override
+
+  [ Arnaud Rebillout ]
+  * Fix patch testparm-do-not-fail-if-pid-dir-does-not-exist (Closes: #1010835)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 11 May 2022 09:50:03 +0300
+
 samba (2:4.16.1+dfsg-3) unstable; urgency=medium
 
   * fix ldb package version generation in d/make_shlibs
