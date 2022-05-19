@@ -269,7 +269,6 @@ override_dh_installsystemd:
 #	  debian/smbclient/usr/bin/findsmb
 
 execute_after_dh_fixperms-arch:
-	$(call ifpkg, samba, chmod 1777 debian/samba/var/spool/samba/)
 	$(call ifpkg, smbclient, chmod 0700 debian/smbclient/usr/libexec/samba/smbspool_krb5_wrapper)
 
 override_dh_makeshlibs:
