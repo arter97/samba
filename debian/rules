@@ -56,6 +56,7 @@ conf_args = \
 	--with-gpgme \
 	--enable-avahi \
 	--enable-spotlight \
+	--with-profiling-data \
 	--disable-rpath --disable-rpath-install \
 	--with-shared-modules=idmap_rid,idmap_ad,idmap_adex,idmap_hash,idmap_ldap,idmap_tdb2,vfs_dfs_samba4,auth_samba4,vfs_nfs4acl_xattr \
 	--bundled-libraries=NONE,pytevent,ldb \
