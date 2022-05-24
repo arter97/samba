@@ -1,3 +1,32 @@
+samba (2:4.16.1+dfsg-5) UNRELEASED; urgency=medium
+
+  * add-missing-libs-deps.diff: add missing dependencies for a few samba
+    libraries. Closes: #1010922
+  * point [printers] to /var/tmp/, stop shipping /var/spool/samba/.
+    For a long time, we shipped an alternative /var/tmp/ directory with mode
+    01777 (so that anyone can use it to store files) but without the same setup
+    as for regular /var/tmp/ (in particular, without removing old files and
+    since it is not a usual place to store temp files, no one actually looked
+    at it the same way someone would take care of /var/tmp/.  Change smb.conf
+    to use /var/tmp/ instead of /var/spool/samba/. In the postinst script,
+    remove /var/spool/samba/, check if it is still used in smb.conf,
+    and create a compatibility symlink pointing to tmp/, suggesting changing
+    smb.conf.  And remove this compat symlink in postrm.
+    This probably can be accomplished by a debconf question, but the
+    thing is complicated by the fact that smb.conf might be upgrading
+    too at the same time.
+  * debian/patches/weak-crypto-allowed-clarify.diff: update
+  * testparm-do-not-fail-if-pid-dir-does-not-exist.patch: also cover samba-tool
+    testparm too, not only regular stand-alone testparm.
+  * fix-samba-tool-domain-join-segfault.patch: fix segfault when joining an
+    AD-DC domain using samba-tool join.
+  * d/rules: enable --with-profilig-data to build samba with profiling
+    collection (if set in smb.conf)
+  * d/control: add libunwind-dev to build-deps, to compile in stack backtrace
+    logging in case of crash
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 24 May 2022 16:39:30 +0300
+
 samba (2:4.16.1+dfsg-4) unstable; urgency=medium
 
   [ Michael Tokarev ]
