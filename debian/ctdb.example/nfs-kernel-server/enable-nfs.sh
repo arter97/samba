@@ -87,7 +87,7 @@ This script will enable CTDB NFS HA by changing the following files:
 (1) /etc/nfs.conf                             ( replace )
 (2) /etc/nfs.conf.d/*.conf                    ( rename  )
 (3) /etc/services                             ( append  )
-(4) /etc/sysctl.d/99-nfs-static-ports.conf    ( create  )
+(4) /etc/sysctl.d/98-nfs-static-ports.conf    ( create  )
 (5) /etc/default/quota                        ( replace )
 
 and disabling the following services, as they will be managed
@@ -146,7 +146,7 @@ echo
 set -e
 
 replacefile nfs.conf /etc/nfs.conf
-replacefile 99-nfs-static-ports.conf /etc/sysctl.d/99-nfs-static-ports.conf
+replacefile 98-nfs-static-ports.conf /etc/sysctl.d/98-nfs-static-ports.conf
 replacefile quota /etc/default/quota
 echo
 
