@@ -59,7 +59,6 @@ Build-Depends-Arch:
 	libsystemd-dev [linux-any],
 	libtasn1-6-dev (>= 3.8),
 	libtasn1-bin,
-	libunwind-dev [amd64 arm64 armel armhf hppa i386 ia64 mips mips64 mips64el mipsel powerpc powerpcspe ppc64 ppc64el sh4],
 	liburing-dev [linux-any],
 	xfslibs-dev [linux-any],
 	zlib1g-dev (>= 1:1.2.3),
