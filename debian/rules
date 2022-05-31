@@ -43,6 +43,7 @@ conf_args = \
 	--with-smbpasswd-file=/etc/samba/smbpasswd \
 	--with-piddir=/run/samba \
 	--with-lockdir=/run/samba \
+	--with-sockets-dir=/run/samba \
 	--with-statedir=/var/lib/samba \
 	--with-cachedir=/var/cache/samba \
 	--with-pam \
