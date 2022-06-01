@@ -171,10 +171,10 @@ A log file can be found at:
 
 Remember:
 
-    - to place a recovery lock in /etc/ctdb/ctdb.conf:
+    - to place a cluster lock in /etc/ctdb/ctdb.conf:
         ...
         [cluster]
-        recovery lock = /clustered.filesystem/.reclock
+        cluster lock = /clustered.filesystem/.reclock
         ...
 
 And, make sure you enable ctdb service again:
