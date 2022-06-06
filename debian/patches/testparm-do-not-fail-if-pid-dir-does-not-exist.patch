@@ -9,7 +9,7 @@ create it on demand, there is no need to fail even simple testparm
 operations if the dirs are not there.
 
 This change lets to (pre)configure samba without bothering to
-pre-create the directories which are overwise needed only to fullfil
+pre-create the directories which are overwise needed only to fulfil
 testparm criteria.
 
 Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
