@@ -1,1 +1,2 @@
 libldb2: shared-library-lacks-prerequisites usr/lib/x86_64-linux-gnu/samba/*.so.0
+libldb2: repeated-path-segment ldb usr/lib/x86_64-linux-gnu/ldb/modules/ldb/
