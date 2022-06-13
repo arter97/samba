@@ -25,7 +25,9 @@ usr/lib/*/samba/libCHARSET3-samba4.so.0
 usr/lib/*/samba/libLIBWBCLIENT-OLD-samba4.so.0
 usr/lib/*/samba/libMESSAGING-SEND-samba4.so.0
 usr/lib/*/samba/libMESSAGING-samba4.so.0
+usr/lib/*/samba/libREG-FULL-samba4.so.0
 usr/lib/*/samba/libRPC-SERVER-LOOP-samba4.so.0
+usr/lib/*/samba/libRPC-WORKER-samba4.so.0
 usr/lib/*/samba/libaddns-samba4.so.0
 usr/lib/*/samba/libads-samba4.so.0
 usr/lib/*/samba/libasn1-samba4.so.0
