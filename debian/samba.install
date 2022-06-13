@@ -20,7 +20,6 @@ usr/lib/*/samba/libpac-samba4.so.0
 usr/libexec/samba/samba-bgqd
 usr/lib/*/samba/service/*.so
 usr/sbin/eventlogadm
-usr/sbin/mksmbpasswd
 usr/sbin/nmbd
 usr/sbin/samba
 usr/sbin/samba-gpupdate

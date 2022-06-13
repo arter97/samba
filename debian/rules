@@ -183,7 +183,6 @@ override_dh_auto_install-arch:
 	install -p -m0755 debian/setoption.py -t debian/tmp/usr/share/samba/
 	install -p -m0755 debian/addshare.py -t debian/tmp/usr/share/samba/
 	install -p -m755 debian/update-apparmor-samba-profile -t debian/tmp/usr/share/samba/
-	install -p -m0755 debian/mksmbpasswd.awk debian/tmp/usr/sbin/mksmbpasswd
 	install -Dp -m0644 debian/samba.ufw.profile debian/tmp/etc/ufw/applications.d/samba
 	install -Dp -m0644 debian/source_samba.py -t debian/tmp/usr/share/apport/package-hooks/
 ifeq ($(DEB_HOST_ARCH_OS), linux)
