@@ -2415,6 +2415,9 @@ sub provision($$)
 	my $msdfs_shrdir="$shrdir/msdfsshare";
 	push(@dirs,$msdfs_shrdir);
 
+	my $msdfs_shrdir2="$shrdir/msdfsshare2";
+	push(@dirs,$msdfs_shrdir2);
+
 	my $msdfs_deeppath="$msdfs_shrdir/deeppath";
 	push(@dirs,$msdfs_deeppath);
 
@@ -2459,6 +2462,9 @@ sub provision($$)
 
 	my $local_symlinks_shrdir="$shrdir/local_symlinks";
 	push(@dirs,$local_symlinks_shrdir);
+
+	my $fruit_resource_stream_shrdir="$shrdir/fruit_resource_stream";
+	push(@dirs,$fruit_resource_stream_shrdir);
 
 	# this gets autocreated by winbindd
 	my $wbsockdir="$prefix_abs/wbsock";
@@ -2508,6 +2514,8 @@ sub provision($$)
 	symlink "msdfs:$server_ip\\smbcacls_sharedir_dfs,$server_ipv6\\smbcacls_sharedir_dfs",
 		"$msdfs_shrdir/smbcacls_sharedir_dfs";
 
+	symlink "msdfs:$server_ip\\msdfs-share2,$server_ipv6\\msdfs-share2", "$msdfs_shrdir/dfshop1";
+	symlink "msdfs:$server_ip\\tmp,$server_ipv6\\tmp", "$msdfs_shrdir2/dfshop2";
 	##
 	## create bad names in $badnames_shrdir
 	##
@@ -2831,6 +2839,10 @@ sub provision($$)
 	msdfs root = yes
 	msdfs shuffle referrals = yes
 	guest ok = yes
+[msdfs-share2]
+	path = $msdfs_shrdir2
+	msdfs root = yes
+	guest ok = yes
 [hideunread]
 	copy = tmp
 	hide unreadable = yes
@@ -3013,6 +3025,12 @@ sub provision($$)
 	fruit:resource = file
 	fruit:metadata = stream
 	fruit:zero_file_id=yes
+
+[fruit_resource_stream]
+	path = $fruit_resource_stream_shrdir
+	vfs objects = fruit streams_xattr acl_xattr xattr_tdb
+	fruit:resource = stream
+	fruit:metadata = stream
 
 [badname-tmp]
 	path = $badnames_shrdir
