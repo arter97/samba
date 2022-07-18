@@ -1,8 +1,13 @@
-samba (2:4.16.3+dfsg-1) UNRELEASED; urgency=medium
+samba (2:4.16.3+dfsg-1) unstable; urgency=medium
 
-  * new upstream minor/bugfix releae.
+  [ Michael Tokarev ]
+  * new upstream minor/bugfix releae. See WHATSNEW.txt for details.
+  * d/watch: add the forgotten repacksuffix=+dfsg
 
- -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 18 Jul 2022 16:30:51 +0300
+  [ Andreas Hasenack ]
+  * update nfs configuration examples for ctdb
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 18 Jul 2022 17:15:07 +0300
 
 samba (2:4.16.2+dfsg-1) unstable; urgency=medium
 
