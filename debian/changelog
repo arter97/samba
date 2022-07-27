@@ -1,3 +1,23 @@
+samba (2:4.16.4+dfsg-1) unstable; urgency=high
+
+  * new upstream security release fixing:
+    o CVE-2022-2031: Samba AD users can bypass certain restrictions associated
+      with changing passwords.
+      https://www.samba.org/samba/security/CVE-2022-2031.html
+    o CVE-2022-32744: Samba AD users can forge password change requests
+      for any user.
+      https://www.samba.org/samba/security/CVE-2022-32744.html
+    o CVE-2022-32745: Samba AD users can crash the server process with an LDAP
+      add or modify request.
+      https://www.samba.org/samba/security/CVE-2022-32745.html
+    o CVE-2022-32746: Samba AD users can induce a use-after-free in the server
+      process with an LDAP add or modify request.
+      https://www.samba.org/samba/security/CVE-2022-32746.html
+    o CVE-2022-32742: Server memory information leak via SMB1.
+      https://www.samba.org/samba/security/CVE-2022-32742.html
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 27 Jul 2022 18:35:53 +0300
+
 samba (2:4.16.3+dfsg-1) unstable; urgency=medium
 
   [ Michael Tokarev ]
