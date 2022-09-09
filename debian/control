@@ -23,11 +23,11 @@ Build-Depends-Arch:
 	po-debconf,
 	xsltproc,
 # libraries which we embed but use system versions of:
-	libtalloc-dev (>= 2.3.3-3~),
-	python3-talloc-dev (>= 2.3.3~),
-	libtevent-dev (>= 0.11.0~),
-	libtdb-dev (>= 1.4.6-2~),
-	python3-tdb (>= 1.4.6~),
+	libtalloc-dev (>= 2.3.4~),
+	python3-talloc-dev (>= 2.3.4~),
+	libtevent-dev (>= 0.13.0~),
+	libtdb-dev (>= 1.4.7~),
+	python3-tdb (>= 1.4.7~),
 # system libraries:
 	pkg-config,
 	libacl1-dev,
