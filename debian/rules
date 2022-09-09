@@ -196,8 +196,6 @@ override_dh_auto_install-arch:
 	install -Dp -m0644 debian/samba.ufw.profile debian/tmp/etc/ufw/applications.d/samba
 	install -Dp -m0644 debian/source_samba.py -t debian/tmp/usr/share/apport/package-hooks/
 ifeq ($(DEB_HOST_ARCH_OS), linux)
-	# Install systemd configs
-	install -Dp -m0644 ctdb/config/ctdb.service -t debian/tmp/lib/systemd/system/
 	# Services fixups
 	mv debian/tmp/lib/systemd/system/nmb.service debian/tmp/lib/systemd/system/nmbd.service
 	mv debian/tmp/lib/systemd/system/smb.service debian/tmp/lib/systemd/system/smbd.service
