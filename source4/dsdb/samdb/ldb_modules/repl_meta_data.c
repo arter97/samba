@@ -3525,7 +3525,7 @@ static int replmd_modify(struct ldb_module *module, struct ldb_request *req)
 			return ldb_module_operr(module);
 		}
 
-		if (req->op.mod.message->elements[0].flags != LDB_FLAG_MOD_REPLACE) {
+		if (LDB_FLAG_MOD_TYPE(req->op.mod.message->elements[0].flags) != LDB_FLAG_MOD_REPLACE) {
 			return ldb_module_operr(module);
 		}
 
@@ -3558,11 +3558,11 @@ static int replmd_modify(struct ldb_module *module, struct ldb_request *req)
 			return ldb_module_operr(module);
 		}
 
-		if (req->op.mod.message->elements[0].flags != LDB_FLAG_MOD_DELETE) {
+		if (LDB_FLAG_MOD_TYPE(req->op.mod.message->elements[0].flags) != LDB_FLAG_MOD_DELETE) {
 			return ldb_module_operr(module);
 		}
 
-		if (req->op.mod.message->elements[1].flags != LDB_FLAG_MOD_ADD) {
+		if (LDB_FLAG_MOD_TYPE(req->op.mod.message->elements[1].flags) != LDB_FLAG_MOD_ADD) {
 			return ldb_module_operr(module);
 		}
 
@@ -3645,7 +3645,7 @@ static int replmd_modify(struct ldb_module *module, struct ldb_request *req)
 			return ldb_module_operr(module);
 		}
 
-		if (msg->elements[0].flags != LDB_FLAG_MOD_ADD) {
+		if (LDB_FLAG_MOD_TYPE(msg->elements[0].flags) != LDB_FLAG_MOD_ADD) {
 			talloc_free(ac);
 			return ldb_module_operr(module);
 		}
@@ -3888,22 +3888,12 @@ static int replmd_rename_callback(struct ldb_request *req, struct ldb_reply *are
 				       ldb_operr(ldb));
 	}
 
-	if (ldb_msg_add_empty(msg, rdn_name, LDB_FLAG_MOD_REPLACE, NULL) != 0) {
+	if (ldb_msg_append_value(msg, rdn_name, rdn_val, LDB_FLAG_MOD_REPLACE) != 0) {
 		talloc_free(ares);
 		return ldb_module_done(ac->req, NULL, NULL,
 				       ldb_oom(ldb));
 	}
-	if (ldb_msg_add_value(msg, rdn_name, rdn_val, NULL) != 0) {
-		talloc_free(ares);
-		return ldb_module_done(ac->req, NULL, NULL,
-				       ldb_oom(ldb));
-	}
-	if (ldb_msg_add_empty(msg, "name", LDB_FLAG_MOD_REPLACE, NULL) != 0) {
-		talloc_free(ares);
-		return ldb_module_done(ac->req, NULL, NULL,
-				       ldb_oom(ldb));
-	}
-	if (ldb_msg_add_value(msg, "name", rdn_val, NULL) != 0) {
+	if (ldb_msg_append_value(msg, "name", rdn_val, LDB_FLAG_MOD_REPLACE) != 0) {
 		talloc_free(ares);
 		return ldb_module_done(ac->req, NULL, NULL,
 				       ldb_oom(ldb));
@@ -5161,16 +5151,10 @@ static int replmd_name_modify(struct replmd_replicated_request *ar,
 		goto failed;
 	}
 
-	if (ldb_msg_add_empty(msg, rdn_name, LDB_FLAG_MOD_REPLACE, NULL) != 0) {
+	if (ldb_msg_append_value(msg, rdn_name, rdn_val, LDB_FLAG_MOD_REPLACE) != 0) {
 		goto failed;
 	}
-	if (ldb_msg_add_value(msg, rdn_name, rdn_val, NULL) != 0) {
-		goto failed;
-	}
-	if (ldb_msg_add_empty(msg, "name", LDB_FLAG_MOD_REPLACE, NULL) != 0) {
-		goto failed;
-	}
-	if (ldb_msg_add_value(msg, "name", rdn_val, NULL) != 0) {
+	if (ldb_msg_append_value(msg, "name", rdn_val, LDB_FLAG_MOD_REPLACE) != 0) {
 		goto failed;
 	}
 
@@ -5724,6 +5708,9 @@ static int replmd_replicated_apply_add(struct replmd_replicated_request *ar)
 		ret = dsdb_module_schedule_sd_propagation(ar->module,
 							  ar->objs->partition_dn,
 							  ar->objs->objects[ar->index_current].object_guid,
+							  ar->objs->objects[ar->index_current].parent_guid ?
+							  *ar->objs->objects[ar->index_current].parent_guid :
+							  GUID_zero(),
 							  true);
 		if (ret != LDB_SUCCESS) {
 			return replmd_replicated_request_error(ar, ret);
@@ -6430,6 +6417,9 @@ static int replmd_replicated_apply_merge(struct replmd_replicated_request *ar)
 		ret = dsdb_module_schedule_sd_propagation(ar->module,
 							  ar->objs->partition_dn,
 							  ar->objs->objects[ar->index_current].object_guid,
+							  ar->objs->objects[ar->index_current].parent_guid ?
+							  *ar->objs->objects[ar->index_current].parent_guid :
+							  GUID_zero(),
 							  true);
 		if (ret != LDB_SUCCESS) {
 			return ldb_operr(ldb);
@@ -6450,6 +6440,9 @@ static int replmd_replicated_apply_merge(struct replmd_replicated_request *ar)
 		ret = dsdb_module_schedule_sd_propagation(ar->module,
 							  ar->objs->partition_dn,
 							  ar->objs->objects[ar->index_current].object_guid,
+							  ar->objs->objects[ar->index_current].parent_guid ?
+							  *ar->objs->objects[ar->index_current].parent_guid :
+							  GUID_zero(),
 							  false);
 		if (ret != LDB_SUCCESS) {
 			return ldb_operr(ldb);
@@ -8143,8 +8136,8 @@ static int replmd_process_linked_attribute(struct ldb_module *module,
 					   const struct dsdb_attribute *attr,
 					   struct la_entry *la_entry,
 					   struct ldb_request *parent,
-					   struct ldb_message_element *old_el,
 					   TALLOC_CTX *element_ctx,
+					   struct ldb_message_element *old_el,
 					   struct parsed_dn *pdn_list,
 					   replmd_link_changed *change)
 {

@@ -195,7 +195,7 @@ static bool do_idmap_check(void)
 			if (maxranges < 2) {
 				fprintf(stderr,
 					"ERROR: The idmap autorid range "
-					"[%u-%u] needs to be at least twice as"
+					"[%u-%u] needs to be at least twice as "
 					"big as the rangesize [%u]!"
 					"\n\n",
 					c->low,
@@ -735,7 +735,6 @@ static void do_per_share_checks(int s)
 	const char *caddr;
 	static int show_defaults;
 	static int skip_logic_checks = 0;
-	const char *weak_crypo_str = "";
 	bool ok;
 
 	struct poptOption long_options[] = {
@@ -870,12 +869,10 @@ static void do_per_share_checks(int s)
 
 	fprintf(stderr,"Loaded services file OK.\n");
 
-	if (samba_gnutls_weak_crypto_allowed()) {
-		weak_crypo_str = "allowed";
-	} else {
-		weak_crypo_str = "disallowed";
-	}
-	fprintf(stderr, "Weak crypto is %s\n", weak_crypo_str);
+	fprintf(stderr,
+		"Weak crypto is %sallowed by GnuTLS "
+		"(e.g. NTLM as a compatibility fallback)\n",
+	        samba_gnutls_weak_crypto_allowed() ? "" : "dis");
 
 	if (skip_logic_checks == 0) {
 		ret = do_global_checks();
@@ -954,4 +951,3 @@ done:
 	TALLOC_FREE(frame);
 	return ret;
 }
-

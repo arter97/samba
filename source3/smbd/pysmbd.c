@@ -141,12 +141,6 @@ static int set_sys_acl_conn(const char *fname,
 		return -1;
 	}
 
-	ret = vfs_stat(conn, smb_fname);
-	if (ret == -1) {
-		TALLOC_FREE(frame);
-		return -1;
-	}
-
 	status = openat_pathref_fsp(conn->cwd_fsp, smb_fname);
 	if (!NT_STATUS_IS_OK(status)) {
 		TALLOC_FREE(frame);
@@ -174,9 +168,9 @@ static NTSTATUS init_files_struct(TALLOC_CTX *mem_ctx,
 				  int flags,
 				  struct files_struct **_fsp)
 {
+	struct vfs_open_how how = { .flags = flags, .mode = 0644 };
 	struct smb_filename *smb_fname = NULL;
 	int fd;
-	int ret;
 	mode_t saved_umask;
 	struct files_struct *fsp;
 	struct files_struct *fspcwd = NULL;
@@ -216,8 +210,7 @@ static NTSTATUS init_files_struct(TALLOC_CTX *mem_ctx,
 			    fspcwd,
 			    smb_fname,
 			    fsp,
-			    flags,
-			    00644);
+			    &how);
 
 	umask(saved_umask);
 
@@ -230,13 +223,13 @@ static NTSTATUS init_files_struct(TALLOC_CTX *mem_ctx,
 	}
 	fsp_set_fd(fsp, fd);
 
-	ret = SMB_VFS_FSTAT(fsp, &smb_fname->st);
-	if (ret == -1) {
+	status = vfs_stat_fsp(fsp);
+	if (!NT_STATUS_IS_OK(status)) {
 		/* If we have an fd, this stat should succeed. */
 		DEBUG(0,("Error doing fstat on open file %s (%s)\n",
 			 smb_fname_str_dbg(smb_fname),
-			 strerror(errno) ));
-		return map_nt_error_from_unix(errno);
+			 nt_errstr(status) ));
+		return status;
 	}
 
 	fsp->file_id = vfs_file_id_from_sbuf(conn, &smb_fname->st);
@@ -288,7 +281,7 @@ static NTSTATUS set_nt_acl_conn(const char *fname,
 		return status;
 	}
 
-	status = SMB_VFS_FSET_NT_ACL(fsp, security_info_sent, sd);
+	status = SMB_VFS_FSET_NT_ACL(metadata_fsp(fsp), security_info_sent, sd);
 	if (!NT_STATUS_IS_OK(status)) {
 		DEBUG(0,("set_nt_acl_no_snum: fset_nt_acl returned %s.\n", nt_errstr(status)));
 	}
@@ -307,7 +300,6 @@ static NTSTATUS get_nt_acl_conn(TALLOC_CTX *mem_ctx,
 {
 	TALLOC_CTX *frame = talloc_stackframe();
 	NTSTATUS status;
-	int ret;
 	struct smb_filename *smb_fname =  NULL;
 
 	smb_fname = synthetic_smb_fname_split(frame,
@@ -319,19 +311,13 @@ static NTSTATUS get_nt_acl_conn(TALLOC_CTX *mem_ctx,
 		return NT_STATUS_NO_MEMORY;
 	}
 
-	ret = vfs_stat(conn, smb_fname);
-	if (ret == -1) {
-		TALLOC_FREE(frame);
-		return NT_STATUS_OBJECT_NAME_NOT_FOUND;
-	}
-
 	status = openat_pathref_fsp(conn->cwd_fsp, smb_fname);
 	if (!NT_STATUS_IS_OK(status)) {
 		TALLOC_FREE(frame);
 		return status;
 	}
 
-	status = SMB_VFS_FGET_NT_ACL(smb_fname->fsp,
+	status = SMB_VFS_FGET_NT_ACL(metadata_fsp(smb_fname->fsp),
 				security_info_wanted,
 				mem_ctx,
 				sd);
@@ -995,7 +981,6 @@ static PyObject *py_smbd_get_sys_acl(PyObject *self, PyObject *args, PyObject *k
 	char *service = NULL;
 	struct smb_filename *smb_fname = NULL;
 	NTSTATUS status;
-	int ret;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siO|z",
 					 discard_const_p(char *, kwnames),
@@ -1035,11 +1020,6 @@ static PyObject *py_smbd_get_sys_acl(PyObject *self, PyObject *args, PyObject *k
 	if (smb_fname == NULL) {
 		TALLOC_FREE(frame);
 		return NULL;
-	}
-	ret = vfs_stat(conn, smb_fname);
-	if (ret == -1) {
-		TALLOC_FREE(frame);
-		return PyErr_SetFromErrno(PyExc_OSError);
 	}
 
 	status = openat_pathref_fsp(conn->cwd_fsp, smb_fname);

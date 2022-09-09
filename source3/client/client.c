@@ -565,9 +565,9 @@ static NTSTATUS display_finfo(struct cli_state *cli_state, struct file_info *fin
 		uint16_t fnum;
 		struct cli_credentials *creds = samba_cmdline_get_creds();
 
-		/* skip if this is . or .. */
-		if ( strequal(finfo->name,"..") || strequal(finfo->name,".") )
+		if (ISDOT(finfo->name) || ISDOTDOT(finfo->name)) {
 			return NT_STATUS_OK;
+		}
 		/* create absolute filename for cli_ntcreate() FIXME */
 		afname = talloc_asprintf(ctx,
 					"%s%s%s",
@@ -1214,8 +1214,9 @@ static NTSTATUS do_mget(struct cli_state *cli_state, struct file_info *finfo,
 		return NT_STATUS_OK;
 	}
 
-	if (strequal(finfo->name,".") || strequal(finfo->name,".."))
+	if (ISDOT(finfo->name) || ISDOTDOT(finfo->name)) {
 		return NT_STATUS_OK;
+	}
 
 	if ((finfo->attr & FILE_ATTRIBUTE_DIRECTORY) && !recurse) {
 		return NT_STATUS_OK;
@@ -2077,10 +2078,9 @@ static int file_find(TALLOC_CTX *ctx,
 		return -1;
 
         while ((dname = readdirname(dir))) {
-		if (!strcmp("..", dname))
+		if (ISDOT(dname) || ISDOTDOT(dname)) {
 			continue;
-		if (!strcmp(".", dname))
-			continue;
+		}
 
 		path = talloc_asprintf(ctx, "%s/%s", directory, dname);
 		if (path == NULL) {
@@ -2354,6 +2354,9 @@ static NTSTATUS do_del(struct cli_state *cli_state, struct file_info *finfo,
 {
 	TALLOC_CTX *ctx = talloc_tos();
 	char *mask = NULL;
+	struct cli_state *targetcli = NULL;
+	char *targetname = NULL;
+	struct cli_credentials *creds = samba_cmdline_get_creds();
 	NTSTATUS status;
 
 	mask = talloc_asprintf(ctx,
@@ -2370,7 +2373,15 @@ static NTSTATUS do_del(struct cli_state *cli_state, struct file_info *finfo,
 		return NT_STATUS_OK;
 	}
 
-	status = cli_unlink(cli_state, mask, FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN);
+	status = cli_resolve_path(ctx, "",
+				  creds,
+				cli, mask, &targetcli, &targetname);
+	if (!NT_STATUS_IS_OK(status)) {
+		goto out;
+	}
+
+	status = cli_unlink(targetcli, targetname, FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN);
+out:
 	if (!NT_STATUS_IS_OK(status)) {
 		d_printf("%s deleting remote file %s\n",
 			 nt_errstr(status), mask);
@@ -2428,20 +2439,37 @@ static NTSTATUS delete_remote_files_list(struct cli_state *cli_state,
 {
 	NTSTATUS status = NT_STATUS_OK;
 	struct file_list *deltree_list_iter = NULL;
+	char *targetname = NULL;
+	struct cli_state *targetcli = NULL;
+	struct cli_credentials *creds = samba_cmdline_get_creds();
+	TALLOC_CTX *ctx = talloc_tos();
 
 	for (deltree_list_iter = flist;
 			deltree_list_iter != NULL;
 			deltree_list_iter = deltree_list_iter->next) {
+		status = cli_resolve_path(ctx,
+				"",
+				creds,
+				cli_state,
+				deltree_list_iter->file_path,
+				&targetcli,
+				&targetname);
+		if (!NT_STATUS_IS_OK(status)) {
+			d_printf("delete_remote_files %s: %s\n",
+				deltree_list_iter->file_path,
+				nt_errstr(status));
+			return status;
+		}
 		if (CLI_DIRSEP_CHAR == '/') {
 			/* POSIX. */
-			status = cli_posix_unlink(cli_state,
-					deltree_list_iter->file_path);
+			status = cli_posix_unlink(targetcli,
+					targetname);
 		} else if (deltree_list_iter->isdir) {
-			status = cli_rmdir(cli_state,
-					deltree_list_iter->file_path);
+			status = cli_rmdir(targetcli,
+					targetname);
 		} else {
-			status = cli_unlink(cli_state,
-					deltree_list_iter->file_path,
+			status = cli_unlink(targetcli,
+					targetname,
 					FILE_ATTRIBUTE_SYSTEM |
 					FILE_ATTRIBUTE_HIDDEN);
 		}
@@ -2550,14 +2578,27 @@ static int cmd_deltree(void)
 	     deltree_list_iter = deltree_list_iter->next) {
 
 		if (deltree_list_iter->isdir == false) {
+			char *targetname = NULL;
+			struct cli_state *targetcli = NULL;
+			struct cli_credentials *creds = samba_cmdline_get_creds();
+			status = cli_resolve_path(ctx,
+						"",
+						creds,
+						cli,
+						deltree_list_iter->file_path,
+						&targetcli,
+						&targetname);
+			if (!NT_STATUS_IS_OK(status)) {
+				goto err;
+			}
 			/* Just a regular file. */
 			if (CLI_DIRSEP_CHAR == '/') {
 				/* POSIX. */
-				status = cli_posix_unlink(cli,
-					deltree_list_iter->file_path);
+				status = cli_posix_unlink(targetcli,
+					targetname);
 			} else {
-				status = cli_unlink(cli,
-					deltree_list_iter->file_path,
+				status = cli_unlink(targetcli,
+					targetname,
 					FILE_ATTRIBUTE_SYSTEM |
 					FILE_ATTRIBUTE_HIDDEN);
 			}
@@ -6552,6 +6593,11 @@ int main(int argc,char *argv[])
 				print_sockaddr(dest_ss_str, sizeof(dest_ss_str), &dest_ss);
 			}
 			break;
+		case 'E':
+			setup_logging("smbclient", DEBUG_STDERR );
+			display_set_stderr();
+			break;
+
 		case 'L':
 			query_host = talloc_strdup(frame, poptGetOptArg(pc));
 			if (!query_host) {

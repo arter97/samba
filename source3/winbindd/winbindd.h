@@ -1,4 +1,4 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
 
    Winbind daemon for ntdom nss module
@@ -43,6 +43,9 @@
 
 #define WB_REPLACE_CHAR		'_'
 
+struct winbind_internal_pipes;
+struct ads_struct;
+
 struct winbindd_cli_state {
 	struct winbindd_cli_state *prev, *next;   /* Linked list pointers */
 	int sock;                                 /* Open socket from client */
@@ -72,8 +75,8 @@ struct getpwent_state {
 
 struct getgrent_state {
 	struct winbindd_domain *domain;
-	int next_group;
-	int num_groups;
+	uint32_t next_group;
+	uint32_t num_groups;
 	struct wbint_Principal *groups;
 };
 
@@ -100,13 +103,6 @@ struct winbindd_cm_conn {
 
 struct winbindd_domain;
 
-struct winbindd_child_dispatch_table {
-	const char *name;
-	enum winbindd_cmd struct_cmd;
-	enum winbindd_result (*struct_fn)(struct winbindd_domain *domain,
-					  struct winbindd_cli_state *state);
-};
-
 struct winbindd_child {
 	pid_t pid;
 	struct winbindd_domain *domain;
@@ -119,8 +115,6 @@ struct winbindd_child {
 
 	struct tevent_timer *lockout_policy_event;
 	struct tevent_timer *machine_password_change_event;
-
-	const struct winbindd_child_dispatch_table *table;
 };
 
 /* Structures to hold per domain information */
@@ -153,9 +147,10 @@ struct winbindd_domain {
 	 */
 	struct winbindd_methods *backend;
 
-        /* Private data for the backends (used for connection cache) */
-
-	void *private_data;
+	struct {
+		struct winbind_internal_pipes *samr_pipes;
+		struct ads_struct *ads_conn;
+	} backend_data;
 
 	/* A working DC */
 	char *dcname;

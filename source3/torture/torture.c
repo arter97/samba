@@ -513,7 +513,7 @@ static NTSTATUS torture_delete_fn(struct file_info *finfo,
 					  FILE_ATTRIBUTE_SYSTEM,
 				  torture_delete_fn,
 				  cli);
-		if (NT_STATUS_IS_OK(status)) {
+		if (!NT_STATUS_IS_OK(status)) {
 			printf("torture_delete_fn: cli_list "
 				"of %s failed (%s)\n",
 				subdirname,
@@ -15341,6 +15341,14 @@ static struct {
 	{
 		.name  = "SMB2-DEL-ON-CLOSE-NONEMPTY",
 		.fn    = run_delete_on_close_non_empty,
+	},
+	{
+		.name  = "SMB2-DEL-ON-CLOSE-NONWRITE-DELETE-YES",
+		.fn    = run_delete_on_close_nonwrite_delete_yes_test,
+	},
+	{
+		.name  = "SMB2-DEL-ON-CLOSE-NONWRITE-DELETE-NO",
+		.fn    = run_delete_on_close_nonwrite_delete_no_test,
 	},
 	{
 		.name  = "CLEANUP1",
