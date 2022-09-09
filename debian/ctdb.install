@@ -14,12 +14,10 @@ usr/libexec/ctdb/
 usr/lib/*/samba/libctdb-event-client-samba4.so.0
 usr/lib/*/samba/libtalloc-report-samba4.so.0
 usr/sbin/ctdbd
-usr/sbin/ctdbd_wrapper
 usr/share/ctdb/events/legacy/*.script
 usr/share/man/man1/ctdb.1
 usr/share/man/man1/ctdb_diagnostics.1
 usr/share/man/man1/ctdbd.1
-usr/share/man/man1/ctdbd_wrapper.1
 usr/share/man/man1/ltdbtool.1
 usr/share/man/man1/onnode.1
 usr/share/man/man1/ping_pong.1
