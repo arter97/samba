@@ -76,8 +76,6 @@ libldb.so.2 #PACKAGE# #MINVER#
  LDB_2.4.1@LDB_2.4.1 2:2.5.0
  LDB_2.4.4@LDB_2.4.4 2:2.4.4
  LDB_2.5.0@LDB_2.5.0 2:2.5.0
- LDB_2.5.1@LDB_2.5.1 2:2.5.1
- LDB_2.5.2@LDB_2.5.2 2:2.5.2
  LDB_2.6.0@LDB_2.6.0 2:2.6.0
  LDB_2.6.1@LDB_2.6.1 2:2.6.1
  ldb_check_critical_controls@LDB_0.9.22 0.9.22
@@ -238,14 +236,14 @@ libldb.so.2 #PACKAGE# #MINVER#
  ldb_msg_add_steal_string@LDB_0.9.10 0.9.21
  ldb_msg_add_steal_value@LDB_0.9.10 0.9.21
  ldb_msg_add_string@LDB_0.9.10 0.9.21
- ldb_msg_add_string_flags@LDB_2.5.2 2:2.5.2
+ ldb_msg_add_string_flags@LDB_2.6.1 2:2.6.1
  ldb_msg_add_value@LDB_0.9.10 0.9.21
- ldb_msg_append_fmt@LDB_2.5.2 2:2.5.2
- ldb_msg_append_linearized_dn@LDB_2.5.2 2:2.5.2
- ldb_msg_append_steal_string@LDB_2.5.2 2:2.5.2
- ldb_msg_append_steal_value@LDB_2.5.2 2:2.5.2
- ldb_msg_append_string@LDB_2.5.2 2:2.5.2
- ldb_msg_append_value@LDB_2.5.2 2:2.5.2
+ ldb_msg_append_fmt@LDB_2.6.1 2:2.6.1
+ ldb_msg_append_linearized_dn@LDB_2.6.1 2:2.6.1
+ ldb_msg_append_steal_string@LDB_2.6.1 2:2.6.1
+ ldb_msg_append_steal_value@LDB_2.6.1 2:2.6.1
+ ldb_msg_append_string@LDB_2.6.1 2:2.6.1
+ ldb_msg_append_value@LDB_2.6.1 2:2.6.1
  ldb_msg_canonicalize@LDB_0.9.10 0.9.21
  ldb_msg_check_string_attribute@LDB_0.9.10 0.9.21
  ldb_msg_copy@LDB_0.9.10 0.9.21
@@ -253,7 +251,7 @@ libldb.so.2 #PACKAGE# #MINVER#
  ldb_msg_copy_shallow@LDB_0.9.10 0.9.21
  ldb_msg_diff@LDB_0.9.10 0.9.21
  ldb_msg_difference@LDB_0.9.15 0.9.21
- ldb_msg_element_add_value@LDB_2.5.2 2:2.5.2
+ ldb_msg_element_add_value@LDB_2.6.1 2:2.6.1
  ldb_msg_element_compare@LDB_0.9.10 0.9.21
  ldb_msg_element_compare_name@LDB_0.9.10 0.9.21
  ldb_msg_element_equal_ordered@LDB_1.1.6 1:1.1.6
