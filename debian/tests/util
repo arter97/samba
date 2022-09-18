@@ -31,7 +31,7 @@ add_user() {
     echo "Creating a local and samba user called ${username}"
     useradd -m "${username}"
     echo "Setting samba password for the ${username} user"
-    echo "${password}\n${password}" | smbpasswd -s -a ${username}
+    printf '%s\n%s\n' "${password}" "${password}" | smbpasswd -s -a ${username}
 }
 
 # $1: share name
