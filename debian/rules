@@ -64,7 +64,7 @@ conf_args = \
 
 WITH_CEPH = yes
 # Ceph is not available on all platforms
-ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el ppc64 s390x x32, $(DEB_HOST_ARCH)))
+ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, $(DEB_HOST_ARCH)))
     WITH_CEPH =
 endif
 # Ubuntu i386 binary compatibility only effort: No Ceph
