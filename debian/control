@@ -133,11 +133,11 @@ Depends: ${misc:Depends}, ${shlibs:Depends}
 Replaces:
 # libsamba-util.so &deps moved from libwbclient0 to samba-libs in 4.16.1+dfsg-7
  libwbclient0 (<< 2:4.16.1+dfsg-7~),
-# libRPC-WORKER-samba4.so & libREG-FULL-samba4.so moved from samba to samba-libs in 4.16.2+dfsg-1
- samba (<< 2:4.16.2+dfsg-1~),
+# libpac-samba4.so.0 moved from samba to samba-libs in 4.17.0+dfsg-2
+ samba (<< 2:4.17.0+dfsg-2~),
 Breaks: sssd-ad-common (<< 2.3.0),
  libwbclient0 (<< 2:4.16.1+dfsg-7~),
- samba (<< 2:4.16.2+dfsg-1~),
+ samba (<< 2:4.17.0+dfsg-2~),
 Description: Samba core libraries
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
