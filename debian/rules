@@ -308,6 +308,9 @@ ifneq (,$(filter samba-vfs-modules,${build_packages}))
 	    $(if ${with_glusterfs}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
 endif
 # after shlibdeps run, check that we don't have wrong depdendencies
+	# samba-libs should not depend on samba (!)
+	if egrep "^shlibs.Depends=.* samba " debian/samba-libs.substvars; \
+	then echo "E: samba-libs should not depend on samba" >&2; exit 1; fi
 	# libldb2 should not depend on samba-libs
 	# (also see debian/patches/use-bzero-instead-of-memset_s.diff)
 	if egrep "^shlibs.Depends=.* (samba-libs|samba) " debian/libldb2.substvars; \
