@@ -54,7 +54,7 @@ Build-Depends-Arch:
 	libparse-yapp-perl,
 	libpcap-dev [hurd-i386 kfreebsd-any],
 	libpopt-dev,
-	librados-dev [amd64 arm64 armel armhf i386 mips64el mipsel ppc64el ppc64 s390x x32],
+	librados-dev [amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x],
 	libreadline-dev,
 	libsystemd-dev [linux-any],
 	libtasn1-6-dev (>= 3.8),
