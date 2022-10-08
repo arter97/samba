@@ -19,6 +19,10 @@ LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}+samba$(subst +dfsg,,${DEB_VERSION_
 LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
 LDB_PACKAGES := libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 
+# #1021371: we only need the single "version" symbol LDB_2.4.4 in the library
+# should be removed for bookworm+. Also LDB_2.4.4 in d/libldb2.symbols
+EXTRA_ABI_VERSION_FILES = lib/ldb/ABI/ldb-2.4.4.sigs
+
 V = 1
 WAF := PYTHONHASHSEED=1 ${PYTHON} ./buildtools/bin/waf \
 	$(subst parallel=,-j,$(filter parallel=%,${DEB_BUILD_OPTIONS}))
@@ -109,7 +113,7 @@ bin/configured.stamp:
 	${WAF} -j1 configure -C ${conf_args} || \
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
 # #1021371: we only need the single "version" symbol LDB_2.4.4 in the library
-	touch lib/ldb/ABI/ldb-2.4.4.sigs
+	touch ${EXTRA_ABI_VERSION_FILES}
 	touch $@
 
 build-arch: bin/built.stamp
@@ -322,4 +326,4 @@ override_dh_gencontrol:
 clean:
 	# see also debian/clean
 	dh_clean bin/ testbuild/
-	rm -f lib/ldb/ABI/ldb-2.4.4.sigs
+	rm -f ${EXTRA_ABI_VERSION_FILES}
