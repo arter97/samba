@@ -239,9 +239,8 @@ override_dh_auto_install-indep:
 	install -Dp -m755 debian/panic-action -t debian/samba-common/usr/share/samba/
 	install -Dp -m0644 debian/gdbcommands -t debian/samba-common/etc/samba/
 	install -Dp -m0755 debian/samba-common.dhcp debian/samba-common/etc/dhcp/dhclient-enter-hooks.d/samba
-	# don't actually need installpam here, it just installs one file
-	# we wrongly have pam file in samba-common instead of samba, should move it one day
-	dh_installpam -psamba-common --name=samba
+	# we wrongly have pam file in samba-common instead of samba
+	install -Dp -m0755 debian/samba.pam debian/samba-common/pam.d/samba
 
 # include a command only if the given package is being built
 ifpkg = $(if $(filter ${1},${build_packages}),${2})
