@@ -18,4 +18,3 @@ disable-setuid-confchecks.patch
 move-msg.sock-from-var-lib-samba-to-run-samba.patch
 testparm-do-not-fail-if-pid-dir-does-not-exist.patch
 add-missing-libs-deps.diff
-dont-ignore-errors-in-random-number-generation-CVE-2022-1615.patch
