@@ -45,6 +45,7 @@ ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
 export DH_OPTIONS += $(addprefix -N,\
 	ctdb libpam-winbind samba samba-testsuite samba-vfs-modules )
 with_ceph =
+with_glusterfs =
 endif
 
 # build_pakages will honour arch/indep and the above list in ${DH_OPTIONS}
