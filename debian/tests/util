@@ -58,4 +58,11 @@ ensure_uring_available() {
         ;;
     esac
 
+    # ubuntu does not build liburing on i386,
+    # so io_uring vfs object is unavailable too
+    : ${DEB_HOST_MULTIARCH:=$(dpkg-architecture -qDEB_BUILD_MULTIARCH)}
+    if [ ! -f /usr/lib/$DEB_HOST_MULTIARCH/samba/vfs/io_uring.so ]; then
+        echo "io_uring vfs object is not available on this architecture, skipping test"
+        exit 77
+    fi
 }
