@@ -233,7 +233,10 @@ override_dh_auto_install-indep:
 # Most of files needs are renamed during install so lets put them
 # directly into the right place without d/samba-common.install indirection
 	# Debian goodies
-	install -Dp -m0644 debian/smb.conf* -t debian/samba-common/usr/share/samba/
+	install -Dp -m0644 debian/smb.conf -t debian/samba-common/usr/share/samba/
+ifeq (${DEB_VENDOR}, Ubuntu)
+	patch debian/samba-common/usr/share/samba/smb.conf debian/smb.conf.ubuntu.diff
+endif
 	install -Dp -m755 debian/panic-action -t debian/samba-common/usr/share/samba/
 	install -Dp -m0644 debian/gdbcommands -t debian/samba-common/etc/samba/
 	install -Dp -m0755 debian/samba-common.dhcp debian/samba-common/etc/dhcp/dhclient-enter-hooks.d/samba
