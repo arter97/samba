@@ -3,31 +3,31 @@ SHELL = /bin/sh -e
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 DPKG_EXPORT_BUILDFLAGS = 1
-include /usr/share/dpkg/buildflags.mk
-include /usr/share/dpkg/pkg-info.mk
-include /usr/share/dpkg/vendor.mk
 # Fast version of dpkg/architecture.mk defining all vars in one go
 ifeq (${DEB_HOST_MULTIARCH},)
    $(foreach d, $(shell dpkg-architecture | sed 's/=/?=/'), $(eval export $d))
 endif
+include /usr/share/dpkg/buildflags.mk
+include /usr/share/dpkg/pkg-info.mk
+include /usr/share/dpkg/vendor.mk
+V = 1
+WAF = PYTHONHASHSEED=1 ./buildtools/bin/waf \
+	$(if $(filter parallel=%,${DEB_BUILD_OPTIONS}),\
+	  $(patsubst parallel=%,-j%,$(filter parallel=%,${DEB_BUILD_OPTIONS})))
+WAFv = ${WAF}$(if $V, -v)
 
+DESTDIR = ${CURDIR}/debian/tmp
 export PYTHON = python3
 
-LDB_EPOCH := 2:
+LDB_EPOCH = 2:
 LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
-LDB_DEB_VERSION := ${LDB_EPOCH}${LDB_VERSION}+samba$(subst +dfsg,,${DEB_VERSION_UPSTREAM_REVISION})
-LDB_DEPENDS := libldb2 (= ${LDB_DEB_VERSION})
-LDB_PACKAGES := libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
+LDB_DEB_VERSION = ${LDB_EPOCH}${LDB_VERSION}+samba$(subst +dfsg,,${DEB_VERSION_UPSTREAM_REVISION})
+LDB_DEPENDS = libldb2 (= ${LDB_DEB_VERSION})
+LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 
 # #1021371: we only need the single "version" symbol LDB_2.4.4 in the library
 # should be removed for bookworm+. Also LDB_2.4.4 in d/libldb2.symbols
 EXTRA_ABI_VERSION_FILES = lib/ldb/ABI/ldb-2.4.4.sigs
-
-V = 1
-WAF := PYTHONHASHSEED=1 ${PYTHON} ./buildtools/bin/waf \
-	$(if $(filter parallel=%,${DEB_BUILD_OPTIONS}),\
-	  $(patsubst parallel=%,-j%,$(filter parallel=%,${DEB_BUILD_OPTIONS})))
-WAFv := ${WAF} $(if $V, -v)
 
 with_ceph = yes
 # Ceph is not available on all platforms
@@ -50,7 +50,7 @@ with_glusterfs =
 endif
 
 # build_pakages will honour arch/indep and the above list in ${DH_OPTIONS}
-build_packages := $(shell dh_listpackages)
+build_packages = $(shell dh_listpackages)
 
 conf_args = \
 	--prefix=/usr \
@@ -130,7 +130,7 @@ bin/built.stamp: bin/configured.stamp
 # we'll repeat during actual install stage, but this is definitely
 # better/faster than building whole thing for _not_ running from the build dir.
 	${WAFv} --targets=compile_et,asn1_compile
-	${WAFv} install --destdir="${CURDIR}/debian/tmp"
+	${WAFv} install --destdir="${DESTDIR}"
 	touch $@
 build-indep:
 build: build-arch build-indep
@@ -173,7 +173,7 @@ override_dh_auto_test: # $(if $(findstring nocheck, ${DEB_BUILD_OPTIONS}),, self
 
 override_dh_auto_install-arch:
 # the same "waf install" as in the build target
-	${WAF} install --destdir="${CURDIR}/debian/tmp"
+	${WAF} install --destdir="${DESTDIR}"
 	# get list of files in build log
 	find debian/tmp
 	# Included in python-tevent
@@ -294,7 +294,7 @@ override_dh_makeshlibs:
 override_dh_shlibdeps:
 # for specific executables/modules, put dependencies in separate variables
 # to change Depends to Recommends for them in d/control
-	dh_shlibdeps -l${CURDIR}/debian/tmp/usr/lib/${DEB_HOST_MULTIARCH}/samba \
+	dh_shlibdeps -l${DESTDIR}/usr/lib/${DEB_HOST_MULTIARCH}/samba \
 	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
 ifneq (,$(filter ctdb, ${build_packages}))
 ifneq (${with_ceph},)
