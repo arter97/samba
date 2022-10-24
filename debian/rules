@@ -28,6 +28,28 @@ WAF := PYTHONHASHSEED=1 ${PYTHON} ./buildtools/bin/waf \
 	$(subst parallel=,-j,$(filter parallel=%,${DEB_BUILD_OPTIONS}))
 WAFv := ${WAF} $(if $V, -v)
 
+with_ceph = yes
+# Ceph is not available on all platforms
+ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, ${DEB_HOST_ARCH}))
+with_ceph =
+endif
+
+with_glusterfs = yes
+# GlusterFS is linux-only
+ifneq (${DEB_HOST_ARCH_OS}, linux)
+with_glusterfs =
+endif
+
+# Ubuntu i386 binary compatibility only effort: Disable some i386 packages
+ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
+export DH_OPTIONS += $(addprefix -N,\
+	ctdb libpam-winbind samba samba-testsuite samba-vfs-modules )
+with_ceph =
+endif
+
+# build_pakages will honour arch/indep and the above list in ${DH_OPTIONS}
+build_packages := $(shell dh_listpackages)
+
 conf_args = \
 	--prefix=/usr \
 	--enable-fhs \
@@ -65,28 +87,11 @@ conf_args = \
 	--enable-etcd-reclock \
 	--with-socketpath=/run/ctdb/ctdbd.socket \
 	--with-logdir=/var/log/ctdb \
+	$(if ${with_ceph},\
+	  --enable-cephfs --enable-ceph-reclock,\
+	  --disable-cephfs) \
 
-WITH_CEPH = yes
-# Ceph is not available on all platforms
-ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, $(DEB_HOST_ARCH)))
-    WITH_CEPH =
-endif
-# Ubuntu i386 binary compatibility only effort: No Ceph
-ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
-    WITH_CEPH =
-endif
-
-conf_args += $(if ${WITH_CEPH},\
-	--enable-cephfs --enable-ceph-reclock,\
-	--disable-cephfs)
-
-WITH_GLUSTERFS = yes
-# GlusterFS is linux-only
-ifneq ($(DEB_HOST_ARCH_OS), linux)
-    WITH_GLUSTERFS =
-endif
-
-ifeq ($(DEB_HOST_ARCH_OS), linux)
+ifeq (${DEB_HOST_ARCH_OS}, linux)
 conf_args += \
 	--with-systemd \
 	--systemd-install-services \
@@ -94,14 +99,6 @@ conf_args += \
 else
 conf_args += --without-systemd
 endif
-
-# Ubuntu i386 binary compatibility only effort: Disable some i386 packages
-ifeq ($(DEB_VENDOR) $(DEB_HOST_ARCH), Ubuntu i386)
-export DH_OPTIONS += $(addprefix -N,\
-	ctdb libpam-winbind samba samba-testsuite samba-vfs-modules )
-endif
-# build_pakages will honour arch/indep and the above disabled list
-build_packages := $(shell dh_listpackages)
 
 binary binary-arch binary-indep \
 install install-arch install-indep: %:
@@ -295,7 +292,7 @@ override_dh_shlibdeps:
 	dh_shlibdeps -l${CURDIR}/debian/tmp/usr/lib/${DEB_HOST_MULTIARCH}/samba \
 	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
 ifneq (,$(filter ctdb, ${build_packages}))
-ifneq ($(WITH_CEPH),)
+ifneq (${with_ceph},)
 	dpkg-shlibdeps -Tdebian/ctdb.substvars -prados \
 	    debian/ctdb/usr/libexec/ctdb/ctdb_mutex_ceph_rados_helper
 endif
@@ -303,8 +300,8 @@ endif
 ifneq (,$(filter samba-vfs-modules,${build_packages}))
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
 	    debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so \
-	    $(if ${WITH_CEPH}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so) \
-	    $(if ${WITH_GLUSTERFS}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
+	    $(if ${with_ceph}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so) \
+	    $(if ${with_glusterfs}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
 endif
 # after shlibdeps run, check that we don't have wrong depdendencies
 	# libldb2 should not depend on samba-libs
