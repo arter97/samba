@@ -17,7 +17,6 @@ WAF = PYTHONHASHSEED=1 ./buildtools/bin/waf \
 WAFv = ${WAF}$(if $V, -v)
 
 DESTDIR = ${CURDIR}/debian/tmp
-export PYTHON = python3
 
 LDB_EPOCH = 2:
 LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
