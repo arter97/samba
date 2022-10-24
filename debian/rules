@@ -25,7 +25,8 @@ EXTRA_ABI_VERSION_FILES = lib/ldb/ABI/ldb-2.4.4.sigs
 
 V = 1
 WAF := PYTHONHASHSEED=1 ${PYTHON} ./buildtools/bin/waf \
-	$(subst parallel=,-j,$(filter parallel=%,${DEB_BUILD_OPTIONS}))
+	$(if $(filter parallel=%,${DEB_BUILD_OPTIONS}),\
+	  $(patsubst parallel=%,-j%,$(filter parallel=%,${DEB_BUILD_OPTIONS})))
 WAFv := ${WAF} $(if $V, -v)
 
 with_ceph = yes
