@@ -1,3 +1,10 @@
+samba (2:4.16.6+dfsg-3) unstable; urgency=medium
+
+  * d/rules: stop dh_installpam from installing samba.pam
+    to the samba package (Closes: #1022775, #1022776)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 25 Oct 2022 20:13:53 +0300
+
 samba (2:4.16.6+dfsg-2) unstable; urgency=medium
 
   * d/rules: pam.d/samba should go to /etc, not /
