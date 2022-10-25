@@ -128,14 +128,11 @@ bin/built.stamp: bin/configured.stamp
 # recompilation/relinking is done again, to adopt to the actual install
 # paths. There's no need (for now) to build samba to be run from the build
 # directory, so we use `waf install' here instead of `waf build'.
-# However, as of 4.16, `waf install' without the build step fails, since
-# it tries to run two executables which are not built.
 # Build these two executables first, and build the install stage.
 # This will pefrorm unnecessary/extra install step (into d/tmp), which
 # we'll repeat during actual install stage, but this is definitely
 # better/faster than building whole thing for _not_ running from the build dir.
-	${WAFv} --targets=compile_et,asn1_compile
-	${WAFv} install --destdir="${DESTDIR}"
+	${WAF} $(if $V,-v) install --destdir="${DESTDIR}"
 	touch $@
 build-indep:
 build: build-arch build-indep
