@@ -243,6 +243,8 @@ endif
 	# we wrongly have pam file in samba-common instead of samba
 	install -Dp -m0755 debian/samba.pam debian/samba-common/etc/pam.d/samba
 
+override_dh_installpam:
+
 # include a command only if the given package is being built
 ifpkg = $(if $(filter ${1},${build_packages}),${2})
 
