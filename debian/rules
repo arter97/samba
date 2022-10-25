@@ -241,7 +241,7 @@ endif
 	install -Dp -m0644 debian/gdbcommands -t debian/samba-common/etc/samba/
 	install -Dp -m0755 debian/samba-common.dhcp debian/samba-common/etc/dhcp/dhclient-enter-hooks.d/samba
 	# we wrongly have pam file in samba-common instead of samba
-	install -Dp -m0755 debian/samba.pam debian/samba-common/pam.d/samba
+	install -Dp -m0755 debian/samba.pam debian/samba-common/etc/pam.d/samba
 
 # include a command only if the given package is being built
 ifpkg = $(if $(filter ${1},${build_packages}),${2})
