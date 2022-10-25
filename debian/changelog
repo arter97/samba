@@ -1,5 +1,9 @@
-samba (2:4.16.5+dfsg-3) UNRELEASED; urgency=medium
+samba (2:4.16.6+dfsg-1) unstable; urgency=medium
 
+  * new upstream security release 4.16.6, fixing:
+    CVE-2022-3437:  There is a limited write heap buffer overflow in the GSSAPI
+    unwrap_des() and unwrap_des3() routines of Heimdal (included in Samba).
+    https://www.samba.org/samba/security/CVE-2022-3437.html
   * use explicit_bzero() instead of bzero() for the substitute of memset_s()
   * d/rules: make it a bit more consistent with other samba packages
   * d/rules: stop exporting ${PYTHON}
@@ -10,7 +14,7 @@ samba (2:4.16.5+dfsg-3) UNRELEASED; urgency=medium
    - d/rules: inline parallel check from dpkg/buildopts.mk
     (buildopts.mk does not exist on ubuntu 20.04 focal)
 
- -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 24 Oct 2022 15:41:50 +0300
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 25 Oct 2022 12:48:20 +0300
 
 samba (2:4.16.5+dfsg-2) unstable; urgency=medium
 
