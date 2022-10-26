@@ -1,3 +1,21 @@
+samba (2:4.16.6+dfsg-5) unstable; urgency=medium
+
+  * move samba:idmap_script.8.gz and samba-libs:idmap_rfc2307.8.gz manpages to
+    winbind package where they belong and where actual idmap modules lives.
+    (install all idmap_*.8 manpages to winbind package)
+  * d/rules: install pam.d/samba with mode 0644, not 0755
+  * many lintian-override updates:
+   - source: ctdb/doc/*.html actually has sources
+   - source: +very-long-line-length-in-source-file * (for generated files)
+   - source: +debian-control-has-unusual-field-spacing Breaks
+   - winbind: +spare-manual-page for module manpages
+   - *: update some overrides for new lintian
+   - libpam-winbind: +spare-manual-page pam_winbind.8
+   - libldb2: +package-contains-empty-directory .../ldb/modules/ldb/
+   - *: +hardening-no-fortify-functions for some simple shared libs
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 26 Oct 2022 22:27:00 +0300
+
 samba (2:4.16.6+dfsg-4) unstable; urgency=medium
 
   * poptGetArg-misuse-fixes-1022826.diff: fix poptGetArg() misuse
