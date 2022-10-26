@@ -1,2 +1,4 @@
 # manpages for idmap modules:
 winbind: spare-manual-page */man/man8/idmap_*
+# more modules:
+winbind: spare-manual-page */man/man8/winbind_krb5_locator.8*
