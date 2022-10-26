@@ -125,4 +125,3 @@ usr/lib/*/samba/libutil-tdb-samba4.so.0
 usr/lib/*/samba/libwind-samba4.so.0
 usr/lib/*/samba/libxattr-tdb-samba4.so.0
 usr/lib/*/samba/process_model/*.so
-usr/share/man/man8/idmap_rfc2307.8
