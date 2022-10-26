@@ -1,2 +1,3 @@
 # Standard path for [printers] section is world-writeable with sticky bit set
 samba: non-standard-dir-perm var/spool/samba/ 1777 != 0755
+samba: hardening-no-fortify-functions */samba/libmscat-samba4.so.*

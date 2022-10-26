@@ -19,3 +19,8 @@ samba-libs: no-symbols-control-file */libsmbconf.so.*
 samba-libs: no-symbols-control-file usr/lib/*/libtevent-util.so.*
 # deliberate, a synonym for misspelled parameter
 samba-libs: spelling-error-in-binary prefered preferred */libsamba-hostconfig.so.*
+# simple libs:
+samba-libs: hardening-no-fortify-functions */samba/libauth-samba4.so.*
+samba-libs: hardening-no-fortify-functions */samba/libcli-ldap-samba4.so.*
+samba-libs: hardening-no-fortify-functions */samba/libsmb-transport-samba4.so.*
+samba-libs: hardening-no-fortify-functions */samba/libsys-rw-samba4.so.*
