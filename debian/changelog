@@ -1,3 +1,16 @@
+samba (2:4.16.6+dfsg-6) UNRELEASED; urgency=medium
+
+  * d/rules: use the right dir for dh_shlibdeps -l (long-standing issue)
+  * rewrite shlibs/symbols-generating file d/genshlibs, make whole process
+    much more clean and strighforward, and 10x times faster too
+  * debian/libnss-winbind.triggers: activate ldconfig trigger
+  * add debian/samba-libs.symbols with libsmbldap library
+  * d/samba.examples: do not install smbadduser: csh considered harmful
+  * d/rules: remove long-unused commented-out override_dh_perl-arch
+  * d/samba.lintian-overrides: *docs-outside-share-doc usr/share/samba/setup/
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 27 Oct 2022 14:58:33 +0300
+
 samba (2:4.16.6+dfsg-5) unstable; urgency=medium
 
   * move samba:idmap_script.8.gz and samba-libs:idmap_rfc2307.8.gz manpages to
