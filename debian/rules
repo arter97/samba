@@ -288,7 +288,7 @@ override_dh_makeshlibs:
 
 	# create symbols and shlibs files in separate wrapper script
 	# to deal with private libraries
-	debian/make_shlibs $(addsuffix =${LDB_DEB_VERSION},${LDB_PACKAGES})
+	debian/genshlibs $(addsuffix =${LDB_DEB_VERSION},${LDB_PACKAGES})
 
 	rm -f debian/python3-ldb.symbols
 
