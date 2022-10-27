@@ -2,7 +2,6 @@ libsmbclient-ensure-lfs-221618.patch
 README_nosmbldap-tools.patch
 smbclient-pager.patch
 usershare.patch
-VERSION.patch
 heimdal-rfc3454.txt
 add-so-version-to-private-libraries
 smbd.service-Run-update-apparmor-samba-profile-befor.patch
