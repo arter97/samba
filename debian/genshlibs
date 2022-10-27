@@ -63,6 +63,7 @@ for pkg in $(dh_listpackages); do
   echo "${0##*/}: processing $pkg $ver"
 
   # generate shlibs file: for public libs use >>$ver, for private =$ver
+  mkdir -p $pd/DEBIAN
   for x in $libs; do
     case "$x" in
       ($smblib/*) rel="= $ver";;
