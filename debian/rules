@@ -266,12 +266,6 @@ override_dh_installsystemd:
 	$(call ifpkg, winbind, dh_installsystemd -pwinbind)
 	$(call ifpkg, ctdb, dh_installsystemd -pctdb --no-start --no-stop-on-upgrade)
 
-#override_dh_perl-arch:
-#	dh_perl -a
-#	# Fix Perl shbangs
-#	sed -i '1s@^#!/usr/bin/env perl@#!/usr/bin/perl@' \
-#	  debian/smbclient/usr/bin/findsmb
-
 execute_after_dh_fixperms-arch:
 	$(call ifpkg, smbclient, chmod 0700 debian/smbclient/usr/libexec/samba/smbspool_krb5_wrapper)
 
