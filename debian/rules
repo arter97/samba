@@ -292,6 +292,10 @@ override_dh_makeshlibs:
 
 	rm -f debian/python3-ldb.symbols
 
+# depcheck package, dep1|dep2... -- dependencies which should NOT be there
+depcheck = if egrep '^shlibs.Depends=.* ($(strip $2)) ' debian/$(strip $1).substvars; \
+	then echo 'E: $(strip $1) should not depend on $(strip $2)' >&2; exit 1; fi
+
 override_dh_shlibdeps:
 # for specific executables/modules, put dependencies in separate variables
 # to change Depends to Recommends for them in d/control
@@ -310,19 +314,10 @@ ifneq (,$(filter samba-vfs-modules,${build_packages}))
 	    $(if ${with_glusterfs}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
 endif
 # after shlibdeps run, check that we don't have wrong depdendencies
-	# samba-libs should not depend on samba (!)
-	if egrep "^shlibs.Depends=.* samba " debian/samba-libs.substvars; \
-	then echo "E: samba-libs should not depend on samba" >&2; exit 1; fi
-	# libldb2 should not depend on samba-libs
-	# (also see debian/patches/use-bzero-instead-of-memset_s.diff)
-	if egrep "^shlibs.Depends=.* (samba-libs|samba) " debian/libldb2.substvars; \
-	then echo "E: libldb2 should not depend on samba libs" >&2; exit 1; fi
-	# python3-samba should not depend on samba
-	if egrep "^shlibs.Depends=.* (samba) " debian/python3-samba.substvars; \
-	then echo "E: python3-samba should not depend on samba" >&2; exit 1; fi
-	# libwbclient0 should not depend on samba-libs
-	if egrep "^shlibs.Depends=.* (samba-libs|samba) " debian/libwbclient0.substvars; \
-	then echo "E: libwbclient0 should not depend on samba libs" >&2; exit 1; fi
+	$(call depcheck, samba-libs, samba) # samba-libs should not depend on samba
+	$(call depcheck, libldb2, samba|samba-libs) # use-bzero-instead-of-memset_s.diff
+	$(call depcheck, python3-samba, samba) # python3-samba should not depend on samba
+	$(call depcheck, libwbclient0, samba-libs|samba)
 
 override_dh_gencontrol:
 	dh_gencontrol $(addprefix -p,${LDB_PACKAGES}) -- -v${LDB_DEB_VERSION}
