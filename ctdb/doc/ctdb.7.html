@@ -539,7 +539,7 @@ CTDB_NATGW_DEFAULT_GATEWAY=10.0.0.1
       </p><p>
 	For example, consider the configuration line:
       </p><pre class="screen">
-  192.168.1.99	192.168.1.1/24
+  192.168.1.99	192.168.1.0/24
       </pre><p>
 	If the corresponding public_addresses line is:
       </p><pre class="screen">
@@ -552,7 +552,7 @@ CTDB_NATGW_DEFAULT_GATEWAY=10.0.0.1
   ip rule add from 192.168.1.99 pref 100 table ctdb.192.168.1.99
   ip route add 192.168.1.0/24 dev eth2 table ctdb.192.168.1.99
       </pre><p>  
-	This causes traffic from 192.168.1.1 to 192.168.1.0/24 go via
+	This causes traffic from 192.168.1.99 to 192.168.1.0/24 go via
 	eth2.
       </p><p>
 	The <span class="command"><strong>ip rule</strong></span> command will show (something
@@ -654,8 +654,6 @@ correct CIFS semantics to clients.
       <span class="citerefentry"><span class="refentrytitle">ctdb</span>(1)</span>,
 
       <span class="citerefentry"><span class="refentrytitle">ctdbd</span>(1)</span>,
-
-      <span class="citerefentry"><span class="refentrytitle">ctdbd_wrapper</span>(1)</span>,
 
       <span class="citerefentry"><span class="refentrytitle">ctdb_diagnostics</span>(1)</span>,
 

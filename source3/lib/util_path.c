@@ -23,6 +23,7 @@
 
 #include "replace.h"
 #include <talloc.h>
+#include "lib/util/debug.h"
 #include "lib/util/samba_util.h"
 #include "lib/util_path.h"
 
@@ -116,7 +117,6 @@ char *canonicalize_absolute_path(TALLOC_CTX *ctx, const char *pathname_in)
 	char *pathname = talloc_array(ctx, char, strlen(pathname_in)+2);
 	const char *s = pathname_in;
 	char *p = pathname;
-	bool wrote_slash = false;
 
 	if (pathname == NULL) {
 		return NULL;
@@ -124,7 +124,6 @@ char *canonicalize_absolute_path(TALLOC_CTX *ctx, const char *pathname_in)
 
 	/* Always start with a '/'. */
 	*p++ = '/';
-	wrote_slash = true;
 
 	while (*s) {
 		/* Deal with '/' or multiples of '/'. */
@@ -134,13 +133,12 @@ char *canonicalize_absolute_path(TALLOC_CTX *ctx, const char *pathname_in)
 				s++;
 			}
 			/* Update target with one '/' */
-			if (!wrote_slash) {
+			if (p[-1] != '/') {
 				*p++ = '/';
-				wrote_slash = true;
 			}
 			continue;
 		}
-		if (wrote_slash) {
+		if (p[-1] == '/') {
 			/* Deal with "./" or ".\0" */
 			if (s[0] == '.' &&
 					(s[1] == '/' || s[1] == '\0')) {
@@ -151,7 +149,6 @@ char *canonicalize_absolute_path(TALLOC_CTX *ctx, const char *pathname_in)
 					s++;
 				}
 				/* Don't write anything to target. */
-				/* wrote_slash is still true. */
 				continue;
 			}
 			/* Deal with "../" or "..\0" */
@@ -164,9 +161,9 @@ char *canonicalize_absolute_path(TALLOC_CTX *ctx, const char *pathname_in)
 					s++;
 				}
 				/*
-				 * As wrote_slash is true, we go back
-				 * one character to point p at the slash
-				 * we just saw.
+				 * As we're on the slash, we go back
+				 * one character to point p at the
+				 * slash we just saw.
 				 */
 				if (p > pathname) {
 					p--;
@@ -188,15 +185,13 @@ char *canonicalize_absolute_path(TALLOC_CTX *ctx, const char *pathname_in)
 				p++;
 
 				/* Don't write anything to target. */
-				/* wrote_slash is still true. */
 				continue;
 			}
 		}
 		/* Non-separator character, just copy. */
 		*p++ = *s++;
-		wrote_slash = false;
 	}
-	if (wrote_slash) {
+	if (p[-1] == '/') {
 		/*
 		 * We finished on a '/'.
 		 * Remove the trailing '/', but not if it's
@@ -209,4 +204,54 @@ char *canonicalize_absolute_path(TALLOC_CTX *ctx, const char *pathname_in)
 	/* Terminate and we're done ! */
 	*p++ = '\0';
 	return pathname;
+}
+
+/*
+ * Take two absolute paths, figure out if "subdir" is a proper
+ * subdirectory of "parent". Return the component relative to the
+ * "parent" without the potential "/". Take care of "parent"
+ * possibly ending in "/".
+ */
+bool subdir_of(const char *parent,
+	       size_t parent_len,
+	       const char *subdir,
+	       const char **_relative)
+{
+	const char *relative = NULL;
+	bool matched;
+
+	SMB_ASSERT(parent[0] == '/');
+	SMB_ASSERT(subdir[0] == '/');
+
+	if (parent_len == 1) {
+		/*
+		 * Everything is below "/"
+		 */
+		*_relative = subdir+1;
+		return true;
+	}
+
+	if (parent[parent_len-1] == '/') {
+		parent_len -= 1;
+	}
+
+	matched = (strncmp(subdir, parent, parent_len) == 0);
+	if (!matched) {
+		return false;
+	}
+
+	relative = &subdir[parent_len];
+
+	if (relative[0] == '\0') {
+		*_relative = relative; /* nothing left */
+		return true;
+	}
+
+	if (relative[0] == '/') {
+		/* End of parent must match a '/' in subdir. */
+		*_relative = relative+1;
+		return true;
+	}
+
+	return false;
 }

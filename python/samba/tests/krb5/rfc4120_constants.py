@@ -24,6 +24,14 @@ AES128_CTS_HMAC_SHA1_96 = int(
     krb5_asn1.EncryptionTypeValues('kRB5-ENCTYPE-AES128-CTS-HMAC-SHA1-96'))
 ARCFOUR_HMAC_MD5 = int(
     krb5_asn1.EncryptionTypeValues('kRB5-ENCTYPE-ARCFOUR-HMAC-MD5'))
+DES_CBC_CRC = int(
+    krb5_asn1.EncryptionTypeValues('kRB5-ENCTYPE-DES-CBC-CRC'))
+DES_CBC_MD5 = int(
+    krb5_asn1.EncryptionTypeValues('kRB5-ENCTYPE-DES-CBC-MD5'))
+DES3_CBC_MD5 = int(
+    krb5_asn1.EncryptionTypeValues('kRB5-ENCTYPE-DES3-CBC-MD5'))
+DES3_CBC_SHA1 = int(
+    krb5_asn1.EncryptionTypeValues('kRB5-ENCTYPE-DES3-CBC-SHA1'))
 
 # Message types
 KRB_ERROR = int(krb5_asn1.MessageTypeValues('krb-error'))
@@ -80,6 +88,7 @@ KDC_ERR_POLICY = 12
 KDC_ERR_BADOPTION = 13
 KDC_ERR_ETYPE_NOSUPP = 14
 KDC_ERR_SUMTYPE_NOSUPP = 15
+KDC_ERR_CLIENT_REVOKED = 18
 KDC_ERR_TGT_REVOKED = 20
 KDC_ERR_PREAUTH_FAILED = 24
 KDC_ERR_PREAUTH_REQUIRED = 25

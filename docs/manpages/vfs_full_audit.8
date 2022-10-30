@@ -4,10 +4,10 @@
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
 .\"      Date: 10/24/2022
 .\"    Manual: System Administration tools
-.\"    Source: Samba 4.16.6
+.\"    Source: Samba 4.17.2
 .\"  Language: English
 .\"
-.TH "VFS_FULL_AUDIT" "8" "10/24/2022" "Samba 4\&.16\&.6" "System Administration tools"
+.TH "VFS_FULL_AUDIT" "8" "10/24/2022" "Samba 4\&.17\&.2" "System Administration tools"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -380,6 +380,8 @@ In addition to these operations,
 vfs_full_audit
 recognizes the special operation names "all" and "none ", which refer to all the VFS operations and none of the VFS operations respectively\&.
 .PP
+If an unknown operation name is used (for example an operation name is miss\-spelled), the module will fail to load and clients will be refused connections to a share using this module\&.
+.PP
 vfs_full_audit
 records operations in fixed format consisting of fields separated by \*(Aq|\*(Aq characters\&. The format is:
 .sp
@@ -511,7 +513,7 @@ Log file and directory open operations on the [records] share using the LOCAL7 f
 .\}
 .SH "VERSION"
 .PP
-This man page is part of version 4\&.16\&.6 of the Samba suite\&.
+This man page is part of version 4\&.17\&.2 of the Samba suite\&.
 .SH "AUTHOR"
 .PP
 The original Samba software and related utilities were created by Andrew Tridgell\&. Samba is now developed by the Samba Team as an Open Source project similar to the way the Linux kernel is developed\&.

@@ -735,7 +735,6 @@ static void do_per_share_checks(int s)
 	const char *caddr;
 	static int show_defaults;
 	static int skip_logic_checks = 0;
-	const char *weak_crypo_str = "";
 	bool ok;
 
 	struct poptOption long_options[] = {
@@ -844,13 +843,18 @@ static void do_per_share_checks(int s)
 	}
 
 	if (poptPeekArg(pc)) {
-		config_file = poptGetArg(pc);
+		config_file = talloc_strdup(frame, poptGetArg(pc));
+                if (config_file == NULL) {
+                        DBG_ERR("out of memory\n");
+                        TALLOC_FREE(frame);
+                        exit(1);
+                }
 	} else {
 		config_file = get_dyn_CONFIGFILE();
 	}
 
-	cname = poptGetArg(pc);
-	caddr = poptGetArg(pc);
+	cname = talloc_strdup(frame, poptGetArg(pc));
+	caddr = talloc_strdup(frame, poptGetArg(pc));
 
 	poptFreeContext(pc);
 
@@ -870,12 +874,10 @@ static void do_per_share_checks(int s)
 
 	fprintf(stderr,"Loaded services file OK.\n");
 
-	if (samba_gnutls_weak_crypto_allowed()) {
-		weak_crypo_str = "allowed";
-	} else {
-		weak_crypo_str = "disallowed";
-	}
-	fprintf(stderr, "Weak crypto is %s\n", weak_crypo_str);
+	fprintf(stderr,
+		"Weak crypto is %sallowed by GnuTLS "
+		"(e.g. NTLM as a compatibility fallback)\n",
+	        samba_gnutls_weak_crypto_allowed() ? "" : "dis");
 
 	if (skip_logic_checks == 0) {
 		ret = do_global_checks();

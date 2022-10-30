@@ -101,14 +101,17 @@ static void hdb_samba4_free_entry_context(krb5_context context, struct HDB *db, 
 	 * 'context' set, so we have to check that the context is not NULL.
 	*/
 	if (entry->context != NULL) {
+		struct samba_kdc_entry *skdc_entry =
+			talloc_get_type_abort(entry->context,
+			struct samba_kdc_entry);
+
 		/* this function is called only from hdb_free_entry().
 		 * Make sure we neutralize the destructor or we will
 		 * get a double free later when hdb_free_entry() will
 		 * try to call free_hdb_entry() */
-		talloc_set_destructor(entry->context, NULL);
-
-		/* now proceed to free the talloc part */
-		talloc_free(entry->context);
+		entry->context = NULL;
+		skdc_entry->kdc_entry = NULL;
+		TALLOC_FREE(skdc_entry);
 	}
 }
 
@@ -150,13 +153,13 @@ static int hdb_samba4_fill_fast_cookie(krb5_context context,
 
 static krb5_error_code hdb_samba4_fetch_fast_cookie(krb5_context context,
 						    struct samba_kdc_db_context *kdc_db_ctx,
-						    hdb_entry *entry_ex)
+						    hdb_entry *entry)
 {
 	krb5_error_code ret = SDB_ERR_NOENTRY;
 	TALLOC_CTX *mem_ctx;
 	struct ldb_result *res;
 	int ldb_ret;
-	struct sdb_entry_ex sdb_entry_ex = {};
+	struct sdb_entry sentry = {};
 	const char *attrs[] = {
 		"secret",
 		NULL
@@ -211,7 +214,7 @@ static krb5_error_code hdb_samba4_fetch_fast_cookie(krb5_context context,
 
 
 	ret = krb5_make_principal(context,
-				  &sdb_entry_ex.entry.principal,
+				  &sentry.principal,
 				  KRB5_WELLKNOWN_ORG_H5L_REALM,
 				  KRB5_WELLKNOWN_NAME, "org.h5l.fast-cookie",
 				  NULL);
@@ -220,16 +223,14 @@ static krb5_error_code hdb_samba4_fetch_fast_cookie(krb5_context context,
 		return ret;
 	}
 
-	ret = samba_kdc_set_fixed_keys(context, kdc_db_ctx,
-				       val, &sdb_entry_ex);
+	ret = samba_kdc_set_fixed_keys(context, val, ENC_ALL_TYPES,
+				       &sentry.keys);
 	if (ret != 0) {
 		return ret;
 	}
 
-	ret = sdb_entry_ex_to_hdb_entry_ex(context,
-					   &sdb_entry_ex,
-					   entry_ex);
-	sdb_free_entry(&sdb_entry_ex);
+	ret = sdb_entry_to_hdb_entry(context, &sentry, entry);
+	sdb_entry_free(&sentry);
 	TALLOC_FREE(mem_ctx);
 
 	return ret;
@@ -239,10 +240,10 @@ static krb5_error_code hdb_samba4_fetch_kvno(krb5_context context, HDB *db,
 					     krb5_const_principal principal,
 					     unsigned flags,
 					     krb5_kvno kvno,
-					     hdb_entry *entry_ex)
+					     hdb_entry *entry)
 {
 	struct samba_kdc_db_context *kdc_db_ctx;
-	struct sdb_entry_ex sdb_entry_ex = {};
+	struct sdb_entry sentry = {};
 	krb5_error_code code, ret;
 	uint32_t sflags;
 
@@ -252,7 +253,7 @@ static krb5_error_code hdb_samba4_fetch_kvno(krb5_context context, HDB *db,
 	if (flags & HDB_F_GET_FAST_COOKIE) {
 		return hdb_samba4_fetch_fast_cookie(context,
 						    kdc_db_ctx,
-						    entry_ex);
+						    entry);
 	}
 
 	sflags = (flags & SDB_F_HDB_MASK);
@@ -262,7 +263,7 @@ static krb5_error_code hdb_samba4_fetch_kvno(krb5_context context, HDB *db,
 			      principal,
 			      sflags,
 			      kvno,
-			      &sdb_entry_ex);
+			      &sentry);
 	switch (ret) {
 	case 0:
 		code = 0;
@@ -282,8 +283,8 @@ static krb5_error_code hdb_samba4_fetch_kvno(krb5_context context, HDB *db,
 		return ret;
 	}
 
-	ret = sdb_entry_ex_to_hdb_entry_ex(context, &sdb_entry_ex, entry_ex);
-	sdb_free_entry(&sdb_entry_ex);
+	ret = sdb_entry_to_hdb_entry(context, &sentry, entry);
+	sdb_entry_free(&sentry);
 
 	if (code != 0 && ret != 0) {
 		code = ret;
@@ -337,13 +338,13 @@ static krb5_error_code hdb_samba4_firstkey(krb5_context context, HDB *db, unsign
 					hdb_entry *entry)
 {
 	struct samba_kdc_db_context *kdc_db_ctx;
-	struct sdb_entry_ex sdb_entry_ex = {};
+	struct sdb_entry sentry = {};
 	krb5_error_code ret;
 
 	kdc_db_ctx = talloc_get_type_abort(db->hdb_db,
 					   struct samba_kdc_db_context);
 
-	ret = samba_kdc_firstkey(context, kdc_db_ctx, &sdb_entry_ex);
+	ret = samba_kdc_firstkey(context, kdc_db_ctx, &sentry);
 	switch (ret) {
 	case 0:
 		break;
@@ -357,8 +358,8 @@ static krb5_error_code hdb_samba4_firstkey(krb5_context context, HDB *db, unsign
 		return ret;
 	}
 
-	ret = sdb_entry_ex_to_hdb_entry_ex(context, &sdb_entry_ex, entry);
-	sdb_free_entry(&sdb_entry_ex);
+	ret = sdb_entry_to_hdb_entry(context, &sentry, entry);
+	sdb_entry_free(&sentry);
 	return ret;
 }
 
@@ -366,13 +367,13 @@ static krb5_error_code hdb_samba4_nextkey(krb5_context context, HDB *db, unsigne
 				   hdb_entry *entry)
 {
 	struct samba_kdc_db_context *kdc_db_ctx;
-	struct sdb_entry_ex sdb_entry_ex = {};
+	struct sdb_entry sentry = {};
 	krb5_error_code ret;
 
 	kdc_db_ctx = talloc_get_type_abort(db->hdb_db,
 					   struct samba_kdc_db_context);
 
-	ret = samba_kdc_nextkey(context, kdc_db_ctx, &sdb_entry_ex);
+	ret = samba_kdc_nextkey(context, kdc_db_ctx, &sentry);
 	switch (ret) {
 	case 0:
 		break;
@@ -386,8 +387,8 @@ static krb5_error_code hdb_samba4_nextkey(krb5_context context, HDB *db, unsigne
 		return ret;
 	}
 
-	ret = sdb_entry_ex_to_hdb_entry_ex(context, &sdb_entry_ex, entry);
-	sdb_free_entry(&sdb_entry_ex);
+	ret = sdb_entry_to_hdb_entry(context, &sentry, entry);
+	sdb_entry_free(&sentry);
 	return ret;
 }
 
@@ -600,26 +601,6 @@ static krb5_error_code hdb_samba4_audit(krb5_context context,
 	}
 
 	switch (hdb_auth_status) {
-	case KDC_AUTH_EVENT_CLIENT_AUTHORIZED:
-	{
-		TALLOC_CTX *frame = talloc_stackframe();
-		struct samba_kdc_entry *p = talloc_get_type(entry->context,
-							    struct samba_kdc_entry);
-		struct netr_SendToSamBase *send_to_sam = NULL;
-
-		/*
-		 * TODO: We could log the AS-REQ authorization success here as
-		 * well.  However before we do that, we need to pass
-		 * in the PAC here or re-calculate it.
-		 */
-		authsam_logon_success_accounting(kdc_db_ctx->samdb, p->msg,
-						 domain_dn, true, &send_to_sam);
-		if (kdc_db_ctx->rodc && send_to_sam != NULL) {
-			reset_bad_password_netlogon(frame, kdc_db_ctx, send_to_sam);
-		}
-		talloc_free(frame);
-	}
-	FALL_THROUGH;
 	default:
 	{
 		TALLOC_CTX *frame = talloc_stackframe();
@@ -661,8 +642,28 @@ static krb5_error_code hdb_samba4_audit(krb5_context context,
 		ui.auth_description = auth_description;
 
 		if (hdb_auth_status == KDC_AUTH_EVENT_CLIENT_AUTHORIZED) {
+			struct netr_SendToSamBase *send_to_sam = NULL;
+
+			/*
+			 * TODO: We could log the AS-REQ authorization success here as
+			 * well.  However before we do that, we need to pass
+			 * in the PAC here or re-calculate it.
+			 */
+			status = authsam_logon_success_accounting(kdc_db_ctx->samdb, p->msg,
+								  domain_dn, true, &send_to_sam);
+			if (NT_STATUS_EQUAL(status, NT_STATUS_ACCOUNT_LOCKED_OUT)) {
+				final_ret = KRB5KDC_ERR_CLIENT_REVOKED;
+				r->error_code = final_ret;
+				rwdc_fallback = kdc_db_ctx->rodc;
+			} else if (!NT_STATUS_IS_OK(status)) {
+				final_ret = KRB5KRB_ERR_GENERIC;
+				r->error_code = final_ret;
+				rwdc_fallback = kdc_db_ctx->rodc;
+			} else if (kdc_db_ctx->rodc && send_to_sam != NULL) {
+				reset_bad_password_netlogon(frame, kdc_db_ctx, send_to_sam);
+			}
+
 			/* This is the final sucess */
-			status = NT_STATUS_OK;
 		} else if (hdb_auth_status == KDC_AUTH_EVENT_VALIDATED_LONG_TERM_KEY) {
 			/*
 			 * This was only a pre-authentication success,
@@ -702,8 +703,13 @@ static krb5_error_code hdb_samba4_audit(krb5_context context,
 		} else if (hdb_auth_status == KDC_AUTH_EVENT_CLIENT_TIME_SKEW) {
 			status = NT_STATUS_TIME_DIFFERENCE_AT_DC;
 		} else if (hdb_auth_status == KDC_AUTH_EVENT_WRONG_LONG_TERM_KEY) {
-			authsam_update_bad_pwd_count(kdc_db_ctx->samdb, p->msg, domain_dn);
-			status = NT_STATUS_WRONG_PASSWORD;
+			status = authsam_update_bad_pwd_count(kdc_db_ctx->samdb, p->msg, domain_dn);
+			if (NT_STATUS_EQUAL(status, NT_STATUS_ACCOUNT_LOCKED_OUT)) {
+				final_ret = KRB5KDC_ERR_CLIENT_REVOKED;
+				r->error_code = final_ret;
+			} else {
+				status = NT_STATUS_WRONG_PASSWORD;
+			}
 			rwdc_fallback = kdc_db_ctx->rodc;
 		} else if (hdb_auth_status == KDC_AUTH_EVENT_CLIENT_LOCKED_OUT) {
 			status = NT_STATUS_ACCOUNT_LOCKED_OUT;

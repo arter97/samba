@@ -18,7 +18,7 @@
 # three separated by newlines. All other lines in the output are considered
 # comments.
 
-import os
+import os, tempfile
 from selftesthelpers import bindir, srcdir, python
 from selftesthelpers import planpythontestsuite, samba4srcdir
 from selftesthelpers import plantestsuite, bbdir
@@ -93,6 +93,8 @@ planpythontestsuite("none", "samba.tests.s3windb")
 planpythontestsuite("none", "samba.tests.s3idmapdb")
 planpythontestsuite("none", "samba.tests.samba3sam")
 planpythontestsuite("none", "samba.tests.dsdb_api")
+planpythontestsuite("none", "samba.tests.smbconf")
+planpythontestsuite("none", "samba.tests.logfiles")
 planpythontestsuite(
     "none", "wafsamba.tests.test_suite",
     extra_path=[os.path.join(samba4srcdir, "..", "buildtools"),
@@ -213,6 +215,10 @@ plantestsuite(
     "samba4.blackbox.functionalprep", "none",
     cmdline('functionalprep.sh', '$PREFIX_ABS/provision'))
 
+plantestsuite(
+    "samba4.blackbox.test_special_group", "none",
+    cmdline('test_special_group.sh', '$PREFIX_ABS/provision'))
+
 planpythontestsuite("none", "samba.tests.upgradeprovision")
 planpythontestsuite("none", "samba.tests.xattr")
 planpythontestsuite("none", "samba.tests.ntacls")
@@ -233,7 +239,7 @@ if with_pam:
     options = [
         {
             "description": "krb5",
-            "pam_options": "krb5_auth krb5_ccache_type=FILE",
+            "pam_options": "krb5_auth krb5_ccache_type=FILE:%s/krb5cc_pam_test_%%u" % (tempfile.gettempdir()),
         },
         {
             "description": "default",
@@ -380,6 +386,14 @@ if with_pam:
                        "$DOMAIN", "alice", "Secret007",
                        pam_options])
 
+    description = "krb5"
+    pam_options = "'krb5_auth krb5_ccache_type=FILE:%s/krb5cc_pam_test_setcred_%%u'" % (tempfile.gettempdir())
+    plantestsuite("samba.tests.pam_winbind_setcred(domain+%s)" % description, "ad_dc:local",
+                  [os.path.join(srcdir(), "python/samba/tests/test_pam_winbind_setcred.sh"),
+                   valgrindify(python), pam_wrapper_so_path,
+                   "${DOMAIN}", "${DC_USERNAME}", "${DC_PASSWORD}",
+                   pam_options])
+
 
 plantestsuite("samba.unittests.krb5samba", "none",
               [os.path.join(bindir(), "default/testsuite/unittests/test_krb5samba")])
@@ -434,6 +448,8 @@ plantestsuite("samba.unittests.test_registry_regfio", "none",
               [os.path.join(bindir(), "default/source3/test_registry_regfio")])
 plantestsuite("samba.unittests.test_oLschema2ldif", "none",
               [os.path.join(bindir(), "default/source4/utils/oLschema2ldif/test_oLschema2ldif")])
+plantestsuite("samba.unittests.auth.sam", "none",
+              [os.path.join(bindir(), "test_auth_sam")])
 if have_heimdal_support and not using_system_gssapi:
     plantestsuite("samba.unittests.auth.heimdal_gensec_unwrap_des", "none",
                   [valgrindify(os.path.join(bindir(), "test_heimdal_gensec_unwrap_des"))])
@@ -452,3 +468,7 @@ plantestsuite("samba.unittests.tsocket_bsd_addr", "none",
               [os.path.join(bindir(), "default/lib/tsocket/test_tsocket_bsd_addr")])
 plantestsuite("samba.unittests.adouble", "none",
               [os.path.join(bindir(), "test_adouble")])
+plantestsuite("samba.unittests.gnutls_aead_aes_256_cbc_hmac_sha512", "none",
+              [os.path.join(bindir(), "test_gnutls_aead_aes_256_cbc_hmac_sha512")])
+plantestsuite("samba.unittests.encode_decode", "none",
+              [os.path.join(bindir(), "test_encode_decode")])

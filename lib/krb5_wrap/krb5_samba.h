@@ -252,7 +252,6 @@ krb5_error_code smb_krb5_kinit_password_ccache(krb5_context ctx,
 					       krb5_get_init_creds_opt *krb_options,
 					       time_t *expire_time,
 					       time_t *kdc_time);
-#ifdef SAMBA4_USES_HEIMDAL
 krb5_error_code smb_krb5_kinit_s4u2_ccache(krb5_context ctx,
 					   krb5_ccache store_cc,
 					   krb5_principal init_principal,
@@ -263,7 +262,6 @@ krb5_error_code smb_krb5_kinit_s4u2_ccache(krb5_context ctx,
 					   krb5_get_init_creds_opt *krb_options,
 					   time_t *expire_time,
 					   time_t *kdc_time);
-#endif
 
 #if defined(HAVE_KRB5_MAKE_PRINCIPAL)
 #define smb_krb5_make_principal krb5_make_principal
@@ -307,6 +305,9 @@ char *smb_krb5_principal_get_realm(TALLOC_CTX *mem_ctx,
 void smb_krb5_principal_set_type(krb5_context context,
 				 krb5_principal principal,
 				 int type);
+
+int smb_krb5_principal_is_tgs(krb5_context context,
+			      krb5_const_principal principal);
 
 krb5_error_code smb_krb5_principal_set_realm(krb5_context context,
 					     krb5_principal principal,
@@ -360,8 +361,8 @@ int smb_krb5_salt_principal2data(krb5_context context,
 
 int smb_krb5_create_key_from_string(krb5_context context,
 				    krb5_const_principal host_princ,
-				    krb5_data *salt,
-				    krb5_data *password,
+				    const krb5_data *salt,
+				    const krb5_data *password,
 				    krb5_enctype enctype,
 				    krb5_keyblock *key);
 

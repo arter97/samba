@@ -585,7 +585,7 @@ For example, consider the configuration line:
 .RS 4
 .\}
 .nf
-  192\&.168\&.1\&.99	192\&.168\&.1\&.1/24
+  192\&.168\&.1\&.99	192\&.168\&.1\&.0/24
       
 .fi
 .if n \{\
@@ -620,7 +620,7 @@ is 100, and CTDB adds the address to eth2 then the following routing information
 .RE
 .\}
 .PP
-This causes traffic from 192\&.168\&.1\&.1 to 192\&.168\&.1\&.0/24 go via eth2\&.
+This causes traffic from 192\&.168\&.1\&.99 to 192\&.168\&.1\&.0/24 go via eth2\&.
 .PP
 The
 \fBip rule\fR
@@ -792,7 +792,6 @@ Verify with the command "ctdb getcapabilities" that that node no longer has the 
 .PP
 \fBctdb\fR(1),
 \fBctdbd\fR(1),
-\fBctdbd_wrapper\fR(1),
 \fBctdb_diagnostics\fR(1),
 \fBltdbtool\fR(1),
 \fBonnode\fR(1),
