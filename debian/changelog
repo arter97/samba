@@ -7,34 +7,56 @@ samba (2:4.17.2+dfsg-2) experimental; urgency=medium
 
 samba (2:4.17.2+dfsg-1) experimental; urgency=medium
 
-  * upstream 4.17.0 release:
-   Closes: CVE-2022-1615
-   Closes: CVE-2022-32743
-   - removed spelling.patch (partially applied upstream)
-   - removed weak-crypto-allowed-clarify.diff (applied upstream)
-   - removed dont-ignore-errors-in-random-number-generation-CVE-2022-1615.patch
-     (applied upstream)
-   - refresh: ctdb-create-piddir.patch
-   - refresh: fix-nfs-service-name-to-nfs-kernel-server.patch
-   - d/control: update minimum versions for talloc/tevent/tdb
-   - d/rules: do not install ctdb.service, it is installed by upstream now
-   - d/ctdb.install: do not install ctdb_wrapper (not used anymore)
-   - d/libldb2.symbols, d/d/python3-ldb.symbols.in: new versions: 2.6.0 2.6.1
-  * upstream 4.17.1 security release:
-   CVE-2021-20251 Bad password count not incremented atomically.
   * upstream 4.17.2 security release:
    CVE-2022-3592 A malicious client can use a symlink to escape the exported
    directory. https://www.samba.org/samba/security/CVE-2022-3592.html
    (Samba 4.17 only)
-  * new patch: spelling.patch: a few more spelling fixes
-  * per upstream, re-version symbols added in 2.5.2 as added in 2.6.1
-    (ldb users needs to be recompiled anyway after updating libldb)
-  * move libpac-samba4.so.0 from samba to samba-libs (Closes: #1021450)
+  * Remove poptGetArg-misuse-fixes-1022826.diff (applied to 4.17.2)
   * d/rules: no need to build compile_et,asn1_compile intermediate targets
     anymore; also remove now-unused ${WAFv} macro
-  * this release re-does all changes in the former experimental branch
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 25 Oct 2022 14:30:44 +0300
+
+samba (2:4.17.1+dfsg-1) experimental; urgency=medium
+
+  * new upstream bugfix release containing a security fix:
+    * CVE-2021-20251 Bad password count not incremented atomically.
+  * Merge changes from 4.16.x (debian/master) branch.
+  * use-bzero-instead-of-memset_s.diff : use explicit_bzero() instead of
+    bzero() for the substitute of memset_s(). bzero() is wrong here because
+    it, just like memset, can be optimized out by the compiler.
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 19 Oct 2022 21:34:11 +0300
+
+samba (2:4.17.0+dfsg-2) experimental; urgency=medium
+
+  * mention closing of CVE-2022-32743 by the 4.17.0 upload
+  * mention closing of CVE-2022-1615 by the 4.17.0 upload
+  * move libpac-samba4.so.0 from samba to samba-libs (Closes: #1021450)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 08 Oct 2022 23:00:05 +0300
+
+samba (2:4.17.0+dfsg-1) experimental; urgency=medium
+
+  * new upstream release 4.17.0
+    Closes: CVE-2022-1615
+    Closes: CVE-2022-32743
+  * removed: spelling.patch (partially applied upstream)
+  * removed: weak-crypto-allowed-clarify.diff (applied upstream)
+  * refresh: ctdb-create-piddir.patch
+  * refresh: fix-nfs-service-name-to-nfs-kernel-server.patch
+  * d/control: update minimum versions for talloc/tevent/tdb
+  * d/rules: do not install ctdb.service, it is installed by upstream now
+  * d/ctdb.install: do not install ctdb_wrapper (not used anymore)
+  * d/libldb2.symbols, d/d/python3-ldb.symbols.in: new versions: 2.6.0 2.6.1
+    per upstream, re-version symbols added in 2.5.2 as added in 2.6.1
+    (ldb users needs to be recompiled anyway after updating libldb)
+  * new: spelling.patch: a few more spelling fixes
+  * d/control: bump Standards-Version to 4.6.1 (no changes)
+  * Remove dont-ignore-errors-in-random-number-generation-CVE-2022-1615.patch
+    (included in 4.17.0 already)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 13 Sep 2022 20:47:05 +0300
 
 samba (2:4.16.6+dfsg-6) unstable; urgency=medium
 
