@@ -1,3 +1,13 @@
+samba (2:4.17.2+dfsg-3) unstable; urgency=low
+
+  * rebase on top of debian 4.16.6+dfsg-6 release, include some
+    history of 4.17.* experimental releases in changelog
+  * d/samba-libs.lintian-overrides: update package-name-doesnt-match-sonames
+    to match all libs
+  * urgency is set to low to delay unstable->testing transition a bit
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 30 Oct 2022 16:23:51 +0300
+
 samba (2:4.17.2+dfsg-2) experimental; urgency=medium
 
   * d/rules: stop dh_installpam from installing samba.pam
@@ -40,7 +50,7 @@ samba (2:4.17.0+dfsg-1) experimental; urgency=medium
 
   * new upstream release 4.17.0
     Closes: CVE-2022-1615
-    Closes: CVE-2022-32743
+    Closes: #1021022, CVE-2022-32743
   * removed: spelling.patch (partially applied upstream)
   * removed: weak-crypto-allowed-clarify.diff (applied upstream)
   * refresh: ctdb-create-piddir.patch
