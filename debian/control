@@ -105,7 +105,6 @@ Suggests: bind9 (>= 1:9.5.1),
           ctdb,
           ldb-tools,
           ntp | chrony (>= 3.0-1),
-          smbldap-tools,
           ufw,
           winbind
 Enhances: bind9, ntp
