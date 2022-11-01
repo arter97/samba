@@ -1,23 +1,28 @@
-usr/lib/*/libdcerpc-binding.so.*
-usr/lib/*/libdcerpc-samr.so.*
-usr/lib/*/libdcerpc-server-core.so.*
-usr/lib/*/libdcerpc-server.so.*
-usr/lib/*/libdcerpc.so.*
-usr/lib/*/libndr-krb5pac.so.*
+# when there are any real changes in the publically visible libs (usr/lib/*/libfoo.so.N*),
+# especially the soname changes, check for pkgs which depend on samba-libs (eg sssd-ad)
+# and add Breaks for packages/versions using old libs to d/control
+# Here, always specify libs with soname (libfoo.so.1*, not libfoo.so.*)
+# Not all of the below public libraries are actually public
+usr/lib/*/libdcerpc-binding.so.0*
+usr/lib/*/libdcerpc-samr.so.0*
+usr/lib/*/libdcerpc-server-core.so.0*
+usr/lib/*/libdcerpc-server.so.0*
+usr/lib/*/libdcerpc.so.0*
+usr/lib/*/libndr-krb5pac.so.0*
 usr/lib/*/libndr-nbt.so.0*
-usr/lib/*/libndr-standard.so.*
-usr/lib/*/libndr.so.*
+usr/lib/*/libndr-standard.so.0*
+usr/lib/*/libndr.so.2*
 usr/lib/*/libnetapi.so.1*
 usr/lib/*/libsamba-credentials.so.1*
-usr/lib/*/libsamba-errors.so.*
-usr/lib/*/libsamba-hostconfig.so.*
-usr/lib/*/libsamba-passdb.so.0
-usr/lib/*/libsamba-passdb.so.0.28.0
-usr/lib/*/libsamba-util.so.*
-usr/lib/*/libsamdb.so.*
+usr/lib/*/libsamba-errors.so.1*
+usr/lib/*/libsamba-hostconfig.so.0*
+usr/lib/*/libsamba-passdb.so.0*
+usr/lib/*/libsamba-util.so.0*
+usr/lib/*/libsamdb.so.0*
 usr/lib/*/libsmbconf.so.0*
 usr/lib/*/libsmbldap.so.2*
-usr/lib/*/libtevent-util.so.*
+usr/lib/*/libtevent-util.so.0*
+#
 usr/lib/*/samba/auth/
 usr/lib/*/samba/bind9/dlz_bind9_*.so
 usr/lib/*/samba/gensec/*.so
