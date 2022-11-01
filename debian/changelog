@@ -1,3 +1,16 @@
+samba (2:4.17.2+dfsg-4) unstable; urgency=medium
+
+  * d/control: stop suggesting old/orphaned/gone-upstream smbldap-tools
+  * libndr work (Closes: #1013259):
+   - d/control: samba-libs breaks bullseye sssd-ad due to libndr.so.1=>.2 bump
+   - d/samba-libs.install: be more explicit about sonames of public libs
+     to catch soname changes
+   - libndr-debug-level-compat.diff, libndr-revert-so3.diff: revert
+     libndr.so.2->3 soname bump by providing compat wrapper for new symbol
+   - d/samba-libs.symbols: provide symbols for libndr.so.2
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 01 Nov 2022 12:53:22 +0300
+
 samba (2:4.17.2+dfsg-3) unstable; urgency=low
 
   * rebase on top of debian 4.16.6+dfsg-6 release, include some
