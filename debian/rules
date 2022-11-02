@@ -97,8 +97,6 @@ conf_args += \
 	--with-systemd \
 	--systemd-install-services \
 	--with-systemddir=/lib/systemd/system
-else
-conf_args += --without-systemd
 endif
 
 binary binary-arch binary-indep \
