@@ -71,7 +71,6 @@ conf_args = \
 	--with-syslog \
 	--with-utmp \
 	--with-winbind \
-	--with-quota \
 	--with-automount \
 	--with-ldap \
 	--with-ads \
@@ -93,6 +92,8 @@ conf_args = \
 
 ifeq (${DEB_HOST_ARCH_OS}, linux)
 conf_args += \
+	--with-quota \
+	\
 	--with-systemd \
 	--systemd-install-services \
 	--with-systemddir=/lib/systemd/system
