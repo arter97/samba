@@ -135,7 +135,7 @@ Replaces:
 # libpac-samba4.so.0 moved from samba to samba-libs in 4.17.0+dfsg-2
  samba (<< 2:4.17.0+dfsg-2~),
 Breaks:
- # libndr.so.1=>.2 in samba 4.15 broke bullseye & jammy sssd (#1013259)
+# libndr.so.1=>.2 in samba 4.15 broke bullseye & jammy sssd (#1013259)
  sssd-ad-common (<< 2.4.6), sssd-ad (<< 2.6.4), sssd-ipa (<< 2.4.6),
  libwbclient0 (<< 2:4.16.1+dfsg-7~),
  samba (<< 2:4.17.0+dfsg-2~),
