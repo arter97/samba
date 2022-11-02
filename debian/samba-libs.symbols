@@ -1,4 +1,4 @@
-libndr.so.2 #PACKAGE# #MINVER#
+libndr.so.3 #PACKAGE# #MINVER#
 * Build-Depends-Package: samba-dev
  GUID_all_zero@NDR_0.0.1 2:4.17.2
  GUID_buf_string@NDR_0.0.4 2:4.17.2
@@ -32,7 +32,7 @@ libndr.so.2 #PACKAGE# #MINVER#
  NDR_1.0.1@NDR_1.0.1 2:4.17.2
  NDR_1.0.2@NDR_1.0.2 2:4.17.2
  NDR_2.0.0@NDR_2.0.0 2:4.17.2
- NDR_2.0.1@NDR_2.0.1 2:4.17.2
+ NDR_3.0.0@NDR_3.0.0 2:4.17.2
  _ndr_pull_error@NDR_1.0.0 2:4.17.2
  _ndr_push_error@NDR_1.0.0 2:4.17.2
  ndr_align_size@NDR_0.0.1 2:4.17.2
@@ -65,7 +65,6 @@ libndr.so.2 #PACKAGE# #MINVER#
  ndr_print_bool@NDR_0.0.1 2:4.17.2
  ndr_print_debug@NDR_0.0.1 2:4.17.2
  ndr_print_debug_helper@NDR_0.0.1 2:4.17.2
- ndr_print_debug_level@NDR_2.0.1 2:4.17.2
  ndr_print_debugc@NDR_0.0.2 2:4.17.2
  ndr_print_debugc_helper@NDR_0.0.2 2:4.17.2
  ndr_print_dlong@NDR_0.0.1 2:4.17.2
