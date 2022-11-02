@@ -17,5 +17,3 @@ move-msg.sock-from-var-lib-samba-to-run-samba.patch
 testparm-do-not-fail-if-pid-dir-does-not-exist.patch
 add-missing-libs-deps.diff
 spelling.patch
-libndr-debug-level-compat.diff
-libndr-revert-so3.diff
