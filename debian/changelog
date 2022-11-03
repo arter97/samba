@@ -1,3 +1,18 @@
+samba (2:4.17.2+dfsg-8) unstable; urgency=medium
+
+  * d/rules: do not explicitly enable quotas on non-linux:
+    enable everything interesting on linux explicitly and let ./configure
+    to figure it out in other systems.  This should fix FTBFS problem on hurd.
+  * d/rules: do not disable systemd on non-linux, let ./configure figure it out
+  * d/winbind.postinst: switch addgroup => groupadd and eliminate getent.
+    winbind package never declared dependency on adduser but always used
+    addgroup command in its postinst script. Finally this broke piuparts.
+    Switch to groupadd which is even easier to use.
+  * d/samba.postinst: switch addgroup => groupadd and eliminate getent
+  * d/smb.conf: use useradd in example create user script too
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 03 Nov 2022 15:04:46 +0300
+
 samba (2:4.17.2+dfsg-7) unstable; urgency=medium
 
   * another way to work around #1013259: provide a compatibility symlink
