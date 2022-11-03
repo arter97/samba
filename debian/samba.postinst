@@ -57,11 +57,8 @@ umask 022
 
 if [ configure = "$1" -a -z "$2" ] # only do this if not upgrading
 then
-    # add the sambashare group
-    if ! getent group sambashare > /dev/null 2>&1
-    then
-	addgroup --system sambashare
-    fi
+    # add the sambashare group; --force: ok if group already exist
+    groupadd --force --system sambashare
     if [ ! -e /var/lib/samba/usershares ]
     then
 	install -d -m 1770 -g sambashare /var/lib/samba/usershares
