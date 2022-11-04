@@ -37,10 +37,18 @@ ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, ${DE
 with_ceph =
 endif
 
+extra-args = \
+	--with-quota \
+	\
+	--with-systemd \
+	--systemd-install-services \
+	--with-systemddir=/lib/systemd/system \
+
 else # non-linux
 with_glusterfs =
 with_ceph =
 with_snapper =
+extra-args =
 endif
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages and modules
@@ -93,15 +101,7 @@ conf_args = \
 	$(if ${with_ceph},\
 	  --enable-cephfs --enable-ceph-reclock,\
 	  --disable-cephfs) \
-
-ifeq (${DEB_HOST_ARCH_OS}, linux)
-conf_args += \
-	--with-quota \
-	\
-	--with-systemd \
-	--systemd-install-services \
-	--with-systemddir=/lib/systemd/system
-endif
+	${extra-args} \
 
 binary binary-arch binary-indep \
 install install-arch install-indep: %:
