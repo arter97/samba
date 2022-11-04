@@ -30,6 +30,7 @@ EXTRA_ABI_VERSION_FILES = lib/ldb/ABI/ldb-2.4.4.sigs
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
 with_glusterfs = yes
 with_ceph = yes
+with_snapper = yes
 
 # Ceph is not available on all platforms
 ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, ${DEB_HOST_ARCH}))
@@ -39,9 +40,10 @@ endif
 else # non-linux
 with_glusterfs =
 with_ceph =
+with_snapper =
 endif
 
-# Ubuntu i386 binary compatibility only effort: Disable some i386 packages
+# Ubuntu i386 binary compatibility only effort: Disable some i386 packages and modules
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
 export DH_OPTIONS += $(addprefix -N,\
 	ctdb libpam-winbind samba samba-testsuite samba-vfs-modules )
@@ -303,10 +305,12 @@ ifneq (${with_ceph},)
 endif
 endif
 ifneq (,$(filter samba-vfs-modules,${build_packages}))
+ifneq (${with_snapper}${with_ceph}${with_glusterfs},)
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
-	    debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so \
+	    $(if ${with_snapper}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so) \
 	    $(if ${with_ceph}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so) \
 	    $(if ${with_glusterfs}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
+endif
 endif
 # after shlibdeps run, check that we don't have wrong depdendencies
 	$(call depcheck, samba-libs, samba|winbind|smbclient|ctdb)
