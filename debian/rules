@@ -27,16 +27,18 @@ LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 # should be removed for bookworm+. Also LDB_2.4.4 in d/libldb2.symbols
 EXTRA_ABI_VERSION_FILES = lib/ldb/ABI/ldb-2.4.4.sigs
 
+ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
+with_glusterfs = yes
 with_ceph = yes
+
 # Ceph is not available on all platforms
 ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, ${DEB_HOST_ARCH}))
 with_ceph =
 endif
 
-with_glusterfs = yes
-# GlusterFS is linux-only
-ifneq (${DEB_HOST_ARCH_OS}, linux)
+else # non-linux
 with_glusterfs =
+with_ceph =
 endif
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages
