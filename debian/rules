@@ -10,7 +10,7 @@ endif
 include /usr/share/dpkg/buildflags.mk
 include /usr/share/dpkg/pkg-info.mk
 include /usr/share/dpkg/vendor.mk
-V = 1
+V = $(if $(filter terse, ${DEB_BUILD_OPTIONS}),,1)
 WAF = PYTHONHASHSEED=1 ./buildtools/bin/waf \
 	$(if $(filter parallel=%,${DEB_BUILD_OPTIONS}),\
 	  $(patsubst parallel=%,-j%,$(filter parallel=%,${DEB_BUILD_OPTIONS})))
