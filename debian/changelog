@@ -1,3 +1,17 @@
+samba (2:4.17.2+dfsg-9) unstable; urgency=medium
+
+  * hurd-compat.patch: some minor compatibility tweaks for hurd
+  * d/rules compat work:
+    - ceph is linux-only like glusterfs
+    - d/rules: add another conditional, with_snapper
+    - combine linux features into single block
+  * d/rules: support "terse" build option for non-verbose build
+  * d/rules: remove third_party/heimdal/lib/gssapi/gssapi.h before build
+    (Closes: #1013205). This fixes -I path order and <gssapi/gssapi.h>
+    include mess which caused samba to FTBFS on sparc64 for quite some time
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 06 Nov 2022 20:13:19 +0300
+
 samba (2:4.17.2+dfsg-8) unstable; urgency=medium
 
   * d/rules: do not explicitly enable quotas on non-linux:
