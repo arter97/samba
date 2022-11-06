@@ -120,6 +120,8 @@ bin/configured.stamp:
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
 # #1021371: we only need the single "version" symbol LDB_2.4.4 in the library
 	touch ${EXTRA_ABI_VERSION_FILES}
+# #1013205: https://lists.samba.org/archive/samba-technical/2022-November/137788.html
+	rm -f third_party/heimdal/lib/gssapi/gssapi.h
 	touch $@
 
 build-arch: bin/built.stamp
