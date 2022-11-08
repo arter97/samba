@@ -19,7 +19,7 @@ DESTDIR = ${CURDIR}/debian/tmp
 
 LDB_EPOCH = 2:
 LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
-LDB_DEB_VERSION = ${LDB_EPOCH}${LDB_VERSION}+samba$(subst +dfsg,,${DEB_VERSION_UPSTREAM_REVISION})
+LDB_DEB_VERSION = ${LDB_EPOCH}${LDB_VERSION}+samba${DEB_VERSION_UPSTREAM_REVISION}
 LDB_DEPENDS = libldb2 (= ${LDB_DEB_VERSION})
 LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 
