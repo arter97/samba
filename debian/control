@@ -81,7 +81,7 @@ Vcs-Git: https://salsa.debian.org/samba-team/samba.git
 Package: samba
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
-Depends: adduser,
+Depends: passwd,
          libpam-modules,
          libpam-runtime (>= 1.0.1-11),
          lsb-base (>= 4.1+Debian),
@@ -349,6 +349,8 @@ Multi-Arch: allowed
 Depends: lsb-base (>= 3.0-6),
          samba-common (= ${source:Version}),
          samba-common-bin (=${binary:Version}),
+# for groupadd in postinst
+         passwd,
          ${misc:Depends},
          ${shlibs:Depends}
 Enhances: libkrb5-26-heimdal
