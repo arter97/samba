@@ -28,41 +28,40 @@ LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 EXTRA_ABI_VERSION_FILES = lib/ldb/ABI/ldb-2.4.4.sigs
 
 omit-pkgs =
+with-glusterfs =
+with-ceph =
+with-snapper =
+extra-args =
 
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
-with_glusterfs = yes
-with_ceph = yes
-with_snapper = yes
+with-glusterfs = yes
+with-ceph = yes
+with-snapper = yes
 
 # Ceph is not available on all platforms
 ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, ${DEB_HOST_ARCH}))
-with_ceph =
+with-ceph =
 endif
 
-extra-args = \
+extra-args += \
 	--with-quota \
 	\
 	--with-systemd \
 	--systemd-install-services \
 	--with-systemddir=/lib/systemd/system \
 
-else # non-linux
-with_glusterfs =
-with_ceph =
-with_snapper =
-extra-args =
 endif
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages and modules
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
 omit-pkgs += ctdb libpam-winbind samba samba-testsuite samba-vfs-modules
-with_ceph =
-with_glusterfs =
+with-ceph =
+with-glusterfs =
 endif
 
 export DH_OPTIONS += $(addprefix -N, ${omit-pkgs})
-# build_pakages will honour arch/indep and the above list in ${DH_OPTIONS}
-build_packages = $(shell dh_listpackages)
+# ${build-pkgs} will honour arch/indep and the above list in ${DH_OPTIONS}
+build-pkgs = $(shell dh_listpackages)
 
 conf_args = \
 	--prefix=/usr \
@@ -100,7 +99,7 @@ conf_args = \
 	--enable-etcd-reclock \
 	--with-socketpath=/run/ctdb/ctdbd.socket \
 	--with-logdir=/var/log/ctdb \
-	$(if ${with_ceph},\
+	$(if ${with-ceph},\
 	  --enable-cephfs --enable-ceph-reclock,\
 	  --disable-cephfs) \
 	${extra-args} \
@@ -253,16 +252,16 @@ endif
 override_dh_installpam:
 
 # include a command only if the given package is being built
-ifpkg = $(if $(filter ${1},${build_packages}),${2})
+ifpkg = $(if $(filter ${1},${build-pkgs}),${2})
 
 override_dh_installinit:
-ifneq (,$(filter samba, ${build_packages}))
+ifneq (,$(filter samba, ${build-pkgs}))
 	dh_installinit -psamba --name smbd
 	dh_installinit -psamba --name nmbd --error-handler nmbd_error_handler
 	dh_installinit -psamba --name samba-ad-dc
 endif
 	$(call ifpkg, winbind, dh_installinit -pwinbind)
-ifneq (,$(filter ctdb, ${build_packages}))
+ifneq (,$(filter ctdb, ${build-pkgs}))
 	install -Dp -m755 ctdb/config/ctdb.init debian/ctdb/etc/init.d/ctdb
 	# Install dh scripts
 	dh_installinit -pctdb --no-start --no-stop-on-upgrade --onlyscripts
@@ -302,18 +301,18 @@ override_dh_shlibdeps:
 # to change Depends to Recommends for them in d/control
 	dh_shlibdeps -l/usr/lib/${DEB_HOST_MULTIARCH}/samba \
 	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
-ifneq (,$(filter ctdb, ${build_packages}))
-ifneq (${with_ceph},)
+ifneq (,$(filter ctdb, ${build-pkgs}))
+ifneq (${with-ceph},)
 	dpkg-shlibdeps -Tdebian/ctdb.substvars -prados \
 	    debian/ctdb/usr/libexec/ctdb/ctdb_mutex_ceph_rados_helper
 endif
 endif
-ifneq (,$(filter samba-vfs-modules,${build_packages}))
-ifneq (${with_snapper}${with_ceph}${with_glusterfs},)
+ifneq (,$(filter samba-vfs-modules,${build-pkgs}))
+ifneq (${with-snapper}${with-ceph}${with-glusterfs},)
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
-	    $(if ${with_snapper}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so) \
-	    $(if ${with_ceph}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so) \
-	    $(if ${with_glusterfs}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
+	    $(if ${with-snapper}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so) \
+	    $(if ${with-ceph}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so) \
+	    $(if ${with-glusterfs}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
 endif
 endif
 # after shlibdeps run, check that we don't have wrong depdendencies
