@@ -19,3 +19,4 @@ testparm-do-not-fail-if-pid-dir-does-not-exist.patch
 add-missing-libs-deps.diff
 spelling.patch
 unwrap-getresgid-typo.patch
+nsswitch-pam-data-time_t.patch
