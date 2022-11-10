@@ -1,0 +1,20 @@
+Subject: uwrap: Fix getresgid wrapping typo
+Bug: https://bugzilla.samba.org/show_bug.cgi?id=15227
+
+This was making e.g. p11-kit crash on getresgid() call.
+
+Signed-off-by: Samuel Thibault <samuel.thibault@ens-lyon.org>
+
+diff --git a/third_party/uid_wrapper/uid_wrapper.c b/third_party/uid_wrapper/uid_wrapper.c
+index f04642a..2e2c9e6 100644
+--- a/third_party/uid_wrapper/uid_wrapper.c
++++ b/third_party/uid_wrapper/uid_wrapper.c
+@@ -623,7 +623,7 @@ static int libc_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
+ #ifdef HAVE_GETRESGID
+ static int libc_getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid)
+ {
+-	uwrap_bind_symbol_libc(setresgid);
++	uwrap_bind_symbol_libc(getresgid);
+ 
+ 	return uwrap.libc.symbols._libc_getresgid.f(rgid, egid, sgid);
+ }
