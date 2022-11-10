@@ -59,6 +59,14 @@ with-ceph =
 with-glusterfs =
 endif
 
+with_mitkrb5 = $(filter pkg.samba.mitkrb5, ${DEB_BUILD_PROFILES})
+ifneq (,${with_mitkrb5})
+extra-args += \
+	--with-system-mitkrb5 \
+	--with-experimental-mit-ad-dc \
+	--with-system-mitkdc=/usr/sbin/krb5kdc
+endif
+
 export DH_OPTIONS += $(addprefix -N, ${omit-pkgs})
 # ${build-pkgs} will honour arch/indep and the above list in ${DH_OPTIONS}
 build-pkgs = $(shell dh_listpackages)
@@ -123,6 +131,10 @@ bin/configured.stamp:
 	touch ${EXTRA_ABI_VERSION_FILES}
 # #1013205: https://lists.samba.org/archive/samba-technical/2022-November/137788.html
 	rm -f third_party/heimdal/lib/gssapi/gssapi.h
+ifneq (,${with_mitkrb5}) # ensure we do not use embedded heimdal in any way
+	[ -d third_party/heimdal-build-with-mitkrb5 ] || \
+		mv third_party/heimdal third_party/heimdal-build-with-mitkrb5
+endif
 	touch $@
 
 build-arch: bin/built.stamp
@@ -333,3 +345,7 @@ clean:
 	dh_clean bin/ testbuild/
 	rm -f ${EXTRA_ABI_VERSION_FILES}
 	[ ! -f VERSION.orig ] || mv -f VERSION.orig VERSION
+ifneq (,${with_mitkrb5})
+	[ ! -d third_party/heimdal-build-with-mitkrb5 ] || \
+		mv third_party/heimdal-build-with-mitkrb5 third_party/heimdal
+endif

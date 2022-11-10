@@ -47,6 +47,7 @@ Build-Depends-Arch:
 	libicu-dev,
 	libjansson-dev,
 	libjson-perl,
+	libkrb5-dev (>= 1.19.0~) <pkg.samba.mitkrb5>,
 	libldap2-dev,
 	liblmdb-dev,
 	libncurses5-dev,
@@ -353,7 +354,7 @@ Depends: lsb-base (>= 3.0-6),
          passwd,
          ${misc:Depends},
          ${shlibs:Depends}
-Enhances: libkrb5-26-heimdal
+Enhances: libkrb5-26-heimdal <!pkg.samba.mitkrb5>
 Suggests: libnss-winbind, libpam-winbind
 # 4.16.6+dfsg-5 idmap_{script,rfc2307}.8 moved samba{,-libs} => winbind
 Breaks:   samba (<< 2:4.16.6+dfsg-5~), samba-libs (<< 2:4.16.6+dfsg-5~),

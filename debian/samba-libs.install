@@ -1,3 +1,4 @@
+#!/usr/bin/dh-exec --with-scripts=filter-build-profiles
 # when there are any real changes in the publically visible libs (usr/lib/*/libfoo.so.N*),
 # especially the soname changes, check for pkgs which depend on samba-libs (eg sssd-ad)
 # and add Breaks for packages/versions using old libs to d/control
@@ -22,6 +23,17 @@ usr/lib/*/libsamdb.so.0*
 usr/lib/*/libsmbconf.so.0*
 usr/lib/*/libsmbldap.so.2*
 usr/lib/*/libtevent-util.so.0*
+# heimdal libraries (used by samba and winbind)
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libasn1-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libcom-err-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libgssapi-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libhcrypto-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libheimbase-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libheimntlm-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libhx509-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libkrb5-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libroken-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libwind-samba4.so.0
 #
 usr/lib/*/samba/auth/
 usr/lib/*/samba/bind9/dlz_bind9_*.so
@@ -35,7 +47,6 @@ usr/lib/*/samba/libRPC-SERVER-LOOP-samba4.so.0
 usr/lib/*/samba/libRPC-WORKER-samba4.so.0
 usr/lib/*/samba/libaddns-samba4.so.0
 usr/lib/*/samba/libads-samba4.so.0
-usr/lib/*/samba/libasn1-samba4.so.0
 usr/lib/*/samba/libasn1util-samba4.so.0
 usr/lib/*/samba/libauth-unix-token-samba4.so.0
 usr/lib/*/samba/libauth-samba4.so.0
@@ -52,7 +63,6 @@ usr/lib/*/samba/libclidns-samba4.so.0
 usr/lib/*/samba/libcluster-samba4.so.0
 usr/lib/*/samba/libcmdline-contexts-samba4.so.0
 usr/lib/*/samba/libcmdline-samba4.so.0
-usr/lib/*/samba/libcom-err-samba4.so.0
 usr/lib/*/samba/libcommon-auth-samba4.so.0
 usr/lib/*/samba/libdb-glue-samba4.so.0
 usr/lib/*/samba/libdbwrap-samba4.so.0
@@ -70,15 +80,9 @@ usr/lib/*/samba/libgensec-samba4.so.0
 usr/lib/*/samba/libgpext-samba4.so.0
 usr/lib/*/samba/libgpo-samba4.so.0
 usr/lib/*/samba/libgse-samba4.so.0
-usr/lib/*/samba/libgssapi-samba4.so.0
-usr/lib/*/samba/libhcrypto-samba4.so.0
-usr/lib/*/samba/libheimbase-samba4.so.0
-usr/lib/*/samba/libheimntlm-samba4.so.0
 usr/lib/*/samba/libhttp-samba4.so.0
-usr/lib/*/samba/libhx509-samba4.so.0
 usr/lib/*/samba/libinterfaces-samba4.so.0
 usr/lib/*/samba/libiov-buf-samba4.so.0
-usr/lib/*/samba/libkrb5-samba4.so.0
 usr/lib/*/samba/libkrb5samba-samba4.so.0
 usr/lib/*/samba/libldbsamba-samba4.so.0
 usr/lib/*/samba/liblibcli-lsa3-samba4.so.0
@@ -99,7 +103,6 @@ usr/lib/*/samba/libprinting-migrate-samba4.so.0
 usr/lib/*/samba/libprocess-model-samba4.so.0
 usr/lib/*/samba/libregistry-samba4.so.0
 usr/lib/*/samba/libreplace-samba4.so.0
-usr/lib/*/samba/libroken-samba4.so.0
 usr/lib/*/samba/libsamba-cluster-support-samba4.so.0
 usr/lib/*/samba/libsamba-debug-samba4.so.0
 usr/lib/*/samba/libsamba-modules-samba4.so.0
@@ -128,6 +131,5 @@ usr/lib/*/samba/libtrusts-util-samba4.so.0
 usr/lib/*/samba/libutil-reg-samba4.so.0
 usr/lib/*/samba/libutil-setid-samba4.so.0
 usr/lib/*/samba/libutil-tdb-samba4.so.0
-usr/lib/*/samba/libwind-samba4.so.0
 usr/lib/*/samba/libxattr-tdb-samba4.so.0
 usr/lib/*/samba/process_model/*.so

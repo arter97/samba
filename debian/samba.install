@@ -1,4 +1,4 @@
-#!/usr/bin/dh-exec --with-scripts=filter-arch
+#!/usr/bin/dh-exec --with-scripts=filter-arch,filter-build-profiles
 etc/ufw/applications.d/samba
 [linux-any] lib/systemd/system/nmbd.service
 [linux-any] lib/systemd/system/samba-ad-dc.service
@@ -11,10 +11,11 @@ usr/bin/profiles
 usr/bin/sharesec
 usr/bin/smbcontrol
 usr/bin/smbstatus
-usr/lib/*/samba/libHDB-SAMBA4-samba4.so.0
-usr/lib/*/samba/libgss-preauth-samba4.so.0
-usr/lib/*/samba/libhdb-samba4.so.0
-usr/lib/*/samba/libkdc-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libHDB-SAMBA4-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libgss-preauth-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libhdb-samba4.so.0
+<!pkg.samba.mitkrb5> usr/lib/*/samba/libkdc-samba4.so.0
+<pkg.samba.mitkrb5> usr/lib/*/krb5/plugins/kdb/samba.so
 usr/lib/*/samba/libmscat-samba4.so.0
 usr/libexec/samba/samba-bgqd
 usr/lib/*/samba/service/*.so
