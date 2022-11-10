@@ -27,6 +27,8 @@ LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 # should be removed for bookworm+. Also LDB_2.4.4 in d/libldb2.symbols
 EXTRA_ABI_VERSION_FILES = lib/ldb/ABI/ldb-2.4.4.sigs
 
+omit-pkgs =
+
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
 with_glusterfs = yes
 with_ceph = yes
@@ -53,12 +55,12 @@ endif
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages and modules
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
-export DH_OPTIONS += $(addprefix -N,\
-	ctdb libpam-winbind samba samba-testsuite samba-vfs-modules )
+omit-pkgs += ctdb libpam-winbind samba samba-testsuite samba-vfs-modules
 with_ceph =
 with_glusterfs =
 endif
 
+export DH_OPTIONS += $(addprefix -N, ${omit-pkgs})
 # build_pakages will honour arch/indep and the above list in ${DH_OPTIONS}
 build_packages = $(shell dh_listpackages)
 
