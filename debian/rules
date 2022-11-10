@@ -65,6 +65,18 @@ extra-args += \
 	--with-system-mitkrb5 \
 	--with-experimental-mit-ad-dc \
 	--with-system-mitkdc=/usr/sbin/krb5kdc
+# samba packages will have its own version suffix
+mitkrb5-samba-ver := ${DEB_VERSION}mitkrb5
+mitkrb5-dep-pkgs := samba-libs samba-dev
+mitkrb5-dep-pkgs += samba samba-common-bin python3-samba
+mitkrb5-dep-pkgs += samba-dsdb-modules samba-vfs-modules
+mitkrb5-dep-pkgs += libsmbclient smbclient
+mitkrb5-dep-pkgs += libnss-winbind libpam-winbind
+mitkrb5-dep-pkgs += winbind
+mitkrb5-dep-pkgs += samba-testsuite
+mitkrb5-dep-pkgs += ctdb
+else
+mitkrb5-dep-pkgs :=
 endif
 
 export DH_OPTIONS += $(addprefix -N, ${omit-pkgs})
@@ -300,7 +312,9 @@ override_dh_makeshlibs:
 
 	# create symbols and shlibs files in separate wrapper script
 	# to deal with private libraries
-	debian/genshlibs $(addsuffix =${LDB_DEB_VERSION},${LDB_PACKAGES})
+	debian/genshlibs \
+		$(addsuffix =${LDB_DEB_VERSION},${LDB_PACKAGES}) \
+		$(addsuffix =${mitkrb5-samba-ver}, ${mitkrb5-dep-pkgs})
 
 	rm -f debian/python3-ldb.symbols
 
@@ -338,6 +352,9 @@ endif
 
 override_dh_gencontrol:
 	dh_gencontrol $(addprefix -p,${LDB_PACKAGES}) -- -v${LDB_DEB_VERSION}
+ifneq (,$(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})))
+	dh_gencontrol $(addprefix -p, $(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})) -- -v${mitkrb5-samba-ver}
+endif
 	dh_gencontrol --remaining-packages -- -Vldb:Depends="${LDB_DEPENDS}"
 
 clean:
