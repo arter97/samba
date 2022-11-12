@@ -1,3 +1,27 @@
+samba (2:4.17.2+dfsg-10) UNRELEASED; urgency=medium
+
+  * d/rules: stop stripping +dfsg suffix from ldb version
+  * d/control: declare dependency on password (for groupadd in postinst)
+    for winbind and samba (Closes: #1023759)
+  * implement pkg.samba.mitkrb5 build profile to build with system mit-krb5
+    (with "mitkrb5" version suffix in some packages for now)
+  * d/control: mark libufing-dev build dep with <!pkg.samba.nouring>
+    (to simplify out-of-archive builds for older systems)
+  * d/rules: parametrise list of packages to omit (eg on ubuntu-i386)
+    with ${omit-pkgs}
+  * d/rules: use variables in a more consistent way, use single ${config-args}
+  * d/control: tdb-tools and lmdb-utils packages are also needed for tests
+    (everything is commented out for now anyway)
+  * d/rules: update knownfail tests
+  * d/rules: stop exporting buildflags, export compiler options when needed
+  * d/rules: always define rados:Depends & vfsmods:Depends substvars
+  * unwrap-getresgid-typo.patch - fix crash during p11-kit execution
+    (https://bugzilla.samba.org/show_bug.cgi?id=15227) (for the testsuite only)
+  * nsswitch-pam-data-time_t.patch - fix time_t not fit in a pointer (eg x32)
+    (https://bugzilla.samba.org/show_bug.cgi?id=15224)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 10 Nov 2022 19:03:58 +0300
+
 samba (2:4.17.2+dfsg-9) unstable; urgency=medium
 
   * hurd-compat.patch: some minor compatibility tweaks for hurd
