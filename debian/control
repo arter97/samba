@@ -71,10 +71,12 @@ Build-Depends-Arch:
 	python3-markdown,
 	python3-testtools,
 # dependencies needed for selftest:
+#	lmdb-utils <!nocheck>,
 #	openssl <!nocheck>,
 #	python3-cryptography <!nocheck>,
 #	python3-iso8601 <!nocheck>,
 #	python3-pyasn1 <!nocheck>,
+#	tdb-tools <!nocheck>,
 Rules-Requires-Root: binary-targets
 Vcs-Browser: https://salsa.debian.org/samba-team/samba
 Vcs-Git: https://salsa.debian.org/samba-team/samba.git
