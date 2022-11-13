@@ -2,7 +2,6 @@
 SHELL = /bin/sh -e
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
-DPKG_EXPORT_BUILDFLAGS = 1
 # Fast version of dpkg/architecture.mk defining all vars in one go
 ifeq (${DEB_HOST_MULTIARCH},)
    $(foreach d, $(shell dpkg-architecture | sed 's/=/?=/'), $(eval export $d))
@@ -135,7 +134,8 @@ bin/configured.stamp:
 	  sed -r -e 's/^(SAMBA_VERSION_VENDOR_SUFFIX).*/\1=${DEB_VENDOR}/' \
 		VERSION.orig > VERSION; \
 	fi
-	${WAF} -j1 configure -C ${config-args} || \
+	CPPFLAGS="${CPPFLAGS}" CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" \
+	    ${WAF} -j1 -C configure ${config-args} || \
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
 # #1021371: we only need the single "version" symbol LDB_2.4.4 in the library
 	touch ${EXTRA_ABI_VERSION_FILES}
@@ -183,7 +183,9 @@ testbuild/configured.stamp: testbuild/copied.stamp
 # (libsocket-wrapper &Co), but let's just build the bundled ones. There's no
 # good reason to use externally-packaged wrappers, they're small to build and
 # we don't use them for production build, and extra versioned build-dep hurts.
-	cd testbuild && ${WAF} -j1 configure --enable-selftest -C \
+	cd testbuild && \
+	CPPFLAGS="${CPPFLAGS}" CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" \
+	    ${WAF} -j1 -C configure --enable-selftest \
 		$$(echo '${config-args}' | \
 		   sed 's|--bundled-libraries=NONE|&,nss_wrapper,pam_wrapper,resolv_wrapper,socket_wrapper,uid_wrapper|')
 # FIXME: some tests fail for now, handle them later (last check: 4.17.2, heimdal build)
