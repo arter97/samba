@@ -351,9 +351,9 @@ endif
 	$(call depcheck, libsmbclient, samba|winbind|smbclient|ctdb)
 
 override_dh_gencontrol:
-	dh_gencontrol $(addprefix -p,${LDB_PACKAGES}) -- -v${LDB_DEB_VERSION}
-ifneq (,$(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})))
-	dh_gencontrol $(addprefix -p, $(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})) -- -v${mitkrb5-samba-ver}
+	dh_gencontrol $(addprefix -p, ${LDB_PACKAGES}) -- -v${LDB_DEB_VERSION}
+ifneq (,$(filter ${build-pkgs}, ${mitkrb5-dep-pkgs}))
+	dh_gencontrol $(addprefix -p, $(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})) -- -v${mitkrb5-samba-ver} -Vldb:Depends="${LDB_DEPENDS}"
 endif
 	dh_gencontrol --remaining-packages -- -Vldb:Depends="${LDB_DEPENDS}"
 
