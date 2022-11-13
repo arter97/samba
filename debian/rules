@@ -328,12 +328,14 @@ override_dh_shlibdeps:
 	dh_shlibdeps -l/usr/lib/${DEB_HOST_MULTIARCH}/samba \
 	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
 ifneq (,$(filter ctdb, ${build-pkgs}))
+	echo "rados:Depends=" >> debian/ctdb.substvars
 ifneq (${with-ceph},)
 	dpkg-shlibdeps -Tdebian/ctdb.substvars -prados \
 	    debian/ctdb/usr/libexec/ctdb/ctdb_mutex_ceph_rados_helper
 endif
 endif
 ifneq (,$(filter samba-vfs-modules,${build-pkgs}))
+	echo "vfsmods:Depends=" >> debian/samba-vfs-modules.substvars
 ifneq (${with-snapper}${with-ceph}${with-glusterfs},)
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
 	    $(if ${with-snapper}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so) \
