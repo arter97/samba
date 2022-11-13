@@ -104,8 +104,8 @@ config-args += \
 	--with-experimental-mit-ad-dc \
 	--with-system-mitkdc=/usr/sbin/krb5kdc
 # samba packages will have its own version suffix
-mitkrb5-samba-ver := ${DEB_VERSION}mitkrb5
-mitkrb5-dep-pkgs := samba-libs samba-dev
+mitkrb5-samba-ver = ${DEB_VERSION}mitkrb5
+mitkrb5-dep-pkgs = samba-libs samba-dev
 mitkrb5-dep-pkgs += samba samba-common-bin python3-samba
 mitkrb5-dep-pkgs += samba-dsdb-modules samba-vfs-modules
 mitkrb5-dep-pkgs += libsmbclient smbclient
@@ -114,10 +114,12 @@ mitkrb5-dep-pkgs += winbind
 mitkrb5-dep-pkgs += samba-testsuite
 mitkrb5-dep-pkgs += ctdb
 else
-mitkrb5-dep-pkgs :=
+mitkrb5-dep-pkgs =
 endif
 
+ifneq (,${omit-pkgs})
 export DH_OPTIONS += $(addprefix -N, ${omit-pkgs})
+endif
 # ${build-pkgs} will honour arch/indep and the above list in ${DH_OPTIONS}
 build-pkgs := $(shell dh_listpackages)
 
