@@ -121,7 +121,7 @@ endif
 
 export DH_OPTIONS += $(addprefix -N, ${omit-pkgs})
 # ${build-pkgs} will honour arch/indep and the above list in ${DH_OPTIONS}
-build-pkgs = $(shell dh_listpackages)
+build-pkgs := $(shell dh_listpackages)
 
 binary binary-arch binary-indep \
 install install-arch install-indep: %:
