@@ -65,6 +65,8 @@ then
     fi
 fi
 
+mkdir -p /run/samba # shut up [samba-tool] testparm warning
+
 # mimic source4/smbd/server.c and mask service before it fails
 # NB: server role = active directory domain controller is what we need to properly support
 # NB: server services = smb is not compiled in

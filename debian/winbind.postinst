@@ -42,6 +42,8 @@ mkdir -pv "$winbindd_privileged_socket_directory"
 chgrp -c winbindd_priv "$winbindd_privileged_socket_directory"
 chmod -c 0750 "$winbindd_privileged_socket_directory"
 
+mkdir -p /run/samba # shut up [samba-tool] testparm warning
+
 SERVER_ROLE=`samba-tool testparm --parameter-name="server role"  2>/dev/null | tail -1`
 if [ "$SERVER_ROLE" = "active directory domain controller" ]; then
     mask_services "Samba is being run as an AD Domain Controller" winbind.service
