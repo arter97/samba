@@ -196,6 +196,8 @@ testbuild/configured.stamp: testbuild/copied.stamp
 		>>testbuild/selftest/knownfail.d/debian
 #	echo '^samba3.rpc.schannel_anon_setpw\ anonymous\ password\ set\ \(schannel\ enforced\ server-side\)\(nt4_dc_schannel\)' \
 #		>>testbuild/selftest/knownfail.d/debian
+	echo '^samba4.ntvfs.cifs.ntlm.base.unlink.unlink\(rpc_proxy\)' \
+		>>testbuild/selftest/knownfail.d/debian
 	echo '^samba4.rpc.echo\ against\ rpc\ proxy\ with\ domain\ creds\(rpc_proxy\)' \
 		>>testbuild/selftest/knownfail.d/debian
 	touch $@
