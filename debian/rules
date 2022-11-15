@@ -192,11 +192,11 @@ testbuild/configured.stamp: testbuild/copied.stamp
 		   sed 's|--bundled-libraries=NONE|&,nss_wrapper,pam_wrapper,resolv_wrapper,socket_wrapper,uid_wrapper|')
 # FIXME: some tests fail for now, handle them later (last check: 4.17.2, heimdal build)
 	rm -f testbuild/selftest/knownfail.d/debian
-	echo '^samba3.smb2.session enc.(reauth.|bind.|bind_negative.*|bind_invalid_auth|encryption-aes-.*)\(nt4_dc\)' \
+	echo '^samba3.smb2.session\ enc.(reauth.|bind.|bind_negative.*|bind_invalid_auth|encryption-aes-.*)\(nt4_dc\)' \
 		>>testbuild/selftest/knownfail.d/debian
-	echo '^amba4.rpc.echo against rpc proxy with domain creds\(rpc_proxy\)' \
+	echo '^samba3.rpc.schannel_anon_setpw\ anonymous\ password\ set\ \(schannel\ enforced\ server-side\)\(nt4_dc_schannel\)' \
 		>>testbuild/selftest/knownfail.d/debian
-	echo '^samba3.rpc.schannel_anon_setpw anonymous password set \(schannel enforced server-side\).schannel_anon_setpw\(nt4_dc_schannel\)' \
+	echo '^samba4.rpc.echo\ against\ rpc\ proxy\ with\ domain\ creds\(rpc_proxy\)' \
 		>>testbuild/selftest/knownfail.d/debian
 	touch $@
 selftest-quick: testbuild/configured.stamp
