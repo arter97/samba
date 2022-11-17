@@ -20,3 +20,4 @@ add-missing-libs-deps.diff
 spelling.patch
 unwrap-getresgid-typo.patch
 nsswitch-pam-data-time_t.patch
+fruit-disable-useless-size_t-overflow-check.patch
