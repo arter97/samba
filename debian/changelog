@@ -1,3 +1,12 @@
+samba (2:4.17.3+dfsg-2) unstable; urgency=medium
+
+  * fruit-disable-useless-size_t-overflow-check.patch (Closes: #974868)
+  * CVE-2022-42898-lib-krb5-fix-_krb5_get_int64-on-32bit.patch
+    Fix regression on 32bit systems:
+    https://bugzilla.samba.org/show_bug.cgi?id=15203
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 21 Nov 2022 20:41:46 +0300
+
 samba (2:4.17.3+dfsg-1) unstable; urgency=medium
 
   * new upstream security release 4.17.3, fixing the following issue:
