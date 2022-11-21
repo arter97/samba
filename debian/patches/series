@@ -21,3 +21,4 @@ spelling.patch
 unwrap-getresgid-typo.patch
 nsswitch-pam-data-time_t.patch
 fruit-disable-useless-size_t-overflow-check.patch
+CVE-2022-42898-lib-krb5-fix-_krb5_get_int64-on-32bit.patch
