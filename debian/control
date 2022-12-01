@@ -352,6 +352,8 @@ Multi-Arch: allowed
 Depends: lsb-base (>= 3.0-6),
          samba-common (= ${source:Version}),
          samba-common-bin (=${binary:Version}),
+# wbinfo (linked with libwbclient) which should use the same protocol
+         libwbclient0 (=${binary:Version}),
 # for groupadd in postinst
          passwd,
          ${misc:Depends},
