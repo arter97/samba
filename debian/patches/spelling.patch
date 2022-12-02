@@ -179,3 +179,29 @@ index 4caf308a612..6950898a7d1 100644
  	      zero causes the Mac client to stop using and trusting the file id
  	      returned from the server.</para>
  	      <para>The default is <emphasis>yes</emphasis>.</para>
+diff --git a/ctdb/server/ctdb_recoverd.c b/ctdb/server/ctdb_recoverd.c
+index bf3a66b0aaf..9d2cb6af9c9 100644
+--- a/ctdb/server/ctdb_recoverd.c
++++ b/ctdb/server/ctdb_recoverd.c
+@@ -395,7 +395,7 @@ static void ctdb_set_culprit_count(struct ctdb_recoverd *rec,
+ 				   struct ctdb_banning_state,
+ 				   len);
+ 		if (t == NULL) {
+-			DBG_WARNING("Memory allocation errror");
++			DBG_WARNING("Memory allocation error");
+ 			return;
+ 		}
+ 		rec->banning_state = t;
+diff --git a/lib/smbconf/pysmbconf.c b/lib/smbconf/pysmbconf.c
+index 1b3c101005a..465876684ca 100644
+--- a/lib/smbconf/pysmbconf.c
++++ b/lib/smbconf/pysmbconf.c
+@@ -747,7 +747,7 @@ PyDoc_STRVAR(py_smbconf_doc,
+ "types. Future, write based functions need a writable backend (registry).\n"
+ "\n"
+ "Note that the registry backend will be provided by a different\n"
+-"library module from the source3 tree (implemenation TBD).\n");
++"library module from the source3 tree (implementation TBD).\n");
+ 
+ static struct PyModuleDef moduledef = {
+ 	PyModuleDef_HEAD_INIT,
