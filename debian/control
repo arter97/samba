@@ -112,6 +112,7 @@ Suggests: bind9 (>= 1:9.5.1),
           ufw,
           winbind
 Enhances: bind9, ntp
+Breaks: samba-ad-provision (<< ${source:Upstream-Version})
 Description: SMB/CIFS file, print, and login server for Unix
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file and printer sharing with
