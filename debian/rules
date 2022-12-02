@@ -215,8 +215,6 @@ override_dh_auto_install-arch:
 	# Included in python-tevent
 	rm debian/tmp/usr/lib/python*/*-packages/_tevent.*
 	rm debian/tmp/usr/lib/python*/*-packages/tevent.py
-	# Already documented in debian/copyright
-	-rm debian/tmp/usr/share/samba/setup/ad-schema/licence.txt
 	# pam stuff
 	install -Dp -m0644 debian/winbind.pam-config debian/tmp/usr/share/pam-configs/winbind
 	mv debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/libnss_* debian/tmp/lib/$(DEB_HOST_MULTIARCH)/
@@ -263,6 +261,8 @@ endif
 	dh_link -plibldb2 /usr/lib/${DEB_HOST_MULTIARCH}/ldb/modules/ldb \
 	                  /usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/compat
 
+provision-dest := debian/samba-ad-provision/usr/share/samba/setup
+
 override_dh_auto_install-indep:
 # only arch-all package is samba-common containing a few debian-specific files
 # Most of files needs are renamed during install so lets put them
@@ -277,6 +277,13 @@ endif
 	install -Dp -m0755 debian/samba-common.dhcp debian/samba-common/etc/dhcp/dhclient-enter-hooks.d/samba
 	# we wrongly have pam file in samba-common instead of samba
 	install -Dp -m0644 debian/samba.pam debian/samba-common/etc/pam.d/samba
+
+# install provision files (samba-ad-provision, source4/setup/)
+	mkdir -p -m0755 ${provision-dest}
+	cp -r --preserve=timestamps source4/setup/. ${provision-dest}
+	rm -rf ${provision-dest}/tests
+	rm -f	${provision-dest}/wscript* \
+		${provision-dest}/adprep/samba-4.7-missing-for-schema45.ldif
 
 override_dh_installpam:
 

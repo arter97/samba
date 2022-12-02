@@ -45,5 +45,4 @@ usr/share/man/man8/samba.8
 usr/share/man/man8/smbd.8
 usr/share/samba/admx/
 usr/share/samba/mdssvc/elasticsearch_mappings.json
-usr/share/samba/setup
 usr/share/samba/update-apparmor-samba-profile

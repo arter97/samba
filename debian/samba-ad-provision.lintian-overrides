@@ -1,0 +1,2 @@
+# documentation and specifications for the schemas, keep them in the same place
+samba-ad-provision: package-contains-documentation-outside-usr-share-doc *usr/share/samba/setup/*
