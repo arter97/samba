@@ -18,3 +18,5 @@ if [ "$1" = configure ] && [ -z "$2" ]; then
           /etc/nsswitch.conf
     fi
 fi
+
+#DEBHELPER#

@@ -25,3 +25,5 @@ remove_nss_entry() {
 if [ "$1" = remove ]; then
     remove_nss_entry /etc/nsswitch.conf libnss-winbind winbind
 fi
+
+#DEBHELPER#
