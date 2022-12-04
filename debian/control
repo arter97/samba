@@ -189,6 +189,27 @@ Description: Samba common files used by both the server and the client
  (provided in the samba package) and the client (provided in the samba-clients
  package).
 
+Package: samba-ad-dc
+Architecture: all
+Multi-Arch: foreign
+Pre-Depends: ${misc:Pre-Depends}
+Depends: samba (>= ${binary:Version}), samba-dsdb-modules, samba-vfs-modules,
+	winbind,
+	krb5-kdc (>> 1.19.0) <pkg.samba.mitkrb5>,
+	${misc:Depends}
+Recommends: libnss-winbind, libpam-winbind,
+# samba-ad-provision is needed for settup only
+	samba-ad-provision
+Breaks: samba-ad-provision (<< ${source:Upstream-Version})
+Description: Samba control files to run AD Domain Controller
+ Samba is an implementation of the SMB/CIFS protocol for Unix systems,
+ providing support for cross-platform file and printer sharing with
+ Microsoft Windows, OS X, and other Unix systems.
+ .
+ This package contains control files to run an Active Directory Domain
+ Controller (AD DC).  For now, this is just a metapackage pulling in
+ all the required dependencies.
+
 Package: samba-ad-provision
 Architecture: all
 Multi-Arch: foreign
