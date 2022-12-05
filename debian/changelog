@@ -1,3 +1,25 @@
+samba (2:4.17.3+dfsg-4) unstable; urgency=medium
+
+  * create samba-ad-provision package with contents of /usr/share/samba/setup.
+    It is recommended by samba, so can be uninstalled if not needed.
+  * create samba-ad-dc package. It is an empty metapackage for now, but with
+    dependencies needed to run an Active Directory Domain Controller (AD-DC)
+  * samba-ad-provision.lintian-overrides: license files
+  * print meaningful error message if samba-ad-provision is not installed
+    (meaningful-error-if-no-samba-ad-provision.patch)
+  * print meaningful error message if python3-markdown is not installed
+    (meaningful-error-if-no-python3-markdown.patch)
+  * ctdb: move rundir from /var/run to /run
+  * fix typo in fruit patch
+  * a few more spelling fixes
+  * add #DEBHELPER# tokens to libnss-winbind.{postinst,postrm}
+  * remove mentions of /var/spool/samba from samba.lintian-overrides
+    (moved to /var/tmp)
+  * change embedded-library heimdal lintian override in a way to be understood
+    by both old and new lintian, so the package can be uploaded
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 05 Dec 2022 14:39:43 +0300
+
 samba (2:4.17.3+dfsg-3) unstable; urgency=medium
 
   * d/control: winbind should depend on the same binary:Version
