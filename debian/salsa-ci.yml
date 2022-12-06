@@ -3,9 +3,9 @@ include:
   - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/salsa-ci.yml
   - https://salsa.debian.org/salsa-ci-team/pipeline/raw/master/pipeline-jobs.yml
 
-blhc:
+variables:
   # Until https://bugs.debian.org/976175 is fixed in blhc
-  allow_failure: true
+  SALSA_CI_DISABLE_BLHC: 1
 
 reprotest:
   # Until https://bugs.debian.org/912340 is fixed in samba
