@@ -71,7 +71,7 @@ for pkg in $(dh_listpackages); do
     esac
     x=${x##*/}
     echo "${x%.so.*} ${x#**.so.} $pkg ($rel)"
-  done > $pd/DEBIAN/shlibs
+  done | LC_ALL=C sort > $pd/DEBIAN/shlibs
 
   # see if we have any public (eg, not in /usr/lib/samba/) libs
   if echo "$libs" | fgrep -qv $smblib/; then
