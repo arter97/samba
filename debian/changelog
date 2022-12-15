@@ -1,4 +1,4 @@
-samba (2:4.17.4+dfsg-1) UNRELEASED; urgency=medium
+samba (2:4.17.4+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/security release, with the following changes:
    - CVE-2022-37966: Windows Kerberos RC4-HMAC Elevation of Privilege
@@ -35,8 +35,11 @@ samba (2:4.17.4+dfsg-1) UNRELEASED; urgency=medium
      %U for include directive doesn't work for share listing (netshareenum).
     https://bugzilla.samba.org/show_bug.cgi?id=15257
      Stack smashing in net offlinejoin requestodj.
+  * removed patches which are now included upstream:
+   - nsswitch-pam-data-time_t.patch
+   - CVE-2022-42898-lib-krb5-fix-_krb5_get_int64-on-32bit.patch
 
- -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 15 Dec 2022 19:49:17 +0300
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 15 Dec 2022 21:54:31 +0300
 
 samba (2:4.17.3+dfsg-4) unstable; urgency=medium
 
