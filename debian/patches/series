@@ -20,7 +20,6 @@ add-missing-libs-deps.diff
 spelling.patch
 unwrap-getresgid-typo.patch
 fruit-disable-useless-size_t-overflow-check.patch
-CVE-2022-42898-lib-krb5-fix-_krb5_get_int64-on-32bit.patch
 meaningful-error-if-no-samba-ad-provision.patch
 meaningful-error-if-no-python3-markdown.patch
 ctdb-use-run-instead-of-var-run.patch
