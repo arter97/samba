@@ -215,8 +215,8 @@ Architecture: all
 Multi-Arch: foreign
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}
-Replaces: samba (<< 2:4.17.4+dfsg-2~)
-Breaks:   samba (<< 2:4.17.4+dfsg-2~)
+Replaces: samba (<< 2:4.17.3+dfsg-4~)
+Breaks:   samba (<< 2:4.17.3+dfsg-4~)
 Description: Samba files needed for AD domain provision
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file and printer sharing with
