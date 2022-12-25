@@ -24,3 +24,4 @@ meaningful-error-if-no-samba-ad-provision.patch
 meaningful-error-if-no-python3-markdown.patch
 ctdb-use-run-instead-of-var-run.patch
 rpc_server_srvsvc-retrieve_share_ACL_via_root_context.patch
+reload-registry-shares-after-reloading-services.patch

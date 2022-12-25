@@ -1,0 +1,32 @@
+From 4481454d2cddc30adfdc4d2ba86412aa03817eef Mon Sep 17 00:00:00 2001
+From: Andrew Walker <awalker@ixsystems.com>
+Date: Mon, 19 Dec 2022 13:14:51 -0500
+Subject: Reload registry shares after reloading services
+Bug: https://bugzilla.samba.org/show_bug.cgi?id=15266
+
+Reloading the services file will remove all registry shares
+breaking service enumeration.
+
+BUG: https://bugzilla.samba.org/show_bug.cgi?id=15266
+Signed-off-by: Andrew Walker <awalker@ixsystems.com>
+---
+ source3/rpc_server/srvsvc/srv_srvsvc_nt.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/source3/rpc_server/srvsvc/srv_srvsvc_nt.c b/source3/rpc_server/srvsvc/srv_srvsvc_nt.c
+index 8a0c63fd50e..08d34d51372 100644
+--- a/source3/rpc_server/srvsvc/srv_srvsvc_nt.c
++++ b/source3/rpc_server/srvsvc/srv_srvsvc_nt.c
+@@ -669,6 +669,11 @@ static WERROR init_srv_share_info_ctr(struct pipes_struct *p,
+ 	 */
+ 	reload_services(NULL, NULL, false);
+ 
++	/*
++	 * After reloading services we need to reload registry shares
++	 */
++	load_registry_shares();
++
+ 	num_services = lp_numservices();
+ 
+         allowed = talloc_zero_array(ctx, bool, num_services);
+-- 
