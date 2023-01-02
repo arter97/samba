@@ -26,10 +26,7 @@ test -x /usr/sbin/smbd || exit 0
 
 case $1 in
 	start)
-		SERVER_ROLE=`samba-tool testparm --parameter-name="server role"  2>/dev/null | tail -1`
-		if [ "$SERVER_ROLE" = "active directory domain controller" ]; then
-		    exit 0
-		fi
+		/usr/share/samba/is-configured smb || exit 0
 
 		# Update /etc/apparmor.d/local/usr.sbin.smbd-shares
 		if [ -x /usr/share/samba/update-apparmor-samba-profile ]; then
@@ -37,14 +34,10 @@ case $1 in
 		fi
 
 		log_daemon_msg "Starting SMB/CIFS daemon" smbd
-		# Make sure we have our PIDDIR, even if it's on a tmpfs
-		install -o root -g root -m 755 -d $PIDDIR
-
 		if ! start-stop-daemon --start --quiet --oknodo --exec /usr/sbin/smbd --pidfile $SMBDPID -- -D; then
 			log_end_msg 1
 			exit 1
 		fi
-
 		log_end_msg 0
 		;;
 	stop)
