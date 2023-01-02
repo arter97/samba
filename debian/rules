@@ -83,6 +83,10 @@ config-args += \
 	--with-systemd \
 	--systemd-install-services \
 	--with-systemddir=/lib/systemd/system \
+	--systemd-smb-extra='ExecCondition=/usr/share/samba/is-configured smb' \
+	--systemd-nmb-extra='ExecCondition=/usr/share/samba/is-configured nmb' \
+	--systemd-winbind-extra='ExecCondition=/usr/share/samba/is-configured winbind' \
+	--systemd-samba-extra='ExecCondition=/usr/share/samba/is-configured samba' \
 
 endif
 
@@ -272,7 +276,8 @@ override_dh_auto_install-indep:
 ifeq (${DEB_VENDOR}, Ubuntu)
 	patch debian/samba-common/usr/share/samba/smb.conf debian/smb.conf.ubuntu.diff
 endif
-	install -Dp -m755 debian/panic-action -t debian/samba-common/usr/share/samba/
+	install -Dp -m0755 debian/panic-action  -t debian/samba-common/usr/share/samba/
+	install -Dp -m0755 debian/is-configured -t debian/samba-common/usr/share/samba/
 	install -Dp -m0644 debian/gdbcommands -t debian/samba-common/etc/samba/
 	install -Dp -m0755 debian/samba-common.dhcp debian/samba-common/etc/dhcp/dhclient-enter-hooks.d/samba
 	# we wrongly have pam file in samba-common instead of samba
