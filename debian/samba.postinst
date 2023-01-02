@@ -90,17 +90,6 @@ elif [ "$DISABLE_NETBIOS" = Yes ]; then
     mask_services "NetBIOS is disabled" nmbd.service
 fi
 
-#DEBHELPER#
-
-# remove msg.sock/ directory (moved to /run/samba/)
-dir=/var/lib/samba/private/msg.sock
-if [ -d $dir -a configure = "$1" ] &&
-   dpkg --compare-versions "$2" lt-nl 2:4.16.0+dfsg-7~
-then
-    rm -f $dir/*
-    rmdir $dir
-fi
-
 # remove old spool directory (point it to /var/tmp if in use)
 dir=/var/spool/samba
 if [ configure = "$1" -a ! -L $dir ] &&
@@ -116,6 +105,17 @@ then
 	echo "W: redirecting $dir to /var/tmp. Please update your smb.conf" >&2
 	ln -s ../tmp $dir
     fi
+fi
+
+#DEBHELPER#
+
+# remove msg.sock/ directory (moved to /run/samba/)
+dir=/var/lib/samba/private/msg.sock
+if [ -d $dir -a configure = "$1" ] &&
+   dpkg --compare-versions "$2" lt-nl 2:4.16.0+dfsg-7~
+then
+    rm -f $dir/*
+    rmdir $dir
 fi
 
 exit 0
