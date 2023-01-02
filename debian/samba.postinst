@@ -27,10 +27,8 @@ if [ configure = "$1" -a -z "$2" ] # only do this if not upgrading
 then
     # add the sambashare group; --force: ok if group already exist
     groupadd --force --system sambashare
-    if [ ! -e /var/lib/samba/usershares ]
-    then
-	install -d -m 1770 -g sambashare /var/lib/samba/usershares
-    fi
+    dir=/var/lib/samba/usershares
+    [ -d $dir ] || install -d -m 1770 -g sambashare $dir
 fi
 
 # in 4.17.4+dfsg-3 we stopped masking services, unmask them here
