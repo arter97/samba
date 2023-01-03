@@ -1,3 +1,21 @@
+samba (2:4.17.4+dfsg-3) unstable; urgency=medium
+
+  * +rpc_server_srvsvc-retrieve_share_ACL_via_root_context.patch
+    https://bugzilla.samba.org/show_bug.cgi?id=15265
+  * +reload-registry-shares-after-reloading-services.patch
+    https://bugzilla.samba.org/show_bug.cgi?id=15266
+  * d/samba.postinst: fix /var/spool/samba => /var/tmp handling
+    (old spooldir can be referred to in other sections too)
+  * create common script "is-configured" to check if the service is configured
+    in smb.conf, and stop masking services in postinst
+  * rewrite SysV init scripts (simplify, make consistent, etc)
+  * d/winbind.postinst: create/change /var/lib/samba/winbindd_privileged
+    at install time only (it should be in /run/samba/ somewhere these days)
+  * d/control: change version of samba which samba-ad-provisioning
+    Breaks to where provisioning was split out
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 03 Jan 2023 10:45:36 +0300
+
 samba (2:4.17.4+dfsg-2) unstable; urgency=medium
 
   * d/control: samba-dc-provision Replaces+Breaks samba (< 4.17.4+dfsg-2).
