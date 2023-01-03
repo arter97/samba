@@ -3,6 +3,8 @@ Subject: Bug 15266 - shares missing from netshareenum response in samba 4.17.4
 Bug: https://bugzilla.samba.org/show_bug.cgi?id=15266
 
 git-am patch for samba bug 15266.
+Remove addition and deletion of selftest/knownfail.d/registry_share
+ file (quilt dislikes when a file is added and deleted in one patch)
 
 From 53d81dbecbca90b9b4715de3d895ea881725138e Mon Sep 17 00:00:00 2001
 From: Volker Lendecke <vl@samba.org>
@@ -79,21 +81,12 @@ Signed-off-by: Stefan Metzmacher <metze@samba.org>
 Reviewed-by: Andrew Walker <awalker@ixsystems.com>
 (cherry picked from commit a00c7395fbc7974a61a70ae54ea6ae6349933de2)
 ---
- selftest/knownfail.d/registry_share         |  1 +
  selftest/target/Samba3.pm                   | 30 ++++++++++++++++
  source3/script/tests/test_registry_share.sh | 39 +++++++++++++++++++++
  source3/selftest/tests.py                   |  4 +++
- 4 files changed, 74 insertions(+)
- create mode 100644 selftest/knownfail.d/registry_share
+ 3 files changed, 73 insertions(+)
  create mode 100755 source3/script/tests/test_registry_share.sh
 
-diff --git a/selftest/knownfail.d/registry_share b/selftest/knownfail.d/registry_share
-new file mode 100644
-index 000000000000..4adbf0915b87
---- /dev/null
-+++ b/selftest/knownfail.d/registry_share
-@@ -0,0 +1 @@
-+^samba3.blackbox.registry_share.Test.for.share.enum.with.registry.share.clusteredmember
 diff --git a/selftest/target/Samba3.pm b/selftest/target/Samba3.pm
 index 64374ab9bcde..72c8abac8670 100755
 --- a/selftest/target/Samba3.pm
@@ -226,18 +219,10 @@ Autobuild-Date(master): Thu Dec 29 21:14:02 UTC 2022 on sn-devel-184
 
 (cherry picked from commit f28553105be7465026bcc0fcbbed6a1a8c2133dd)
 ---
- selftest/knownfail.d/registry_share       |  1 -
  source3/rpc_server/srvsvc/srv_srvsvc_nt.c | 28 +++++++++++++----------
- 2 files changed, 16 insertions(+), 13 deletions(-)
+ 1 file changed, 16 insertions(+), 12 deletions(-)
  delete mode 100644 selftest/knownfail.d/registry_share
 
-diff --git a/selftest/knownfail.d/registry_share b/selftest/knownfail.d/registry_share
-deleted file mode 100644
-index 4adbf0915b87..000000000000
---- a/selftest/knownfail.d/registry_share
-+++ /dev/null
-@@ -1 +0,0 @@
--^samba3.blackbox.registry_share.Test.for.share.enum.with.registry.share.clusteredmember
 diff --git a/source3/rpc_server/srvsvc/srv_srvsvc_nt.c b/source3/rpc_server/srvsvc/srv_srvsvc_nt.c
 index 233718ff310c..5114ccbdad4d 100644
 --- a/source3/rpc_server/srvsvc/srv_srvsvc_nt.c
