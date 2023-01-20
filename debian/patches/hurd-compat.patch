@@ -13,7 +13,7 @@ generation, which has only cosmetic effect.  Define it to be 0.
 Based on prior work and ideas by Samuel Thibault.
 
 diff --git a/lib/tevent/testsuite.c b/lib/tevent/testsuite.c
-index 8894e445203..27f873cd484 100644
+index 492b8807996..0bbfc2ed280 100644
 --- a/lib/tevent/testsuite.c
 +++ b/lib/tevent/testsuite.c
 @@ -36,6 +36,10 @@
@@ -25,10 +25,10 @@ index 8894e445203..27f873cd484 100644
 +# define PIPE_BUF 512 /* a safe bet */
 +#endif
  
- static int fde_count;
- 
+ static struct tevent_context *
+ test_tevent_context_init(TALLOC_CTX *mem_ctx)
 diff --git a/lib/util/tests/tfork.c b/lib/util/tests/tfork.c
-index 70ae97583fc..0dc8e1688d3 100644
+index 70ae97583fc..72288e03abb 100644
 --- a/lib/util/tests/tfork.c
 +++ b/lib/util/tests/tfork.c
 @@ -33,6 +33,9 @@
