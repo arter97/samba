@@ -112,6 +112,7 @@ usr/lib/*/samba/libsamba3-util-samba4.so.0
 usr/lib/*/samba/libsamdb-common-samba4.so.0
 usr/lib/*/samba/libsocket-blocking-samba4.so.0
 usr/lib/*/samba/libscavenge-dns-records-samba4.so.0
+usr/lib/*/samba/libstable-sort-samba4.so.0
 usr/lib/*/samba/libsys-rw-samba4.so.0
 usr/lib/*/samba/libsecrets3-samba4.so.0
 usr/lib/*/samba/libserver-id-db-samba4.so.0
