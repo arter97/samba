@@ -19,7 +19,6 @@ testparm-do-not-fail-if-pid-dir-does-not-exist.patch
 add-missing-libs-deps.diff
 spelling.patch
 heimdal-spelling.patch
-unwrap-getresgid-typo.patch
 fruit-disable-useless-size_t-overflow-check.patch
 meaningful-error-if-no-samba-ad-provision.patch
 meaningful-error-if-no-python3-markdown.patch
