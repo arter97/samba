@@ -48,7 +48,6 @@ Build-Depends-Arch:
 	libkrb5-dev (>= 1.19.0~) <pkg.samba.mitkrb5>,
 	libldap2-dev,
 	liblmdb-dev,
-	libncurses5-dev,
 	libpam0g-dev,
 	libparse-yapp-perl,
 	libpcap-dev [hurd-i386 kfreebsd-any],
