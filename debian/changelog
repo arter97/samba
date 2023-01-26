@@ -1,3 +1,22 @@
+samba (2:4.17.4+dfsg-4) UNRELEASED; urgency=medium
+
+  * d/control: Standards-Version: 4.6.2 (no changes)
+  * d/control: put all doc-generating build-deps into one line
+  * little prep for cross-compilation
+    - build-depend on python3:any and python3-dev:any
+    - build-depend on libpython3-dev for actual module building,
+      and use arch-specific python3-config from there
+    - set and export _PYTHON_SYSCONFIGDATA_NAME to get foreign-arch values
+      provided by libpython3-dev (also helps when python itself is foreign)
+    - depend on perl:any not just perl
+    - export CC/CPP/LD/PKGCONFIG for ./configure (buildtools.mk)
+  * d/gbp.conf: unignore branch
+  * d/control: samba, ctdb, winbind: do not depend on lsb-base
+    (the script is in sysvinit-utils now)
+  * d/control: drop unused build-dep on libncurses5-dev
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 26 Jan 2023 23:21:18 +0300
+
 samba (2:4.17.4+dfsg-3) unstable; urgency=medium
 
   * +rpc_server_srvsvc-retrieve_share_ACL_via_root_context.patch
