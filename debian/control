@@ -16,12 +16,10 @@ Build-Depends-Arch:
 	dh-sequence-python3,
 # tools:
 	bison,
-	docbook-xml,
-	docbook-xsl,
+	docbook-xml, docbook-xsl, xsltproc,
 	flex,
 	perl,
 	po-debconf,
-	xsltproc,
 # libraries which we embed but use system versions of:
 	libtalloc-dev (>= 2.3.4~),
 	python3-talloc-dev (>= 2.3.4~),
