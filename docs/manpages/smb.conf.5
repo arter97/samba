@@ -2,12 +2,12 @@
 .\"     Title: smb.conf
 .\"    Author: [see the "AUTHOR" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/15/2022
+.\"      Date: 01/26/2023
 .\"    Manual: File Formats and Conventions
-.\"    Source: Samba 4.17.4
+.\"    Source: Samba 4.17.5
 .\"  Language: English
 .\"
-.TH "SMB\&.CONF" "5" "12/15/2022" "Samba 4\&.17\&.4" "File Formats and Conventions"
+.TH "SMB\&.CONF" "5" "01/26/2023" "Samba 4\&.17\&.5" "File Formats and Conventions"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -11353,7 +11353,7 @@ server schannel require seal (G)
 .RS 4
 This option is deprecated and will be removed in future, as it is a security problem if not set to "yes" (which will be the hardcoded behavior in future)\&.
 .sp
-This option controls whether the netlogon server (currently only in \*(Aqactive directory domain controller\*(Aq mode), will reject the usage of netlogon secure channel without privacy/enryption\&.
+This option controls whether the netlogon server, will reject the usage of netlogon secure channel without privacy/enryption\&.
 .sp
 The option is modelled after the registry key available on Windows\&.
 .sp
@@ -14509,7 +14509,7 @@ and
 special sections make life for an administrator easy, but the various combinations of default attributes can be tricky\&. Take extreme care when designing these sections\&. In particular, ensure that the permissions on spool directories are correct\&.
 .SH "VERSION"
 .PP
-This man page is part of version 4\&.17\&.4 of the Samba suite\&.
+This man page is part of version 4\&.17\&.5 of the Samba suite\&.
 .SH "SEE ALSO"
 .PP
 \fBsamba\fR(7),
