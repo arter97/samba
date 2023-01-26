@@ -6,12 +6,16 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 ifeq (${DEB_HOST_MULTIARCH},)
    $(foreach d, $(shell dpkg-architecture | sed 's/=/?=/'), $(eval export $d))
 endif
+include /usr/share/dpkg/buildtools.mk
 include /usr/share/dpkg/buildflags.mk
 include /usr/share/dpkg/pkg-info.mk
 include /usr/share/dpkg/vendor.mk
 V := $(if $(filter terse, ${DEB_BUILD_OPTIONS}),,1)
 WAF := PYTHONHASHSEED=1 ./buildtools/bin/waf \
 	$(patsubst parallel=%,-j%,$(filter parallel=%,${DEB_BUILD_OPTIONS}))
+
+# for cross-build or build with foreign python binary
+export _PYTHON_SYSCONFIGDATA_NAME = _sysconfigdata__${DEB_HOST_ARCH_OS}_${DEB_HOST_MULTIARCH}
 
 DESTDIR = ${CURDIR}/debian/tmp
 
@@ -140,6 +144,7 @@ bin/configured.stamp:
 	  sed -r -e 's/^(SAMBA_VERSION_VENDOR_SUFFIX).*/\1=${DEB_VENDOR}/' \
 		VERSION.orig > VERSION; \
 	fi
+	CC="${CC}" CPP="${CPP}" LD="${LD}" PKGCONFIG="${PKG_CONFIG}" \
 	CPPFLAGS="${CPPFLAGS}" CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" \
 	    ${WAF} -j1 -C configure ${config-args} || \
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
@@ -319,7 +324,7 @@ execute_after_dh_fixperms-arch:
 override_dh_makeshlibs:
 	# generate symbols file with correct cpython suffix in there
 	{ \
-	    suff=$$(python3-config --extension-suffix | tr _ -); \
+	    suff=$$(${DEB_HOST_GNU_TYPE}-python3-config --extension-suffix | tr _ -); \
 	    SUFF=$$(echo "$${suff%.so}" | tr a-z- A-Z_); \
 	    echo "libpyldb-util$${suff}.2 python3-ldb #MINVER#"; \
 	    echo "* Build-Depends-Package: python3-ldb-dev" ; \
