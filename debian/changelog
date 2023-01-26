@@ -1,5 +1,37 @@
-samba (2:4.17.4+dfsg-4) UNRELEASED; urgency=medium
+samba (2:4.17.5+dfsg-1) UNRELEASED; urgency=medium
 
+  * new upstream stable/bugfix release. From WHATSNEW.txt:
+    * BUG 14808: smbc_getxattr() return value is incorrect.
+    * BUG 15172: Compound SMB2 FLUSH+CLOSE requests from MacOSX
+      are not handled correctly.
+    * BUG 15210: synthetic_pathref AFP_AfpInfo failed errors.
+    * BUG 15226: samba-tool gpo listall fails IPv6 only - finddcs()
+      fails to find DC when there is only an AAAA record for the DC in DNS
+      (Closes: #1023606).
+    * BUG 15236: smbd crashes if an FSCTL request is done on a stream handle.
+    * BUG 15277: DFS links don't work anymore on Mac clients since 4.17.
+    * BUG 15283: vfs_virusfilter segfault on access,
+      directory edgecase (accessing NULL value).
+    * BUG 15240: CVE-2022-38023 [SECURITY] Samba should refuse RC4 (aka md5)
+      based SChannel on NETLOGON (additional changes).
+    * BUG 15243: %U for include directive doesn't work for share listing
+      (netshareenum) (the fix was in debian before).
+    * BUG 15266: Shares missing from netshareenum response in samba 4.17.4
+      (the fix was in debian before).
+    * BUG 15269: ctdb: use-after-free in run_proc.
+    * BUG 15280: irpc_destructor may crash during shutdown.
+    * BUG 15286: auth3_generate_session_info_pac leaks wbcAuthUserInfo.
+    * BUG 15268: smbclient segfaults with use after free on an optimized build
+    * BUG 15282: smbstatus leaking files in msg.sock and msg.lock.
+    * BUG 15164: Leak in wbcCtxPingDc2.
+    * BUG 15265: Access based share enum does not work in Samba 4.16+.
+    * BUG 15267: Crash during share enumeration.
+    * BUG 15271: rep_listxattr on FreeBSD does not properly check
+      for reads off end of returned buffer.
+    * BUG 15281: Avoid relying on C89 features in a few places.
+  * remove patches applied upstream:
+   - reload-registry-shares-after-reloading-services.patch
+   - rpc_server_srvsvc-retrieve_share_ACL_via_root_context.patch
   * d/control: Standards-Version: 4.6.2 (no changes)
   * d/control: put all doc-generating build-deps into one line
   * little prep for cross-compilation
