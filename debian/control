@@ -85,7 +85,6 @@ Pre-Depends: ${misc:Pre-Depends}
 Depends: passwd,
          libpam-modules,
          libpam-runtime (>= 1.0.1-11),
-         lsb-base (>= 4.1+Debian),
          procps,
          python3,
          python3-dnspython,
@@ -385,8 +384,7 @@ Package: winbind
 Pre-Depends: ${misc:Pre-Depends}
 Architecture: any
 Multi-Arch: allowed
-Depends: lsb-base (>= 3.0-6),
-         samba-common (= ${source:Version}),
+Depends: samba-common (= ${source:Version}),
          samba-common-bin (=${binary:Version}),
 # wbinfo (linked with libwbclient) which should use the same protocol
          libwbclient0 (=${binary:Version}),
@@ -490,7 +488,6 @@ Package: ctdb
 Architecture: any
 Multi-Arch: foreign
 Depends: iproute2 [linux-any],
-         lsb-base (>= 3.0-6),
          psmisc,
          samba-libs (= ${binary:Version}),
          sudo,
