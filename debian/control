@@ -194,7 +194,7 @@ Depends: samba (>= ${binary:Version}), samba-dsdb-modules, samba-vfs-modules,
 	krb5-kdc (>> 1.19.0) <pkg.samba.mitkrb5>,
 	${misc:Depends}
 Recommends: libnss-winbind, libpam-winbind,
-# samba-ad-provision is needed for settup only
+# samba-ad-provision is needed for setup only
 	samba-ad-provision
 Breaks: samba-ad-provision (<< ${source:Upstream-Version})
 Description: Samba control files to run AD Domain Controller
