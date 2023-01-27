@@ -14,8 +14,10 @@ V := $(if $(filter terse, ${DEB_BUILD_OPTIONS}),,1)
 WAF := PYTHONHASHSEED=1 ./buildtools/bin/waf \
 	$(patsubst parallel=%,-j%,$(filter parallel=%,${DEB_BUILD_OPTIONS}))
 
-# for cross-build or build with foreign python binary
-export _PYTHON_SYSCONFIGDATA_NAME = _sysconfigdata__${DEB_HOST_ARCH_OS}_${DEB_HOST_MULTIARCH}
+ifeq (linux,${DEB_HOST_ARCH_OS})
+# for cross-build or build with foreign python binary (it is _gnu0_i386-gnu on hurd)
+export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__${DEB_HOST_ARCH_OS}_${DEB_HOST_MULTIARCH}
+endif
 
 DESTDIR = ${CURDIR}/debian/tmp
 
@@ -146,6 +148,7 @@ bin/configured.stamp:
 	fi
 	CC="${CC}" CPP="${CPP}" LD="${LD}" PKGCONFIG="${PKG_CONFIG}" \
 	CPPFLAGS="${CPPFLAGS}" CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" \
+	PYTHON=python3 PYTHON_CONFIG=${DEB_HOST_MULTIARCH}-python3-config \
 	    ${WAF} -j1 -C configure ${config-args} || \
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
 # #1021371: we only need the single "version" symbol LDB_2.4.4 in the library
@@ -324,7 +327,7 @@ execute_after_dh_fixperms-arch:
 override_dh_makeshlibs:
 	# generate symbols file with correct cpython suffix in there
 	{ \
-	    suff=$$(${DEB_HOST_GNU_TYPE}-python3-config --extension-suffix | tr _ -); \
+	    suff=$$(${DEB_HOST_MULTIARCH}-python3-config --extension-suffix | tr _ -); \
 	    SUFF=$$(echo "$${suff%.so}" | tr a-z- A-Z_); \
 	    echo "libpyldb-util$${suff}.2 python3-ldb #MINVER#"; \
 	    echo "* Build-Depends-Package: python3-ldb-dev" ; \
