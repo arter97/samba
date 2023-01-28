@@ -224,7 +224,7 @@ override_dh_auto_install-arch:
 	${WAF} install --destdir="${DESTDIR}"
 	# get list of files in build log
 	find debian/tmp
-	# Included in python-tevent
+	# Included in python-tevent?
 	rm debian/tmp/usr/lib/python*/*-packages/_tevent.*
 	rm debian/tmp/usr/lib/python*/*-packages/tevent.py
 	# pam stuff
@@ -237,10 +237,16 @@ override_dh_auto_install-arch:
 	install -Dp -m0644 debian/samba.ufw.profile debian/tmp/etc/ufw/applications.d/samba
 	install -Dp -m0644 debian/source_samba.py -t debian/tmp/usr/share/apport/package-hooks/
 ifeq ($(DEB_HOST_ARCH_OS), linux)
-	# Services fixups
+# Services fixups. Historically, debian used smbd, nmbd and samba-ad-dc service names.
+# Upstream samba used names smb, nmb and samba.
+# We can not easily rename them now (need to rename possible overrides and drop-ins),
+# but we can provide synonyms
 	mv debian/tmp/lib/systemd/system/nmb.service debian/tmp/lib/systemd/system/nmbd.service
+	ln -s nmbd.service debian/tmp/lib/systemd/system/nmb.service
 	mv debian/tmp/lib/systemd/system/smb.service debian/tmp/lib/systemd/system/smbd.service
+	ln -s smbd.service debian/tmp/lib/systemd/system/smb.service
 	mv debian/tmp/lib/systemd/system/samba.service debian/tmp/lib/systemd/system/samba-ad-dc.service
+	ln -s samba-ad-dc.service debian/tmp/lib/systemd/system/samba.service
 	sed -i \
 	  -e 's|/etc/sysconfig/|/etc/default/|' \
 	  -e 's|nmb\.service|nmbd.service|' \
