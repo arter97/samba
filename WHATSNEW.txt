@@ -1,12 +1,12 @@
 Release Announcements
 =====================
 
-This is the first release candidate of Samba 4.18.  This is *not*
+This is the second release candidate of Samba 4.18.  This is *not*
 intended for production environments and is designed for testing
 purposes only.  Please report any defects via the Samba bug reporting
 system at https://bugzilla.samba.org/.
 
-Samba 4.18 will be the next version of the Samba suite.
+Samba 4.18 will be the next version of the Samba suite...
 
 
 UPGRADING
@@ -65,6 +65,14 @@ already used it, the defaults have changed slightly.
    set it overrides --color for the purpose of the output diagram, but
    not for other output like error messages.
 
+New samba-tool dsacl subcommand for deleting ACES
+-------------------------------------------------
+
+The samba-tool dsacl tool can now delete entries in directory access
+control lists. The interface for 'samba-tool dsacl delete' is similar
+to that of 'samba-tool dsacl set', with the difference being that the
+ACEs described by the --sddl argument are deleted rather than added.
+
 No colour with NO_COLOR environment variable
 --------------------------------------------
 
@@ -82,6 +90,28 @@ which forces the trust account password to be changed at a specified domain
 controller. If the specified domain controller cannot be contacted the
 password change fails rather than trying other DCs.
 
+New option to change the NT ACL default location
+------------------------------------------------
+
+Usually the NT ACLs are stored in the security.NTACL extended
+attribute (xattr) of files and directories. The new
+"acl_xattr:security_acl_name" option allows to redefine the default
+location. The default "security.NTACL" is a protected location, which
+means the content of the security.NTACL attribute is not accessible
+from normal users outside of Samba. When this option is set to use a
+user-defined value, e.g. user.NTACL then any user can potentially
+access and overwrite this information. The module prevents access to
+this xattr over SMB, but the xattr may still be accessed by other
+means (eg local access, SSH, NFS). This option must only be used when
+this consequence is clearly understood and when specific precautions
+are taken to avoid compromising the ACL content.
+
+Azure Active Directory / Office365 synchronisation improvements
+--------------------------------------------------------------
+
+Use of the Azure AD Connect cloud sync tool is now supported for
+password hash synchronisation, allowing Samba AD Domains to synchronise
+passwords with this popular cloud environment.
 
 REMOVED FEATURES
 ================
@@ -92,6 +122,21 @@ smb.conf changes
 
   Parameter Name                          Description     Default
   --------------                          -----------     -------
+  acl_xattr:security_acl_name             New             security.NTACL
+
+
+CHANGES SINCE 4.18.0rc1
+=======================
+
+o  Andrew Bartlett <abartlet@samba.org>
+   * BUG 10635: Office365 azure Password Sync not working.
+
+o  Stefan Metzmacher <metze@samba.org>
+   * BUG 15286: auth3_generate_session_info_pac leaks wbcAuthUserInfo.
+
+o  Noel Power <noel.power@suse.com>
+   * BUG 15293: With clustering enabled samba-bgqd can core dump due to use
+     after free.
 
 
 KNOWN ISSUES
