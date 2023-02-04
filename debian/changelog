@@ -1,3 +1,14 @@
+samba (2:4.17.5+dfsg-2) unstable; urgency=medium
+
+  * d/control: samba: depends on exact version of python3-samba
+  * d/control: fix typo
+  * more tweaks for foreign/cross build
+  * d/control: work around autodep8 #904999 again
+  * introduce upstream-like aliases for debian .service names,
+    add rationale
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 04 Feb 2023 17:15:40 +0300
+
 samba (2:4.17.5+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release. From WHATSNEW.txt:
