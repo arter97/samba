@@ -3389,13 +3389,13 @@ NTSTATUS smbd_calculate_access_mask_fsp(struct files_struct *dirfsp,
 	rejected_share_access = access_mask & ~(fsp->conn->share_access);
 
 	if (rejected_share_access) {
-		DBG_DEBUG("Access denied on file %s: "
-			  "rejected by share access mask[0x%08X] "
-			  "orig[0x%08X] mapped[0x%08X] reject[0x%08X]\n",
-			  fsp_str_dbg(fsp),
-			  fsp->conn->share_access,
-			  orig_access_mask, access_mask,
-			  rejected_share_access);
+		DBG_ERR("Access denied on file %s: "
+			"rejected by share access mask[0x%08X] "
+			"orig[0x%08X] mapped[0x%08X] reject[0x%08X]\n",
+			fsp_str_dbg(fsp),
+			fsp->conn->share_access,
+			orig_access_mask, access_mask,
+			rejected_share_access);
 		return NT_STATUS_ACCESS_DENIED;
 	}
 
