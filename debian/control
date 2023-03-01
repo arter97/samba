@@ -112,13 +112,14 @@ Description: SMB/CIFS file, print, and login server for Unix
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file and printer sharing with
  Microsoft Windows, OS X, and other Unix systems.  Samba can also function
- as an NT4-style domain controller, and can integrate with both NT4 domains
- and Active Directory realms as a member server.
+ as an Active Directory or NT4-style domain controller, and can integrate
+ with Active Directory realms or NT4 domains as a member server.
  .
  This package provides the components necessary to use Samba as a stand-alone
- file and print server or as an NT4 or Active Directory domain controller.
- For use in an NT4 domain or Active Directory realm, you will also need the
- winbind package.
+ file and print server or as an NT4 domain controller.  For use in an NT4
+ domain or Active Directory realm, you will also need the winbind package.
+ To use samba as an Active Directory domain controller (AD DC), please install
+ samba-ad-dc package.
  .
  This package is not required for connecting to existing SMB/CIFS servers
  (see smbclient) or for mounting remote filesystems (see cifs-utils).
@@ -141,7 +142,7 @@ Description: Samba core libraries
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
- or member server in both NT4-style and Active Directory domains.
+ or member server in Active Directory or NT4-style domains.
  .
  This package contains the shared libraries.
 
@@ -178,7 +179,7 @@ Description: Samba common files used by both the server and the client
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
- or member server in both NT4-style and Active Directory domains.
+ or member server in Active Directory or NT4-style domains.
  .
  This package contains the common files that are used by both the server
  (provided in the samba package) and the client (provided in the samba-clients
@@ -249,7 +250,7 @@ Description: test suite from Samba
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
- or member server in both NT4-style and Active Directory domains.
+ or member server in Active Directory or NT4-style domains.
  .
  This package contains programs for testing the reliability and speed
  of SMB servers, Samba in particular.
@@ -261,7 +262,7 @@ Description: tools for viewing and manipulating the Windows registry
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
- or member server in both NT4-style and Active Directory domains.
+ or member server in Active Directory or NT4-style domains.
  .
  This package contains tools for viewing and manipulating the binary
  "registry" found on Windows machines, both locally and remote.
@@ -286,7 +287,7 @@ Description: tools for extending Samba
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
- or member server in both NT4-style and Active Directory domains.
+ or member server in Active Directory or NT4-style domains.
  .
  This package contains include files shared by the various Samba-based
  libraries.
@@ -309,7 +310,7 @@ Description: Python 3 bindings for Samba
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
- or member server in both NT4-style and Active Directory domains.
+ or member server in Active Directory or NT4-style domains.
  .
  This package contains Python 3 bindings for most Samba libraries.
 
@@ -327,7 +328,7 @@ Description: Samba Directory Services Database
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
- or member server in both NT4-style and Active Directory domains.
+ or member server in Active Directory or NT4-style domains.
  .
  This package contains LDB plugins which add support for various Active
  Directory features to the LDB library.
@@ -342,7 +343,7 @@ Description: Samba Virtual FileSystem plugins
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
- or member server in both NT4-style and Active Directory domains.
+ or member server in Active Directory or NT4-style domains.
  .
  Virtual FileSystem modules are stacked shared libraries extending the
  functionality of Samba. Some examples are:
@@ -399,7 +400,7 @@ Description: service to resolve user and group information from Windows NT serve
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
- or member server in both NT4-style and Active Directory domains.
+ or member server in Active Directory or NT4-style domains.
  .
  This package provides winbindd, a daemon which integrates authentication
  and directory service (user/group lookup) mechanisms from a Windows
