@@ -1,8 +1,29 @@
-samba (2:4.18.0~rc+dfsg-1) UNRELEASED; urgency=medium
+samba (2:4.18.0+dfsg-1~exp1) experimental; urgency=medium
 
-  * new upstream release (4.18.0)
+  * new upstream release (4.18.0):
+   * SMB Server performance improvements
+   * More succinct samba-tool error messages
+   * Colour output with samba-tool --color
+   * New samba-tool dsacl subcommand for deleting ACES
+   * New wbinfo option --change-secret-at
+   * New option to change the NT ACL default location
+   * Azure Active Directory / Office365 synchronisation improvements
+   * new smb.conf parameters:
+     server addresses
+     acl_xattr:security_acl_name
+   * For more details, please refer to WHATSNEW.txt file.
+  * d/control: bump talloc/tdb/tevent build-deps
+  * patches:
+    - refresh: hurd-compat.patch
+    - refresh: spelling.patch, remove many, add 3 new changes
+    - new: heimdal-spelling.patch, spelling fixes for third_party/heimdal
+    - remove: unwrap-getresgid-typo.patch, not needed
+  * d/samba-libs.install: add new internal library libstable-sort-samba4.so.0
+  * d/libldb2.symbols, python3-ldb.symbols.in: add new versions (2.7.0, 2.7.1)
+  * d/libwbclient0.symbols: add new version and two new symbols:
+     wbcChangeTrustCredentialsAt wbcCtxChangeTrustCredentialsAt
 
- -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 20 Jan 2023 19:56:32 +0300
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 09 Mar 2023 14:47:05 +0300
 
 samba (2:4.17.6+dfsg-1) unstable; urgency=medium
 
