@@ -1,3 +1,30 @@
+samba (2:4.17.6+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release 4.17.6:
+   * https://bugzilla.samba.org/show_bug.cgi?id=15314
+     streams_xattr is creating unexpected locks on folders.
+   * https://bugzilla.samba.org/show_bug.cgi?id=10635
+     Use of the Azure AD Connect cloud sync tool is now supported for password
+     hash synchronisation, allowing Samba AD Domains to synchronise passwords
+     with this popular cloud environment.
+   * https://bugzilla.samba.org/show_bug.cgi?id=15299
+     Spotlight doesn't work with latest macOS Ventura.
+   * https://bugzilla.samba.org/show_bug.cgi?id=15310
+     New samba-dcerpc architecture does not scale gracefully.
+   * https://bugzilla.samba.org/show_bug.cgi?id=15307
+     vfs_ceph incorrectly uses fsp_get_io_fd() instead of fsp_get_pathref_fd()
+     in close and fstat.
+   * https://bugzilla.samba.org/show_bug.cgi?id=15293
+     With clustering enabled samba-bgqd can core dump due to use after free.
+   * https://bugzilla.samba.org/show_bug.cgi?id=15311
+     fd_load() function implicitly closes the fd where it should not.
+  * debian/po/ro.po update from Remus-Gabriel Chelu
+  * s3-smbd-open.c-smbd_calculate_access_mask_fsp-lower-.patch
+     makes smbd a bit less spammy in logs
+  * d/control: clarify some package descriptions (Closes: #1031922)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 09 Mar 2023 12:52:14 +0300
+
 samba (2:4.17.5+dfsg-2) unstable; urgency=medium
 
   * d/control: samba: depends on exact version of python3-samba
