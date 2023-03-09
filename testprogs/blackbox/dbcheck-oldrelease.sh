@@ -18,25 +18,12 @@ failed=0
 
 release_dir=$(dirname $0)/../../source4/selftest/provisions/$RELEASE
 
-ldbmodify="ldbmodify"
-if [ -x "$BINDIR/ldbmodify" ]; then
-	ldbmodify="$BINDIR/ldbmodify"
-fi
-
-ldbdel="ldbdel"
-if [ -x "$BINDIR/ldbdel" ]; then
-	ldbdel="$BINDIR/ldbdel"
-fi
-
-ldbsearch="ldbsearch"
-if [ -x "$BINDIR/ldbsearch" ]; then
-	ldbsearch="$BINDIR/ldbsearch"
-fi
-
-samba_tdbrestore="tdbrestore"
-if [ -x "$BINDIR/tdbrestore" ]; then
-	samba_tdbrestore="$BINDIR/tdbrestore"
-fi
+ldbadd=$(system_or_builddir_binary ldbadd "${BINDIR}")
+ldbmodify=$(system_or_builddir_binary ldbmodify "${BINDIR}")
+ldbdel=$(system_or_builddir_binary ldbdel "${BINDIR}")
+ldbsearch=$(system_or_builddir_binary ldbsearch "${BINDIR}")
+ldbrename=$(system_or_builddir_binary ldbrename "${BINDIR}")
+samba_tdbrestore=$(system_or_builddir_binary tdbrestore "${BINDIR}")
 
 samba_undump="$SRCDIR_ABS/source4/selftest/provisions/undump.sh"
 if [ ! -x $samba_undump ] || [ ! -d $release_dir ]; then
@@ -246,7 +233,7 @@ check_expected_userparameters()
 
 reindex()
 {
-	$PYTHON $BINDIR/samba-tool dbcheck --reindex -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb $@
+	$PYTHON $BINDIR/samba-tool dbcheck --reindex -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "$@"
 }
 
 do_current_version_mod()
@@ -301,7 +288,7 @@ check_expected_before_values()
 dbcheck_objectclass()
 {
 	if [ x$RELEASE = x"release-4-1-6-partial-object" ]; then
-		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb --attrs=objectclass $@
+		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb --attrs=objectclass "$@"
 	else
 		return 1
 	fi
@@ -313,7 +300,7 @@ dbcheck_deleted_objects()
 	if [ x$RELEASE = x"alpha13" ]; then
 		basedn=$($ldbsearch -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb --scope base -b "" defaultNamingContext | grep -i defaultNamingContext | cut -d\  -f 2)
 
-		$PYTHON $BINDIR/samba-tool dbcheck -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "cn=deleted objects,$basedn" --scope base $@
+		$PYTHON $BINDIR/samba-tool dbcheck -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "cn=deleted objects,$basedn" --scope base "$@"
 	else
 		return 1
 	fi
@@ -322,7 +309,7 @@ dbcheck_deleted_objects()
 # This should 'fail', because it returns the number of modified records
 dbcheck()
 {
-	$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb $@
+	$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "$@"
 }
 
 check_expected_after_values()
@@ -395,7 +382,7 @@ check_forced_duplicate_values()
 dbcheck_after_dup()
 {
 	if [ x$RELEASE = x"release-4-1-0rc3" ]; then
-		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb cn=administrator,cn=users,DC=release-4-1-0rc3,DC=samba,DC=corp $@
+		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb cn=administrator,cn=users,DC=release-4-1-0rc3,DC=samba,DC=corp "$@"
 	else
 		return 1
 	fi
@@ -417,7 +404,7 @@ check_expected_after_dup_values()
 # But having fixed it all up, this should pass
 dbcheck_clean()
 {
-	$PYTHON $BINDIR/samba-tool dbcheck --cross-ncs -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb $@
+	$PYTHON $BINDIR/samba-tool dbcheck --cross-ncs -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "$@"
 }
 
 # This should 'fail', because it returns the number of modified records.
@@ -425,7 +412,7 @@ dbcheck_clean()
 dbcheck_acl_reset()
 {
 	if [ x$RELEASE = x"release-4-0-0" -o x$RELEASE = x"alpha13" ]; then
-		$PYTHON $BINDIR/samba-tool dbcheck --reset-well-known-acls --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb $@
+		$PYTHON $BINDIR/samba-tool dbcheck --reset-well-known-acls --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "$@"
 	else
 		return 1
 	fi
@@ -435,7 +422,7 @@ dbcheck_acl_reset()
 dbcheck_acl_reset_clean()
 {
 	if [ x$RELEASE != x"release-4-1-0rc3" ]; then
-		$PYTHON $BINDIR/samba-tool dbcheck --reset-well-known-acls --cross-ncs -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb $@
+		$PYTHON $BINDIR/samba-tool dbcheck --reset-well-known-acls --cross-ncs -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "$@"
 	fi
 }
 
@@ -443,7 +430,7 @@ dbcheck_acl_reset_clean()
 dbcheck2()
 {
 	if [ x$RELEASE = x"release-4-1-0rc3" ]; then
-		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb $@
+		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "$@"
 	else
 		exit 1
 	fi
@@ -452,7 +439,7 @@ dbcheck2()
 dbcheck_clean2()
 {
 	if [ x$RELEASE = x"release-4-1-0rc3" ]; then
-		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb $@
+		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "$@"
 	fi
 }
 
@@ -471,7 +458,7 @@ rm_deleted_objects()
 dbcheck3()
 {
 	if [ x$RELEASE = x"release-4-1-0rc3" ]; then
-		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb $@
+		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs --fix --yes -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "$@"
 	else
 		exit 1
 	fi
@@ -480,7 +467,7 @@ dbcheck3()
 dbcheck_clean3()
 {
 	if [ x$RELEASE = x"release-4-1-0rc3" ]; then
-		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb $@
+		$PYTHON $BINDIR/samba-tool dbcheck --selftest-check-expired-tombstones --cross-ncs -H tdb://$PREFIX_ABS/${RELEASE}/private/sam.ldb "$@"
 	fi
 }
 

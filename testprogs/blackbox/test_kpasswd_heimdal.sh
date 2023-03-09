@@ -45,7 +45,7 @@ do_kinit()
 	password="$2"
 	shift
 	shift
-	kerberos_kinit "$samba_kinit" "$principal" "$password" $@
+	kerberos_kinit "$samba_kinit" "$principal" "$password" "$@"
 }
 
 UID_WRAPPER_ROOT=1
@@ -145,7 +145,7 @@ TEST_PASSWORD=$TEST_PASSWORD_NEW
 TEST_PASSWORD_NEW="testPaSS@03%"
 
 ###########################################################
-### CVE-2022-XXXXX
+### CVE-2022-2031
 ###########################################################
 
 if [ -n "${mit_kpasswd}" ]; then

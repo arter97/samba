@@ -53,8 +53,6 @@
 #include "source3/lib/substitute.h"
 #include "librpc/rpc/server/netlogon/schannel_util.h"
 
-extern userdom_struct current_user_info;
-
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_RPC_SRV
 

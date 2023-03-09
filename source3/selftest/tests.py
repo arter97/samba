@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), "../
 import selftesthelpers
 from selftesthelpers import bindir, srcdir, scriptdir, binpath
 from selftesthelpers import plantestsuite, samba3srcdir
+from selftesthelpers import planpythontestsuite
 from selftesthelpers import smbtorture3, configuration, smbclient3, smbtorture4
 from selftesthelpers import net, wbinfo, dbwrap_tool, rpcclient, python
 from selftesthelpers import smbget, smbcacls, smbcquotas, ntlm_auth3
@@ -90,6 +91,8 @@ if "HAVE_KERNEL_OPLOCKS_LINUX" in config_hash:
 have_inotify = ("HAVE_INOTIFY" in config_hash)
 have_ldwrap = ("HAVE_LDWRAP" in config_hash)
 with_pthreadpool = ("WITH_PTHREADPOOL" in config_hash)
+
+have_smb3_unix_extensions = ("HAVE_SMB3_UNIX_EXTENSIONS" in config_hash)
 
 def is_module_enabled(module):
     if module in config_hash["STRING_SHARED_MODULES"]:
@@ -190,11 +193,22 @@ for t in tests:
     plantestsuite("samba3.smbtorture_s3.vfs_aio_pthread(%s).%s" % (env, t), env, [os.path.join(samba3srcdir, "script/tests/test_smbtorture_s3.sh"), t, '//$SERVER_IP/vfs_aio_pthread', '$USERNAME', '$PASSWORD', smbtorture3, "", "-l $LOCAL_PATH"])
     plantestsuite("samba3.smbtorture_s3.vfs_aio_fork(%s).%s" % (env, t), env, [os.path.join(samba3srcdir, "script/tests/test_smbtorture_s3.sh"), t, '//$SERVER_IP/vfs_aio_fork', '$USERNAME', '$PASSWORD', smbtorture3, "", "-l $LOCAL_PATH"])
 
-plantestsuite("samba3.smbtorture_s3.hidenewfiles(fileserver_smb1)",
-              "fileserver_smb1",
+plantestsuite("samba3.smbtorture_s3.hidenewfiles",
+              "simpleserver",
               [os.path.join(samba3srcdir,
                             "script/tests/test_smbtorture_s3.sh"),
                'hide-new-files-timeout',
+               '//$SERVER_IP/hidenewfiles',
+               '$USERNAME',
+               '$PASSWORD',
+               smbtorture3,
+               "",
+               "-l $LOCAL_PATH"])
+plantestsuite("samba3.smbtorture_s3.hidenewfiles_showdirs",
+              "simpleserver",
+              [os.path.join(samba3srcdir,
+                            "script/tests/test_smbtorture_s3.sh"),
+               'hide-new-files-timeout-showdirs',
                '//$SERVER_IP/hidenewfiles',
                '$USERNAME',
                '$PASSWORD',
@@ -228,6 +242,118 @@ plantestsuite("samba3.smbtorture_s3.smb1.MSDFS-ATTRIBUTE",
                 smbtorture3,
                 "-mNT1",
                 "-f msdfs-src1"])
+
+#
+# SMB2-DFS-PATHS needs to run against a special share msdfs-pathname-share
+# This is an empty DFS share with no links, used merely to test
+# incoming DFS pathnames and how they map to local paths.
+#
+plantestsuite("samba3.smbtorture_s3.smb2.SMB2-DFS-PATHS",
+                "fileserver",
+                [os.path.join(samba3srcdir,
+                              "script/tests/test_smbtorture_s3.sh"),
+                'SMB2-DFS-PATHS',
+                '//$SERVER_IP/msdfs-pathname-share',
+                '$USERNAME',
+                '$PASSWORD',
+                smbtorture3,
+                "-mSMB2"])
+
+# BUG: https://bugzilla.samba.org/show_bug.cgi?id=15277
+# MacOSX clients send a leading '\\' character for DFS paths.
+#
+plantestsuite("samba3.smbtorture_s3.smb2.SMB2-DFS-FILENAME-LEADING-BACKSLASH",
+                "fileserver",
+                [os.path.join(samba3srcdir,
+                              "script/tests/test_smbtorture_s3.sh"),
+                'SMB2-DFS-FILENAME-LEADING-BACKSLASH',
+                '//$SERVER_IP/msdfs-pathname-share',
+                '$USERNAME',
+                '$PASSWORD',
+                smbtorture3,
+                "-mSMB2"])
+
+#
+# SMB2-NON-DFS-SHARE needs to run against a special share non-msdfs-pathname-share
+# This is an empty non-DFS share with no links, used merely to test
+# incoming DFS pathnames and how they map to local paths. We are testing
+# what happens if we set the FLAGS2_DFS_PATHNAMES and send DFS paths
+# on a non-DFS share.
+#
+plantestsuite("samba3.smbtorture_s3.smb2.SMB2-NON-DFS-SHARE",
+                "fileserver",
+                [os.path.join(samba3srcdir,
+                              "script/tests/test_smbtorture_s3.sh"),
+                'SMB2-NON-DFS-SHARE',
+                '//$SERVER_IP/non-msdfs-pathname-share',
+                '$USERNAME',
+                '$PASSWORD',
+                smbtorture3,
+                "-mSMB2"])
+
+#
+# SMB2-DFS-SHARE-NON-DFS-PATH needs to run against a special share msdfs-pathname-share
+# This is an empty DFS share with no links, used merely to test
+# incoming non-DFS pathnames and how they map to local paths.
+#
+plantestsuite("samba3.smbtorture_s3.smb2.SMB2-DFS-SHARE-NON-DFS-PATH",
+                "fileserver",
+                [os.path.join(samba3srcdir,
+                              "script/tests/test_smbtorture_s3.sh"),
+                'SMB2-DFS-SHARE-NON-DFS-PATH',
+                '//$SERVER_IP/msdfs-pathname-share',
+                '$USERNAME',
+                '$PASSWORD',
+                smbtorture3,
+                "-mSMB2"])
+
+#
+# SMB1-DFS-PATHS needs to run against a special share msdfs-pathname-share
+# This is an empty DFS share with no links, used merely to test
+# incoming DFS pathnames and how they map to local paths.
+#
+plantestsuite("samba3.smbtorture_s3.smb1.SMB1-DFS-PATHS",
+                "fileserver",
+                [os.path.join(samba3srcdir,
+                              "script/tests/test_smbtorture_s3.sh"),
+                'SMB1-DFS-PATHS',
+                '//$SERVER_IP/msdfs-pathname-share',
+                '$USERNAME',
+                '$PASSWORD',
+                smbtorture3,
+                "-mNT1"])
+
+#
+# SMB1-DFS-SEARCH-PATHS needs to run against a special share msdfs-pathname-share
+# This is an empty DFS share with no links, used merely to test
+# incoming DFS pathnames and how they map to local paths.
+#
+plantestsuite("samba3.smbtorture_s3.smb1.SMB1-DFS-SEARCH-PATHS",
+                "fileserver",
+                [os.path.join(samba3srcdir,
+                              "script/tests/test_smbtorture_s3.sh"),
+                'SMB1-DFS-SEARCH-PATHS',
+                '//$SERVER_IP/msdfs-pathname-share',
+                '$USERNAME',
+                '$PASSWORD',
+                smbtorture3,
+                "-mNT1"])
+
+#
+# SMB1-DFS-OPERATIONS needs to run against a special share msdfs-pathname-share
+# This is an empty DFS share with no links, used merely to test
+# incoming DFS pathnames and how they map to local paths.
+#
+plantestsuite("samba3.smbtorture_s3.smb1.SMB1-DFS-OPERATIONS",
+                "fileserver",
+                [os.path.join(samba3srcdir,
+                              "script/tests/test_smbtorture_s3.sh"),
+                'SMB1-DFS-OPERATIONS',
+                '//$SERVER_IP/msdfs-pathname-share',
+                '$USERNAME',
+                '$PASSWORD',
+                smbtorture3,
+                "-mNT1"])
 
 #
 # SMB2-STREAM-ACL needs to run against a special share - vfs_wo_fruit
@@ -455,6 +581,8 @@ plantestsuite("samba3.blackbox.smbclient_auth.plain.ipv6", env, [os.path.join(sa
 
 for env in ["nt4_member", "ad_member"]:
     plantestsuite("samba3.blackbox.net_cred_change", "%s:local" % env, [os.path.join(samba3srcdir, "script/tests/test_net_cred_change.sh"), configuration])
+
+plantestsuite("samba3.blackbox.net_cred_change_at", "ad_member_s3_join:local", [os.path.join(samba3srcdir, "script/tests/test_net_cred_change_at.sh"), configuration, '$DC_SERVER'])
 
 env = "ad_member"
 t = "--krb5auth=$DOMAIN/$DC_USERNAME%$DC_PASSWORD"
@@ -695,6 +823,11 @@ for env in ["fileserver:local"]:
 
     plantestsuite("samba3.blackbox.smbstatus", env, [os.path.join(samba3srcdir, "script/tests/test_smbstatus.sh"), '$SERVER', '$SERVER_IP', '$DOMAIN', '$USERNAME', '$PASSWORD', '$USERID', '$LOCAL_PATH', '$PREFIX', smbclient3, smbstatus, configuration, "SMB3"])
     plantestsuite("samba3.blackbox.net_registry_import", env, [os.path.join(samba3srcdir, "script/tests/test_net_registry_import.sh"), '$SERVER', '$LOCAL_PATH', '$USERNAME', '$PASSWORD'])
+
+plantestsuite("samba3.blackbox.server_addresses",
+              "simpleserver",
+              [os.path.join(samba3srcdir,
+                            "script/tests/test_server_addresses.sh")])
 
 # TODO encrypted against member, with member creds, and with DC creds
 plantestsuite("samba3.blackbox.net.misc NT1", "ad_dc_smb1_done:local",
@@ -1059,7 +1192,7 @@ for t in tests:
         plansmbtorture4testsuite(t, "nt4_dc", '//$SERVER_IP/aio -U$USERNAME%$PASSWORD', 'aio')
         plansmbtorture4testsuite(t, "ad_dc", '//$SERVER/tmp -U$USERNAME%$PASSWORD')
     elif t == "smb2.compound_async":
-        plansmbtorture4testsuite(t, "fileserver", '//$SERVER_IP/tmp -U$USERNAME%$PASSWORD')
+        plansmbtorture4testsuite(t, "fileserver", '//$SERVER_IP/aio_delay_inject -U$USERNAME%$PASSWORD')
     elif t == "smb2.ea":
         plansmbtorture4testsuite(t, "fileserver", '//$SERVER/ea_acl_xattr --option=torture:acl_xattr_name=hackme -U$USERNAME%$PASSWORD')
     elif t == "rpc.samba3.netlogon" or t == "rpc.samba3.sessionkey":
@@ -1273,7 +1406,9 @@ plantestsuite("samba3.blackbox.chdir-cache", "simpleserver:local",
                os.path.join(bindir(), "smbclient"),
                os.path.join(bindir(), "smbcontrol"),
                '$SERVER_IP',
-               "error_inject"])
+               "error_inject",
+               '$PREFIX',
+               'simpleserver'])
 
 plantestsuite("samba3.blackbox.netfileenum", "simpleserver:local",
               [os.path.join(samba3srcdir,
@@ -1578,3 +1713,9 @@ for t in CLUSTERED_LOCAL_TESTS:
          '""',
          smbtorture3,
          "-N 1000 -o 2000"])
+
+if have_smb3_unix_extensions:
+    planpythontestsuite("fileserver", "samba.tests.smb3unix")
+planpythontestsuite("fileserver", "samba.tests.reparsepoints")
+planpythontestsuite("fileserver_smb1", "samba.tests.smb2symlink")
+planpythontestsuite("fileserver_smb1", "samba.tests.smb1posix")

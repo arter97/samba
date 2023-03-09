@@ -592,7 +592,7 @@ static char *get_kdc_ip_string(char *mem_ctx,
 	result = talloc_move(mem_ctx, &kdc_str);
 out:
 	if (result != NULL) {
-		DBG_DEBUG("Returning\n%s\n", kdc_str);
+		DBG_DEBUG("Returning\n%s\n", result);
 	} else {
 		DBG_NOTICE("Failed to get KDC ip address\n");
 	}
@@ -789,9 +789,9 @@ bool create_local_private_krb5_conf_for_domain(const char *realm,
 	fd = mkstemp(tmpname);
 	umask(mask);
 	if (fd == -1) {
-		DEBUG(0,("create_local_private_krb5_conf_for_domain: smb_mkstemp failed,"
-			" for file %s. Errno %s\n",
-			tmpname, strerror(errno) ));
+		DBG_ERR("mkstemp failed, for file %s. Errno %s\n",
+			tmpname,
+			strerror(errno));
 		goto done;
 	}
 

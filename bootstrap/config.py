@@ -126,13 +126,15 @@ PKGS = [
     ('apt-utils', 'yum-utils'),
     ('pkg-config', 'pkgconfig'),
     ('procps', 'procps-ng'),  # required for the free cmd in tests
-    ('lsb-release', 'lsb-release'),  # we need lsb_relase to show info
+    ('lsb-release', 'lsb-release'),  # we need lsb_release to show info
     ('', 'rpcgen'),  # required for test
     # refer: https://fedoraproject.org/wiki/Changes/SunRPCRemoval
     ('', 'libtirpc-devel'),  # for <rpc/rpc.h> header on fedora
     ('', 'rpcsvc-proto-devel'), # for <rpcsvc/rquota.h> header
     ('mawk', 'gawk'),
     ('', 'mold'),
+    ('', 'ShellCheck'),
+    ('', 'shfmt'),
 
     ('python3', 'python3'),
     ('python3-cryptography', 'python3-cryptography'), # for krb5 tests
@@ -243,8 +245,7 @@ yum install -y dnf-plugins-core
 yum install -y epel-release
 
 yum -v repolist all
-yum config-manager --set-enabled powertools -y || \
-    yum config-manager --set-enabled powertools -y
+yum config-manager --set-enabled powertools -y
 
 yum update -y
 
@@ -426,6 +427,13 @@ DEB_DISTS = {
             'liburing-dev': '',   # not available
         }
     },
+    'ubuntu1804-32bit': {
+        'docker_image': 'registry-1.docker.io/i386/ubuntu:18.04',
+        'vagrant_box': 'ubuntu/bionic32',
+        'replace': {
+            'liburing-dev': '',   # not available
+        }
+    },
     'ubuntu2004': {
         'docker_image': 'ubuntu:20.04',
         'vagrant_box': 'ubuntu/focal64',
@@ -433,6 +441,13 @@ DEB_DISTS = {
             'liburing-dev': '',   # not available
         }
     },
+    'ubuntu2204': {
+        'docker_image': 'ubuntu:22.04',
+        'vagrant_box': 'ubuntu/jammy64',
+        'replace': {
+            'libtracker-sparql-2.0-dev': '',  # only tracker 3.x is available
+        },
+    }
 }
 
 
@@ -472,6 +487,8 @@ RPM_DISTS = {
             'python3-setproctitle': 'python36-setproctitle',
             'tracker-devel': '', # do not install
             'mold': '',
+            'ShellCheck': '',
+            'shfmt': '',
         }
     },
     'centos8s': {
@@ -487,11 +504,13 @@ RPM_DISTS = {
             'perl-FindBin': '',
             'liburing-devel': '', # not available yet, Add me back, once available!
             'mold': '',
+            'ShellCheck': '',
+            'shfmt': '',
         }
     },
-    'fedora36': {
-        'docker_image': 'quay.io/fedora/fedora:36',
-        'vagrant_box': 'fedora/36-cloud-base',
+    'fedora37': {
+        'docker_image': 'quay.io/fedora/fedora:37',
+        'vagrant_box': 'fedora/37-cloud-base',
         'bootstrap': DNF_BOOTSTRAP,
         'replace': {
             'lsb-release': 'redhat-lsb',
@@ -500,9 +519,9 @@ RPM_DISTS = {
             'libtracker-sparql-2.0-dev': '',  # only tracker 3.x is available
         }
     },
-    'f36mit120': {
-        'docker_image': 'quay.io/fedora/fedora:36',
-        'vagrant_box': 'fedora/36-cloud-base',
+    'f37mit120': {
+        'docker_image': 'quay.io/fedora/fedora:37',
+        'vagrant_box': 'fedora/37-cloud-base',
         'bootstrap': DNF_BOOTSTRAP_MIT,
         'replace': {
             'lsb-release': 'redhat-lsb',
@@ -511,9 +530,9 @@ RPM_DISTS = {
             'libtracker-sparql-2.0-dev': '',  # only tracker 3.x is available
         }
     },
-    'opensuse153': {
-        'docker_image': 'opensuse/leap:15.3',
-        'vagrant_box': 'opensuse/openSUSE-15.3-x86_64',
+    'opensuse154': {
+        'docker_image': 'opensuse/leap:15.4',
+        'vagrant_box': 'opensuse/openSUSE-15.4-x86_64',
         'bootstrap': ZYPPER_BOOTSTRAP,
         'replace': {
             '@development-tools': '',
@@ -525,7 +544,7 @@ RPM_DISTS = {
             'jansson-devel': 'libjansson-devel',
             'keyutils-libs-devel': 'keyutils-devel',
             'krb5-workstation': 'krb5-client',
-            'python3-libsemanage': 'python2-semanage',
+            'python3-libsemanage': 'python3-semanage',
             'openldap-devel': 'openldap2-devel',
             'perl-Archive-Tar': 'perl-Archive-Tar-Wrapper',
             'perl-JSON-Parse': 'perl-JSON-XS',
@@ -540,6 +559,8 @@ RPM_DISTS = {
             'glusterfs-api-devel': '',
             'libtasn1-tools': '', # asn1Parser is part of libtasn1
             'mold': '',
+            'shfmt': '',
+            'yum-utils': '',
         }
     }
 }

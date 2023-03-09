@@ -877,21 +877,17 @@ char *ldb_dn_get_extended_linearized(TALLOC_CTX *mem_ctx, struct ldb_dn *dn, int
 					    (int)val.length,
 					    val.data);
 		} else {
-			p = talloc_asprintf_append_buffer(p, ";<%s=%.*s>",
-							  name,
-							  (int)val.length,
-							  val.data);
+			talloc_asprintf_addbuf(&p, ";<%s=%.*s>",
+					       name,
+					       (int)val.length,
+					       val.data);
 		}
 
 		talloc_free(val.data);
-
-		if (!p) {
-			return NULL;
-		}
 	}
 
 	if (dn->ext_comp_num && *linearized) {
-		p = talloc_asprintf_append_buffer(p, ";%s", linearized);
+		talloc_asprintf_addbuf(&p, ";%s", linearized);
 	}
 
 	if (!p) {
@@ -1056,7 +1052,7 @@ int ldb_dn_compare_base(struct ldb_dn *base, struct ldb_dn *dn)
 	if (( ! base->valid_case) || ( ! dn->valid_case)) {
 		if (base->linearized && dn->linearized && dn->special == base->special) {
 			/* try with a normal compare first, if we are lucky
-			 * we will avoid exploding and casfolding */
+			 * we will avoid exploding and casefolding */
 			int dif;
 			dif = strlen(dn->linearized) - strlen(base->linearized);
 			if (dif < 0) {
@@ -1144,7 +1140,7 @@ int ldb_dn_compare(struct ldb_dn *dn0, struct ldb_dn *dn1)
 	if (( ! dn0->valid_case) || ( ! dn1->valid_case)) {
 		if (dn0->linearized && dn1->linearized) {
 			/* try with a normal compare first, if we are lucky
-			 * we will avoid exploding and casfolding */
+			 * we will avoid exploding and casefolding */
 			if (strcmp(dn0->linearized, dn1->linearized) == 0) {
 				return 0;
 			}

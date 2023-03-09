@@ -2,12 +2,12 @@
 .\"     Title: vfs_gpfs
 .\"    Author: [see the "AUTHOR" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/09/2023
+.\"      Date: 03/08/2023
 .\"    Manual: System Administration tools
-.\"    Source: Samba 4.17.6
+.\"    Source: Samba 4.18.0
 .\"  Language: English
 .\"
-.TH "VFS_GPFS" "8" "03/09/2023" "Samba 4\&.17\&.6" "System Administration tools"
+.TH "VFS_GPFS" "8" "03/08/2023" "Samba 4\&.18\&.0" "System Administration tools"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -485,42 +485,6 @@ no
 .RE
 .RE
 .PP
-gpfs:refuse_dacl_protected = [ yes | no ]
-.RS 4
-As GPFS does not support the ACE4_FLAG_NO_PROPAGATE NFSv4 flag (which would be the mapping for the DESC_DACL_PROTECTED flag), the status of this flag is currently silently ignored by Samba\&. That means that if you deselect the "Allow inheritable permissions\&.\&.\&." checkbox in Windows\*(Aq ACL dialog and then apply the ACL, the flag will be back immediately\&.
-.sp
-To make sure that automatic migration with e\&.g\&. robocopy does not lead to ACLs silently (and unintentionally) changed, you can set
-gpfs:refuse_dacl_protected = yes
-to enable an explicit check for this flag and if set, it will return NT_STATUS_NOT_SUPPORTED so errors are shown up on the Windows side and the Administrator is aware of the ACLs not being settable like intended
-.RS
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-no(default)
-\- ignore the DESC_DACL_PROTECTED flags\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-yes
-\- reject ACLs with DESC_DACL_PROTECTED\&.
-.RE
-.sp
-.RE
-.RE
-.PP
 gpfs:dfreequota = [ yes | no ]
 .RS 4
 Adjust reporting of the size and free space of a share according to quotas\&. If this setting is "yes", a request for size and free space will also evaluate the user quota of the user requesting the data and the group quota of the primary group of the user\&. Fileset quotas are not queried, since GPFS already provides the option \-\-dfreequota to reflect the fileset quota in the free space query\&. Please use that option to include fileset quotas in the reported disk space\&.
@@ -660,7 +624,7 @@ gpfs\&.h
 in gpfs versions newer than 3\&.2\&.1 PTF8\&.
 .SH "VERSION"
 .PP
-This man page is part of version 4\&.17\&.6 of the Samba suite\&.
+This man page is part of version 4\&.18\&.0 of the Samba suite\&.
 .SH "AUTHOR"
 .PP
 The original Samba software and related utilities were created by Andrew Tridgell\&. Samba is now developed by the Samba Team as an Open Source project similar to the way the Linux kernel is developed\&.

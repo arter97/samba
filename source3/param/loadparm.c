@@ -78,14 +78,14 @@
 #include "lib/util/string_wrappers.h"
 #include "auth/credentials/credentials.h"
 #include "source3/lib/substitute.h"
+#include "source3/librpc/gen_ndr/ads.h"
+#include "lib/util/time_basic.h"
 
 #ifdef HAVE_SYS_SYSCTL_H
 #include <sys/sysctl.h>
 #endif
 
 bool bLoaded = false;
-
-extern userdom_struct current_user_info;
 
 /* the special value for the include parameter
  * to be interpreted not as a file name but to
@@ -1054,14 +1054,14 @@ static char *loadparm_s3_global_substitution_fn(
 
 	ret = talloc_sub_basic(mem_ctx,
 			get_current_username(),
-			current_user_info.domain,
+			get_current_user_info_domain(),
 			s);
 	if (trim_char(ret, '\"', '\"')) {
 		if (strchr(ret,'\"') != NULL) {
 			TALLOC_FREE(ret);
 			ret = talloc_sub_basic(mem_ctx,
 					get_current_username(),
-					current_user_info.domain,
+					get_current_user_info_domain(),
 					s);
 		}
 	}
@@ -2409,30 +2409,47 @@ bool lp_file_list_changed(void)
 				return true;
 			}
 		} else {
-			time_t mod_time;
+			struct timespec mod_time = {
+				.tv_sec = 0,
+			};
+			struct timeval_buf tbuf = {
+				.buf = {0},
+			};
 			char *n2 = NULL;
+			struct stat sb = {0};
+			int rc;
 
 			n2 = talloc_sub_basic(talloc_tos(),
 					      get_current_username(),
-					      current_user_info.domain,
+					      get_current_user_info_domain(),
 					      f->name);
 			if (!n2) {
 				return false;
 			}
 			DEBUGADD(6, ("file %s -> %s  last mod_time: %s\n",
-				     f->name, n2, ctime(&f->modtime)));
+				     f->name, n2,
+				     timespec_string_buf(&f->modtime,
+							 true,
+							 &tbuf)));
 
-			mod_time = file_modtime(n2);
+			rc = stat(n2, &sb);
+			if (rc == 0) {
+				mod_time = get_mtimespec(&sb);
+			}
 
-			if (mod_time &&
-			    ((f->modtime != mod_time) ||
+			if (mod_time.tv_sec > 0 &&
+			    ((timespec_compare(&mod_time, &f->modtime) != 0) ||
 			     (f->subfname == NULL) ||
 			     (strcmp(n2, f->subfname) != 0)))
 			{
+				f->modtime = mod_time;
+
 				DEBUGADD(6,
 					 ("file %s modified: %s\n", n2,
-					  ctime(&mod_time)));
-				f->modtime = mod_time;
+					  timespec_string_buf(&f->modtime,
+							      true,
+							      &tbuf)));
+
 				TALLOC_FREE(f->subfname);
 				f->subfname = talloc_strdup(f, n2);
 				if (f->subfname == NULL) {
@@ -2502,7 +2519,7 @@ bool lp_include(struct loadparm_context *lp_ctx, struct loadparm_service *servic
 	}
 
 	fname = talloc_sub_basic(talloc_tos(), get_current_username(),
-				 current_user_info.domain,
+				 get_current_user_info_domain(),
 				 pszParmValue);
 
 	add_to_file_list(NULL, &file_lists, pszParmValue, fname);
@@ -4005,7 +4022,7 @@ static bool lp_load_ex(const char *pszFname,
 
 	if (lp_config_backend_is_file()) {
 		n2 = talloc_sub_basic(talloc_tos(), get_current_username(),
-					current_user_info.domain,
+					get_current_user_info_domain(),
 					pszFname);
 		if (!n2) {
 			smb_panic("lp_load_ex: out of memory");
@@ -4321,7 +4338,7 @@ int lp_servicenumber(const char *pszServiceName)
 			 */
 			fstrcpy(serviceName, ServicePtrs[iService]->szService);
 			standard_sub_basic(get_current_username(),
-					   current_user_info.domain,
+					   get_current_user_info_domain(),
 					   serviceName,sizeof(serviceName));
 			if (strequal(serviceName, pszServiceName)) {
 				break;
@@ -4676,8 +4693,8 @@ void widelinks_warning(int snum)
 			"These parameters are incompatible. "
 			"Wide links will be disabled for this share.\n",
 			 lp_const_servicename(snum));
-		} else if (lp_smb2_unix_extensions()) {
-			DBG_ERR("Share '%s' has wide links and SMB2 unix "
+		} else if (lp_smb3_unix_extensions()) {
+			DBG_ERR("Share '%s' has wide links and SMB3 unix "
 			"extensions enabled. "
 			"These parameters are incompatible. "
 			"Wide links will be disabled for this share.\n",
@@ -4689,7 +4706,7 @@ void widelinks_warning(int snum)
 bool lp_widelinks(int snum)
 {
 	/* wide links is always incompatible with unix extensions */
-	if (lp_smb1_unix_extensions() || lp_smb2_unix_extensions()) {
+	if (lp_smb1_unix_extensions() || lp_smb3_unix_extensions()) {
 		/*
 		 * Unless we have "allow insecure widelinks"
 		 * turned on.
@@ -4830,8 +4847,15 @@ uint32_t lp_get_async_dns_timeout(void)
 	return MAX(Globals.async_dns_timeout, 1);
 }
 
-/* SMB2 POSIX extensions. For now, *always* disabled. */
-bool lp_smb2_unix_extensions(void)
+bool lp_smb3_unix_extensions(void)
 {
+	/*
+	 * FIXME: If this gets always enabled, check source3/selftest/tests.py
+	 * and source3/wscript for HAVE_SMB3_UNIX_EXTENSIONS.
+	 */
+#if defined(DEVELOPER)
+	return lp__smb3_unix_extensions();
+#else
 	return false;
+#endif
 }

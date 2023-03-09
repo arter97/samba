@@ -1122,221 +1122,6 @@ struct smb_filename *vfs_GetWd(TALLOC_CTX *ctx, connection_struct *conn)
 	return result;
 }
 
-/*******************************************************************
- Reduce a file name, removing .. elements and checking that
- it is below dir in the hierarchy. This uses realpath.
-
- If cwd_name == NULL then fname is a client given path relative
- to the root path of the share.
-
- If cwd_name != NULL then fname is a client given path relative
- to cwd_name. cwd_name is relative to the root path of the share.
-********************************************************************/
-
-NTSTATUS check_reduced_name(connection_struct *conn,
-				const struct smb_filename *cwd_fname,
-				const struct smb_filename *smb_fname)
-{
-	TALLOC_CTX *ctx = talloc_tos();
-	const char *cwd_name = cwd_fname ? cwd_fname->base_name : NULL;
-	const char *fname = smb_fname->base_name;
-	struct smb_filename *resolved_fname;
-	char *resolved_name = NULL;
-	char *new_fname = NULL;
-	bool allow_symlinks = true;
-	const char *conn_rootdir;
-	size_t rootdir_len;
-	bool parent_dir_checked = false;
-
-	DBG_DEBUG("check_reduced_name [%s] [%s]\n", fname, conn->connectpath);
-
-	resolved_fname = SMB_VFS_REALPATH(conn, ctx, smb_fname);
-
-	if (resolved_fname == NULL) {
-		NTSTATUS status;
-		struct smb_filename *dir_fname = NULL;
-		struct smb_filename *last_component = NULL;
-
-		if (errno == ENOTDIR) {
-			DBG_NOTICE("Component not a directory in getting "
-				   "realpath for %s\n",
-				   fname);
-			return NT_STATUS_OBJECT_PATH_NOT_FOUND;
-		}
-		if (errno != ENOENT) {
-			status = map_nt_error_from_unix(errno);
-			DBG_NOTICE("couldn't get realpath for %s: %s\n",
-				   fname,
-				   strerror(errno));
-			return status;
-		}
-
-		/* errno == ENOENT */
-
-		/*
-		 * Last component didn't exist. Remove it and try and
-		 * canonicalise the directory name.
-		 */
-
-		status = SMB_VFS_PARENT_PATHNAME(conn,
-						 ctx,
-						 smb_fname,
-						 &dir_fname,
-						 &last_component);
-		if (!NT_STATUS_IS_OK(status)) {
-			return status;
-		}
-
-		resolved_fname = SMB_VFS_REALPATH(conn, ctx, dir_fname);
-		if (resolved_fname == NULL) {
-			status = map_nt_error_from_unix(errno);
-
-			if (errno == ENOENT || errno == ENOTDIR) {
-				status = NT_STATUS_OBJECT_PATH_NOT_FOUND;
-			}
-
-			DBG_NOTICE("couldn't get realpath for "
-				   "%s (%s)\n",
-				   smb_fname_str_dbg(dir_fname),
-				   nt_errstr(status));
-			return status;
-		}
-		resolved_name = talloc_asprintf(ctx,
-						"%s/%s",
-						resolved_fname->base_name,
-						last_component->base_name);
-		if (resolved_name == NULL) {
-			return NT_STATUS_NO_MEMORY;
-		}
-		parent_dir_checked = true;
-	} else {
-		resolved_name = resolved_fname->base_name;
-	}
-
-	DEBUG(10,("check_reduced_name realpath [%s] -> [%s]\n", fname,
-		  resolved_name));
-
-	if (*resolved_name != '/') {
-		DEBUG(0,("check_reduced_name: realpath doesn't return "
-			 "absolute paths !\n"));
-		TALLOC_FREE(resolved_fname);
-		return NT_STATUS_OBJECT_NAME_INVALID;
-	}
-
-	/* Common widelinks and symlinks checks. */
-	conn_rootdir = SMB_VFS_CONNECTPATH(conn, smb_fname);
-	if (conn_rootdir == NULL) {
-		DBG_NOTICE("Could not get conn_rootdir\n");
-		TALLOC_FREE(resolved_fname);
-		return NT_STATUS_ACCESS_DENIED;
-	}
-
-	rootdir_len = strlen(conn_rootdir);
-
-	/*
-	 * In the case of rootdir_len == 1, we know that
-	 * conn_rootdir is "/", and we also know that
-	 * resolved_name starts with a slash.  So, in this
-	 * corner case, resolved_name is automatically a
-	 * sub-directory of the conn_rootdir. Thus we can skip
-	 * the string comparison and the next character checks
-	 * (which are even wrong in this case).
-	 */
-	if (rootdir_len != 1) {
-		bool matched;
-
-		matched = (strncmp(conn_rootdir, resolved_name,
-				rootdir_len) == 0);
-		if (!matched || (resolved_name[rootdir_len] != '/' &&
-				 resolved_name[rootdir_len] != '\0')) {
-			DBG_NOTICE("Bad access attempt: %s is a symlink "
-				"outside the "
-				"share path\n"
-				"conn_rootdir =%s\n"
-				"resolved_name=%s\n",
-				fname,
-				conn_rootdir,
-				resolved_name);
-			TALLOC_FREE(resolved_fname);
-			if (parent_dir_checked) {
-				/* Part of a component path. */
-				return NT_STATUS_OBJECT_PATH_NOT_FOUND;
-			} else {
-				/* End of a path. */
-				return NT_STATUS_OBJECT_NAME_NOT_FOUND;
-			}
-		}
-	}
-
-	/* Extra checks if all symlinks are disallowed. */
-	allow_symlinks = lp_follow_symlinks(SNUM(conn));
-	if (!allow_symlinks) {
-		/* fname can't have changed in resolved_path. */
-		const char *p = &resolved_name[rootdir_len];
-
-		/*
-		 * UNIX filesystem semantics, names consisting
-		 * only of "." or ".." CANNOT be symlinks.
-		 */
-		if (ISDOT(fname) || ISDOTDOT(fname)) {
-			goto out;
-		}
-
-		if (*p != '/') {
-			DBG_NOTICE("logic error (%c) "
-				"in resolved_name: %s\n",
-				*p,
-				fname);
-			TALLOC_FREE(resolved_fname);
-			return NT_STATUS_ACCESS_DENIED;
-		}
-
-		p++;
-
-		/*
-		 * If cwd_name is present and not ".",
-		 * then fname is relative to that, not
-		 * the root of the share. Make sure the
-		 * path we check is the one the client
-		 * sent (cwd_name+fname).
-		 */
-		if (cwd_name != NULL && !ISDOT(cwd_name)) {
-			new_fname = talloc_asprintf(ctx,
-						"%s/%s",
-						cwd_name,
-						fname);
-			if (new_fname == NULL) {
-				TALLOC_FREE(resolved_fname);
-				return NT_STATUS_NO_MEMORY;
-			}
-			fname = new_fname;
-		}
-
-		if (strcmp(fname, p)!=0) {
-			DBG_NOTICE("Bad access "
-				"attempt: %s is a symlink to %s\n",
-				fname,
-				p);
-			TALLOC_FREE(resolved_fname);
-			TALLOC_FREE(new_fname);
-			if (parent_dir_checked) {
-				/* Part of a component path. */
-				return NT_STATUS_OBJECT_PATH_NOT_FOUND;
-			} else {
-				/* End of a path. */
-				return NT_STATUS_OBJECT_NAME_NOT_FOUND;
-			}
-		}
-	}
-
-  out:
-
-	DBG_INFO("%s reduced to %s\n", fname, resolved_name);
-	TALLOC_FREE(resolved_fname);
-	TALLOC_FREE(new_fname);
-	return NT_STATUS_OK;
-}
-
 /*
  * Ensure LSTAT is called for POSIX paths.
  */
@@ -1547,6 +1332,49 @@ NTSTATUS vfs_fget_dos_attributes(struct files_struct *fsp,
 
 	return NT_STATUS_OK;
 }
+
+static struct smb_vfs_deny_state *smb_vfs_deny_global;
+
+void smb_vfs_assert_allowed(void)
+{
+	if (unlikely(smb_vfs_deny_global != NULL)) {
+		DBG_ERR("Called with VFS denied by %s\n",
+			smb_vfs_deny_global->location);
+		smb_panic("Called with VFS denied!");
+	}
+}
+
+void _smb_vfs_deny_push(struct smb_vfs_deny_state *state, const char *location)
+{
+	SMB_ASSERT(smb_vfs_deny_global != state);
+
+	*state = (struct smb_vfs_deny_state) {
+		.parent = smb_vfs_deny_global,
+		.location = location,
+	};
+
+	smb_vfs_deny_global = state;
+}
+
+void _smb_vfs_deny_pop(struct smb_vfs_deny_state *state, const char *location)
+{
+	SMB_ASSERT(smb_vfs_deny_global == state);
+
+	smb_vfs_deny_global = state->parent;
+
+	*state = (struct smb_vfs_deny_state) { .parent = NULL, };
+}
+
+#define VFS_FIND(__fn__) do { \
+	if (unlikely(smb_vfs_deny_global != NULL)) { \
+		DBG_ERR("Called with VFS denied by %s\n", \
+			smb_vfs_deny_global->location); \
+		smb_panic("Called with VFS denied!"); \
+	} \
+	while (handle->fns->__fn__##_fn==NULL) { \
+		handle = handle->next; \
+	} \
+} while(0)
 
 int smb_vfs_call_connect(struct vfs_handle_struct *handle,
 			 const char *service, const char *user)
@@ -2312,10 +2140,11 @@ NTSTATUS smb_vfs_call_get_real_filename_at(struct vfs_handle_struct *handle,
 }
 
 const char *smb_vfs_call_connectpath(struct vfs_handle_struct *handle,
+				 const struct files_struct *dirfsp,
 				 const struct smb_filename *smb_fname)
 {
 	VFS_FIND(connectpath);
-	return handle->fns->connectpath_fn(handle, smb_fname);
+	return handle->fns->connectpath_fn(handle, dirfsp, smb_fname);
 }
 
 bool smb_vfs_call_strict_lock_check(struct vfs_handle_struct *handle,
@@ -2846,4 +2675,37 @@ NTSTATUS smb_vfs_call_freaddir_attr(struct vfs_handle_struct *handle,
 					     fsp,
 					     mem_ctx,
 					     attr_data);
+}
+
+bool smb_vfs_call_lock(struct vfs_handle_struct *handle,
+		       struct files_struct *fsp, int op, off_t offset,
+		       off_t count, int type)
+{
+	VFS_FIND(lock);
+	return handle->fns->lock_fn(handle, fsp, op, offset, count, type);
+}
+
+bool smb_vfs_call_getlock(struct vfs_handle_struct *handle,
+			  struct files_struct *fsp, off_t *poffset,
+			  off_t *pcount, int *ptype, pid_t *ppid)
+{
+	VFS_FIND(getlock);
+	return handle->fns->getlock_fn(handle, fsp, poffset, pcount, ptype,
+				       ppid);
+}
+
+NTSTATUS smb_vfs_call_brl_lock_windows(struct vfs_handle_struct *handle,
+				       struct byte_range_lock *br_lck,
+				       struct lock_struct *plock)
+{
+	VFS_FIND(brl_lock_windows);
+	return handle->fns->brl_lock_windows_fn(handle, br_lck, plock);
+}
+
+bool smb_vfs_call_brl_unlock_windows(struct vfs_handle_struct *handle,
+				     struct byte_range_lock *br_lck,
+				     const struct lock_struct *plock)
+{
+	VFS_FIND(brl_unlock_windows);
+	return handle->fns->brl_unlock_windows_fn(handle, br_lck, plock);
 }

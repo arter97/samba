@@ -1034,7 +1034,23 @@ void dbwrap_watched_watch_skip_alerting(struct db_record *rec)
 {
 	struct db_watched_record *wrec = db_record_get_watched_record(rec);
 
+	wrec->wakeup.watcher = (struct dbwrap_watcher) { .instance = 0, };
 	wrec->watchers.alerted = true;
+}
+
+void dbwrap_watched_watch_reset_alerting(struct db_record *rec)
+{
+	struct db_watched_record *wrec = db_record_get_watched_record(rec);
+
+	wrec->wakeup.watcher = (struct dbwrap_watcher) { .instance = 0, };
+	wrec->watchers.alerted = false;
+}
+
+void dbwrap_watched_watch_force_alerting(struct db_record *rec)
+{
+	struct db_watched_record *wrec = db_record_get_watched_record(rec);
+
+	dbwrap_watched_record_prepare_wakeup(wrec);
 }
 
 struct dbwrap_watched_watch_state {

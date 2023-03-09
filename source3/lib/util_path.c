@@ -206,6 +206,99 @@ char *canonicalize_absolute_path(TALLOC_CTX *ctx, const char *pathname_in)
 	return pathname;
 }
 
+static bool find_snapshot_token(
+	const char *filename,
+	char sep,
+	const char **_start,
+	const char **_next_component,
+	NTTIME *twrp)
+{
+	const char *start = NULL;
+	const char *end = NULL;
+	struct tm tm;
+	time_t t;
+
+	start = strstr_m(filename, "@GMT-");
+
+	if (start == NULL) {
+		return false;
+	}
+
+	if ((start > filename) && (start[-1] != sep)) {
+		/* the GMT-token does not start a path-component */
+		return false;
+	}
+
+	end = strptime(start, GMT_FORMAT, &tm);
+	if (end == NULL) {
+		/* Not a valid timestring. */
+		return false;
+	}
+
+	if ((end[0] != '\0') && (end[0] != sep)) {
+		/*
+		 * It is not a complete path component, i.e. the path
+		 * component continues after the gmt-token.
+		 */
+		return false;
+	}
+
+	tm.tm_isdst = -1;
+	t = timegm(&tm);
+	unix_to_nt_time(twrp, t);
+
+	DBG_DEBUG("Extracted @GMT-Timestamp %s\n",
+		  nt_time_string(talloc_tos(), *twrp));
+
+	*_start = start;
+
+	if (end[0] == sep) {
+		end += 1;
+	}
+	*_next_component = end;
+
+	return true;
+}
+
+bool clistr_is_previous_version_path(const char *path)
+{
+	const char *start = NULL;
+	const char *next = NULL;
+	NTTIME twrp;
+	bool ok;
+
+	ok = find_snapshot_token(path, '\\', &start, &next, &twrp);
+	return ok;
+}
+
+static bool extract_snapshot_token_internal(char *fname, NTTIME *twrp, char sep)
+{
+	const char *start = NULL;
+	const char *next = NULL;
+	size_t remaining;
+	bool found;
+
+	found = find_snapshot_token(fname, sep, &start, &next, twrp);
+	if (!found) {
+		return false;
+	}
+
+	remaining = strlen(next);
+	memmove(discard_const_p(char, start), next, remaining+1);
+
+	return true;
+}
+
+bool extract_snapshot_token(char *fname, NTTIME *twrp)
+{
+	return extract_snapshot_token_internal(fname, twrp, '/');
+}
+
+bool clistr_smb2_extract_snapshot_token(char *fname, NTTIME *twrp)
+{
+	return extract_snapshot_token_internal(fname, twrp, '\\');
+}
+
 /*
  * Take two absolute paths, figure out if "subdir" is a proper
  * subdirectory of "parent". Return the component relative to the

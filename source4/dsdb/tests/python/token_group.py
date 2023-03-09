@@ -23,7 +23,7 @@ from samba.credentials import Credentials, DONT_USE_KERBEROS, MUST_USE_KERBEROS,
 from samba.dsdb import GTYPE_SECURITY_GLOBAL_GROUP, GTYPE_SECURITY_UNIVERSAL_GROUP
 import samba.tests
 from samba.tests import delete_force
-from samba.dcerpc import samr, security
+from samba.dcerpc import security
 from samba.auth import AUTH_SESSION_INFO_DEFAULT_GROUPS, AUTH_SESSION_INFO_AUTHENTICATED, AUTH_SESSION_INFO_SIMPLE_PRIVILEGES, AUTH_SESSION_INFO_NTLM
 
 
@@ -189,7 +189,7 @@ class StaticTokenTest(samba.tests.TestCase):
         server_to_client = b""
 
         # Run the actual call loop.
-        while client_finished == False and server_finished == False:
+        while not client_finished and not server_finished:
             if not client_finished:
                 print("running client gensec_update")
                 (client_finished, client_to_server) = gensec_client.update(server_to_client)
@@ -461,7 +461,7 @@ class DynamicTokenTest(samba.tests.TestCase):
         server_to_client = b""
 
         # Run the actual call loop.
-        while client_finished == False and server_finished == False:
+        while not client_finished and not server_finished:
             if not client_finished:
                 print("running client gensec_update")
                 (client_finished, client_to_server) = gensec_client.update(server_to_client)
@@ -530,7 +530,6 @@ class DynamicTokenTest(samba.tests.TestCase):
         res = self.ldb.search(self.user_sid_dn, scope=ldb.SCOPE_BASE, attrs=["tokenGroups"])
         self.assertEqual(len(res), 1)
 
-        dn_tokengroups = []
         for sid in res[0]['tokenGroups']:
             sid = ndr_unpack(samba.dcerpc.security.dom_sid, sid)
             res3 = self.admin_ldb.search(base="<SID=%s>" % sid, scope=ldb.SCOPE_BASE,
@@ -617,7 +616,6 @@ class DynamicTokenTest(samba.tests.TestCase):
         res = self.ldb.search(self.user_sid_dn, scope=ldb.SCOPE_BASE, attrs=["tokenGroupsGlobalAndUniversal"])
         self.assertEqual(len(res), 1)
 
-        dn_tokengroups = []
         for sid in res[0]['tokenGroupsGlobalAndUniversal']:
             sid = ndr_unpack(samba.dcerpc.security.dom_sid, sid)
             res3 = self.admin_ldb.search(base="<SID=%s>" % sid, scope=ldb.SCOPE_BASE,

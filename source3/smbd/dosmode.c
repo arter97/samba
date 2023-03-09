@@ -407,12 +407,13 @@ NTSTATUS fget_ea_dos_attribute(struct files_struct *fsp,
 ****************************************************************************/
 
 NTSTATUS set_ea_dos_attribute(connection_struct *conn,
-			      const struct smb_filename *smb_fname,
+			      struct smb_filename *smb_fname,
 			      uint32_t dosmode)
 {
-	struct xattr_DOSATTRIB dosattrib;
+	struct xattr_DOSATTRIB dosattrib = { .version = 0, };
 	enum ndr_err_code ndr_err;
-	DATA_BLOB blob;
+	DATA_BLOB blob = { .data = NULL, };
+	struct timespec btime;
 	int ret;
 
 	if (!lp_store_dos_attributes(SNUM(conn))) {
@@ -428,9 +429,6 @@ NTSTATUS set_ea_dos_attribute(connection_struct *conn,
 	 * vfs_default via DMAPI if that is enabled.
 	 */
 	dosmode &= ~FILE_ATTRIBUTE_OFFLINE;
-
-	ZERO_STRUCT(dosattrib);
-	ZERO_STRUCT(blob);
 
 	dosattrib.version = 5;
 	dosattrib.info.info5.valid_flags = XATTR_DOSINFO_ATTRIB |
@@ -515,11 +513,11 @@ NTSTATUS set_ea_dos_attribute(connection_struct *conn,
 	 * We correctly stored the create time.
 	 * We *always* set XATTR_DOSINFO_CREATE_TIME,
 	 * so now it can no longer be considered
-	 * calculated.
+	 * calculated. Make sure to use the value rounded
+	 * to NTTIME granularity we've stored in the xattr.
 	 */
-	update_stat_ex_create_time(
-		&smb_fname->fsp->fsp_name->st,
-		smb_fname->st.st_ex_btime);
+	btime = nt_time_to_full_timespec(dosattrib.info.info5.create_time);
+	update_stat_ex_create_time(&smb_fname->st, btime);
 
 	DEBUG(10,("set_ea_dos_attribute: set EA 0x%x on file %s\n",
 		(unsigned int)dosmode,
@@ -553,8 +551,7 @@ uint32_t dos_mode_msdfs(connection_struct *conn,
 		}
 
 		/* Only . and .. are not hidden. */
-		if (p[0] == '.' && !((p[1] == '\0') ||
-				(p[1] == '.' && p[2] == '\0'))) {
+		if ((p[0] == '.') && !(ISDOT(p) || ISDOTDOT(p))) {
 			result |= FILE_ATTRIBUTE_HIDDEN;
 		}
 	}
@@ -726,6 +723,10 @@ uint32_t fdos_mode(struct files_struct *fsp)
 		return FILE_ATTRIBUTE_NORMAL;
 	}
 
+	if (fsp->fsp_name->st.cached_dos_attributes != FILE_ATTRIBUTES_INVALID) {
+		return fsp->fsp_name->st.cached_dos_attributes;
+	}
+
 	/* Get the DOS attributes via the VFS if we can */
 	status = vfs_fget_dos_attributes(fsp, &result);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -737,8 +738,8 @@ uint32_t fdos_mode(struct files_struct *fsp)
 		}
 	}
 
-	result = dos_mode_post(result, fsp, __func__);
-	return result;
+	fsp->fsp_name->st.cached_dos_attributes = dos_mode_post(result, fsp, __func__);
+	return fsp->fsp_name->st.cached_dos_attributes;
 }
 
 struct dos_mode_at_state {
@@ -946,6 +947,7 @@ int file_set_dosmode(connection_struct *conn,
 	}
 
 	if (NT_STATUS_IS_OK(status)) {
+		smb_fname->st.cached_dos_attributes = dosmode;
 		ret = 0;
 		goto done;
 	}
@@ -1153,6 +1155,7 @@ NTSTATUS file_set_sparse(connection_struct *conn,
 		     FILE_NOTIFY_CHANGE_ATTRIBUTES,
 		     fsp->fsp_name->base_name);
 
+	fsp->fsp_name->st.cached_dos_attributes = new_dosmode;
 	fsp->fsp_flags.is_sparse = sparse;
 
 	return NT_STATUS_OK;

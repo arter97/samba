@@ -14,11 +14,14 @@ RESTORED_DC_PREFIX_ABS="$2"
 shift 2
 
 . $(dirname $0)/subunit.sh
+. "$(dirname "${0}")/common_test_fns.inc"
+
+ldbsearch=$(system_or_builddir_binary ldbsearch "${BINDIR}")
 
 basedn()
 {
 	SAMDB_PATH=$1
-	$BINDIR/ldbsearch -H $SAMDB_PATH --basedn='' --scope=base defaultNamingContext | grep defaultNamingContext | awk '{print $2}'
+	${ldbsearch} -H $SAMDB_PATH --basedn='' --scope=base defaultNamingContext | grep defaultNamingContext | awk '{print $2}'
 }
 
 ldapcmp_with_orig()

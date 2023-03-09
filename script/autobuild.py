@@ -16,7 +16,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
-from distutils.sysconfig import get_python_lib
+from sysconfig import get_path
 import platform
 
 try:
@@ -811,6 +811,20 @@ tasks = {
         ],
     },
 
+    "samba-32bit": {
+        "sequence": [
+            ("random-sleep", random_sleep(300, 900)),
+            ("configure", "./configure.developer --abi-check-disable --disable-warnings-as-errors" + samba_configure_params),
+            ("make", "make -j"),
+            ("nonetest", make_test(cmd='make test', TESTS="--exclude=selftest/slow-none", include_envs=["none"])),
+            ("quicktest", make_test(cmd='make quicktest', include_envs=["ad_dc", "ad_dc_smb1", "ad_dc_smb1_done"])),
+            ("ktest", make_test(cmd='make test', include_envs=["ktest"])),
+            ("install", "make install"),
+            ("check-clean-tree", CLEAN_SOURCE_TREE_CMD),
+            ("clean", "make clean"),
+        ],
+    },
+
     "samba-ctdb": {
         "sequence": [
             ("random-sleep", random_sleep(900, 1500)),
@@ -1020,6 +1034,12 @@ tasks = {
         ],
     },
 
+    "samba-shellcheck": {
+        "sequence": [
+            ("run", "script/check-shell-scripts.sh ."),
+        ],
+    },
+
     "ldb": {
         "sequence": [
             ("random-sleep", random_sleep(60, 600)),
@@ -1159,6 +1179,8 @@ defaulttasks.remove("samba-addc-mit-1")
 defaulttasks.remove("samba-addc-mit-4a")
 defaulttasks.remove("samba-addc-mit-4b")
 
+defaulttasks.remove("samba-32bit")
+
 if os.environ.get("AUTOBUILD_SKIP_SAMBA_O3", "0") == "1":
     defaulttasks.remove("samba-o3")
 
@@ -1276,7 +1298,11 @@ class builder(object):
             do_print('%s: Remaining consumers %u' % (self.name, len(self.consumers)))
             return
         (self.stage, self.cmd) = self.sequence[self.next]
-        self.cmd = self.cmd.replace("${PYTHON_PREFIX}", get_python_lib(plat_specific=1, standard_lib=0, prefix=self.prefix))
+        self.cmd = self.cmd.replace("${PYTHON_PREFIX}",
+                                    get_path(name='platlib',
+                                             scheme="posix_prefix",
+                                             vars={"base": self.prefix,
+                                                   "platbase": self.prefix}))
         self.cmd = self.cmd.replace("${PREFIX}", "--prefix=%s" % self.prefix)
         self.cmd = self.cmd.replace("${PREFIX_DIR}", "%s" % self.prefix)
         self.cmd = self.cmd.replace("${TESTS}", options.restrict_tests)

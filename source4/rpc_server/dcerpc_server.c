@@ -33,6 +33,7 @@
 #include "samba/process_model.h"
 #include "lib/util/samba_modules.h"
 #include "lib/util/tevent_ntstatus.h"
+#include "lib/util/idtree_random.h"
 
 /*
   take a reference to an existing association group
@@ -99,7 +100,8 @@ static struct dcesrv_assoc_group *dcesrv_assoc_group_new(struct dcesrv_connectio
 		return NULL;
 	}
 
-	id = idr_get_new_random(dce_ctx->assoc_groups_idr, assoc_group, UINT16_MAX);
+	id = idr_get_new_random(
+		dce_ctx->assoc_groups_idr, assoc_group, 1, UINT16_MAX);
 	if (id == -1) {
 		talloc_free(assoc_group);
 		DEBUG(0,(__location__ ": Out of association groups!\n"));

@@ -69,7 +69,6 @@ struct shadow_copy2_snaplist_info {
 	time_t fetch_time; /* snaplist update time */
 };
 
-
 /*
  * shadow_copy2 private structure. This structure will be
  * used to keep module specific information
@@ -90,7 +89,7 @@ static int shadow_copy2_get_shadow_copy_data(
 	bool labels);
 
 /**
- *This function will create a new snapshot list entry and
+ * This function will create a new snapshot list entry and
  * return to the caller. This entry will also be added to
  * the global snapshot list.
  *
@@ -115,7 +114,7 @@ static struct shadow_copy2_snapentry *shadow_copy2_create_snapentry(
 }
 
 /**
- *This function will delete the entire snaplist and reset
+ * This function will delete the entire snaplist and reset
  * priv->snaps->snaplist to NULL.
  *
  * @param[in] priv shadow_copye specific data structure
@@ -813,8 +812,9 @@ static char *shadow_copy2_do_convert(TALLOC_CTX *mem_ctx,
 			goto fail;
 		}
 
-		ZERO_STRUCT(converted_fname);
-		converted_fname.base_name = converted;
+		converted_fname = (struct smb_filename) {
+			.base_name = converted,
+		};
 
 		ret = SMB_VFS_NEXT_LSTAT(handle, &converted_fname);
 		DEBUG(10, ("Trying[not snapdirseverywhere] %s: %d (%s)\n",
@@ -901,8 +901,9 @@ static char *shadow_copy2_do_convert(TALLOC_CTX *mem_ctx,
 	memcpy(converted, path, pathlen+1);
 	converted[pathlen+insertlen] = '\0';
 
-	ZERO_STRUCT(converted_fname);
-	converted_fname.base_name = converted;
+	converted_fname = (struct smb_filename) {
+		.base_name = converted,
+	};
 
 	for (i = num_slashes-1; i>=0; i--) {
 		int ret;
@@ -1938,6 +1939,7 @@ done:
  * otherwise return NULL.
  */
 static char *have_snapdir(struct vfs_handle_struct *handle,
+			  TALLOC_CTX *mem_ctx,
 			  const char *path)
 {
 	struct smb_filename smb_fname;
@@ -1947,9 +1949,10 @@ static char *have_snapdir(struct vfs_handle_struct *handle,
 	SMB_VFS_HANDLE_GET_DATA(handle, priv, struct shadow_copy2_private,
 				return NULL);
 
-	ZERO_STRUCT(smb_fname);
-	smb_fname.base_name = talloc_asprintf(talloc_tos(), "%s/%s",
-					      path, priv->config->snapdir);
+	smb_fname = (struct smb_filename) {
+		.base_name = talloc_asprintf(
+			mem_ctx, "%s/%s", path, priv->config->snapdir),
+	};
 	if (smb_fname.base_name == NULL) {
 		return NULL;
 	}
@@ -1994,7 +1997,7 @@ static const char *shadow_copy2_find_snapdir(TALLOC_CTX *mem_ctx,
 		return NULL;
 	}
 
-	snapdir = have_snapdir(handle, path);
+	snapdir = have_snapdir(handle, talloc_tos(), path);
 	if (snapdir != NULL) {
 		TALLOC_FREE(path);
 		return snapdir;
@@ -2004,7 +2007,7 @@ static const char *shadow_copy2_find_snapdir(TALLOC_CTX *mem_ctx,
 
 		p[0] = '\0';
 
-		snapdir = have_snapdir(handle, path);
+		snapdir = have_snapdir(handle, talloc_tos(), path);
 		if (snapdir != NULL) {
 			TALLOC_FREE(path);
 			return snapdir;
@@ -2018,7 +2021,7 @@ static bool shadow_copy2_snapshot_to_gmt(vfs_handle_struct *handle,
 					 const char *name,
 					 char *gmt, size_t gmt_len)
 {
-	struct tm timestamp;
+	struct tm timestamp = { .tm_sec = 0, };
 	time_t timestamp_t;
 	unsigned long int timestamp_long;
 	const char *fmt;
@@ -2064,7 +2067,6 @@ static bool shadow_copy2_snapshot_to_gmt(vfs_handle_struct *handle,
 		}
 	}
 
-	ZERO_STRUCT(timestamp);
 	if (config->use_sscanf) {
 		if (sscanf(name, fmt, &timestamp_long) != 1) {
 			DEBUG(10, ("shadow_copy2_snapshot_to_gmt: "
@@ -2083,7 +2085,7 @@ static bool shadow_copy2_snapshot_to_gmt(vfs_handle_struct *handle,
 		}
 		DEBUG(10, ("shadow_copy2_snapshot_to_gmt: match %s: %s\n",
 			   fmt, name));
-		
+
 		if (config->use_localtime) {
 			timestamp.tm_isdst = -1;
 			timestamp_t = mktime(&timestamp);
@@ -2625,13 +2627,16 @@ static NTSTATUS shadow_copy2_get_real_filename_at(
 	return NT_STATUS_OK;
 }
 
-static const char *shadow_copy2_connectpath(struct vfs_handle_struct *handle,
-					const struct smb_filename *smb_fname_in)
+static const char *shadow_copy2_connectpath(
+	struct vfs_handle_struct *handle,
+	const struct files_struct *dirfsp,
+	const struct smb_filename *smb_fname_in)
 {
 	time_t timestamp = 0;
 	char *stripped = NULL;
 	char *tmp = NULL;
 	const char *fname = smb_fname_in->base_name;
+	const struct smb_filename *full = NULL;
 	struct smb_filename smb_fname = {0};
 	struct smb_filename *result_fname = NULL;
 	char *result = NULL;
@@ -2651,12 +2656,18 @@ static const char *shadow_copy2_connectpath(struct vfs_handle_struct *handle,
 		return priv->shadow_connectpath;
 	}
 
-	if (!shadow_copy2_strip_snapshot(talloc_tos(), handle, smb_fname_in,
+	full = full_path_from_dirfsp_atname(
+		talloc_tos(), dirfsp, smb_fname_in);
+	if (full == NULL) {
+		return NULL;
+	}
+
+	if (!shadow_copy2_strip_snapshot(talloc_tos(), handle, full,
 					 &timestamp, &stripped)) {
 		goto done;
 	}
 	if (timestamp == 0) {
-		return SMB_VFS_NEXT_CONNECTPATH(handle, smb_fname_in);
+		return SMB_VFS_NEXT_CONNECTPATH(handle, dirfsp, smb_fname_in);
 	}
 
 	tmp = shadow_copy2_do_convert(talloc_tos(), handle, stripped, timestamp,

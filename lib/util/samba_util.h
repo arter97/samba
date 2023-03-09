@@ -328,20 +328,6 @@ _PUBLIC_ bool conv_str_u64(const char * str, uint64_t * val);
 _PUBLIC_ bool mem_equal_const_time(const void *s1, const void *s2, size_t n);
 
 /**
- * @brief Build up a string buffer, handle allocation failure
- *
- * @param[in] ps Pointer to the talloc'ed string to be extended
- * @param[in] fmt The format string
- * @param[in] ... The parameters used to fill fmt.
- *
- * This does nothing if *ps is NULL and sets *ps to NULL if the
- * intermediate reallocation fails. Useful when building up a string
- * step by step, no intermediate NULL checks are required.
- */
-
-_PUBLIC_ void talloc_asprintf_addbuf(char **ps, const char *fmt, ...) PRINTF_ATTRIBUTE(2,3);
-
-/**
 Do a case-insensitive, whitespace-ignoring string compare.
 **/
 _PUBLIC_ int strwicmp(const char *psz1, const char *psz2);
@@ -455,9 +441,15 @@ _PUBLIC_ int create_unlink_tmp(const char *dir);
 _PUBLIC_ bool file_exist(const char *fname);
 
 /**
- Check a files mod time.
-**/
-_PUBLIC_ time_t file_modtime(const char *fname);
+ * @brief Return a files modification time.
+ *
+ * @param fname  The name of the file.
+ *
+ * @param mt     A pointer to store the modification time.
+ *
+ * @return 0 on success, errno otherwise.
+ */
+_PUBLIC_ int file_modtime(const char *fname, struct timespec *mt);
 
 /**
  Check if a directory exists.
@@ -602,9 +594,6 @@ int ms_fnmatch_protocol(const char *pattern, const char *string, int protocol,
 
 /** a generic fnmatch function - uses for non-CIFS pattern matching */
 int gen_fnmatch(const char *pattern, const char *string);
-
-#include "idtree.h"
-#include "idtree_random.h"
 
 #include "become_daemon.h"
 

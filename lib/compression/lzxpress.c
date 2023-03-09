@@ -48,10 +48,247 @@
 	} \
 } while(0)
 
+
+/*
+ * LZX_PLAIN_COMP_HASH_BITS determines how big the hash table for finding
+ * matches will be.
+ *
+ * The window in which we look for matches is 8192 bytes. That means with
+ * random data a value of 13 is getting close to no collisions, while a 12
+ * will miss about half the possible matches. With compressible data there
+ * will generally be fewer and less diverse entries, so collisions are rarer.
+ *
+ * In the testsuite, bith 12 and 13 give better compression than Windows, but
+ * 12 is faster. 11 does not save time and costs accuracy. Thus we prefer 12.
+ */
+#define LZX_PLAIN_COMP_HASH_BITS 12
+/*
+ * LZX_PLAIN_COMP_HASH_SEARCH_ATTEMPTS is how far ahead to search in the
+ * circular hash table for a match, before we give up. A bigger number will
+ * generally lead to better but slower compression, but a stupidly big number
+ * will just be worse.
+ */
+#define LZX_PLAIN_COMP_HASH_SEARCH_ATTEMPTS 5
+#define HASH_MASK ((1 << LZX_PLAIN_COMP_HASH_BITS) - 1)
+
+static inline uint16_t three_byte_hash(const uint8_t *bytes)
+{
+	uint16_t a = bytes[0];
+	uint16_t b = bytes[1] ^ 0x2e;
+	uint16_t c = bytes[2] ^ 0x55;
+	uint16_t ca = c - a;
+	uint16_t d = ((a + b) << 8) ^ (ca << 5) ^ (c + b) ^ (0xcab + a);
+	return d & HASH_MASK;
+}
+
+
+static inline void store_match(uint32_t *hash_table,
+			       uint16_t h,
+			       uint32_t offset)
+{
+	int i;
+	uint32_t o = hash_table[h];
+	uint16_t h2;
+	uint16_t worst_h;
+	int worst_score;
+
+	if (o >= offset) {
+		/* there is nothing there yet */
+		hash_table[h] = offset;
+		return;
+	}
+	for (i = 1; i < LZX_PLAIN_COMP_HASH_SEARCH_ATTEMPTS; i++) {
+		h2 = (h + i) & HASH_MASK;
+		if (hash_table[h2] >= offset) {
+			hash_table[h2] = offset;
+			return;
+		}
+	}
+	/*
+	 * There are no slots, but we really want to store this, so we'll kick
+	 * out the one with the longest distance.
+	 */
+	worst_h = h;
+	worst_score = offset - o;
+	for (i = 1; i < LZX_PLAIN_COMP_HASH_SEARCH_ATTEMPTS; i++) {
+		int score;
+		h2 = (h + i) & HASH_MASK;
+		o = hash_table[h2];
+		score = offset - o;
+		if (score > worst_score) {
+			worst_score = score;
+			worst_h = h2;
+		}
+	}
+	hash_table[worst_h] = offset;
+}
+
+
+struct match {
+	const uint8_t *there;
+	uint32_t length;
+};
+
+
+static inline struct match lookup_match(uint32_t *hash_table,
+					uint16_t h,
+					const uint8_t *data,
+					uint32_t offset,
+					size_t max_len)
+{
+	int i;
+	uint32_t o;
+	uint16_t h2;
+	size_t len;
+	const uint8_t *there = NULL;
+	const uint8_t *here = data + offset;
+	struct match best = {0};
+
+	for (i = 0; i < LZX_PLAIN_COMP_HASH_SEARCH_ATTEMPTS; i++) {
+		h2 = (h + i) & HASH_MASK;
+		o = hash_table[h2];
+		if (o >= offset) {
+			/*
+			 * Either this is 0xffffffff, or something is really
+			 * wrong.
+			 *
+			 * In setting this, we would never have stepped over
+			 * an 0xffffffff, so we won't now.
+			 */
+			break;
+		}
+		if (offset - o > 8192) {
+			/* Too far away to use */
+			continue;
+		}
+		there = data + o;
+		/*
+		 * When we already have a long match, we can try to avoid
+		 * measuring out another long, but shorter match.
+		 */
+		if (best.length > 1000 &&
+		    there[best.length - 1] != best.there[best.length - 1]) {
+			continue;
+		}
+
+		for (len = 0;
+		     len < max_len && here[len] == there[len];
+		     len++) {
+			/* counting */
+		}
+		if (len > 2) {
+			if (len > best.length) {
+				best.length = len;
+				best.there = there;
+			}
+		}
+	}
+	return best;
+}
+
+struct write_context {
+	uint8_t *compressed;
+	uint32_t compressed_pos;
+	uint32_t max_compressed_size;
+	uint32_t indic;
+	uint32_t indic_bit;
+	uint32_t indic_pos;
+	uint32_t nibble_index;
+};
+
+
 #define CHECK_INPUT_BYTES(__needed) \
 	__CHECK_BYTES(uncompressed_size, uncompressed_pos, __needed)
 #define CHECK_OUTPUT_BYTES(__needed) \
-	__CHECK_BYTES(max_compressed_size, compressed_pos, __needed)
+	__CHECK_BYTES(wc->max_compressed_size, wc->compressed_pos, __needed)
+
+
+static inline ssize_t push_indicator_bit(struct write_context *wc, uint32_t bit)
+{
+	wc->indic = (wc->indic << 1) | bit;
+	wc->indic_bit += 1;
+
+	if (wc->indic_bit == 32) {
+		PUSH_LE_U32(wc->compressed, wc->indic_pos, wc->indic);
+		wc->indic_bit = 0;
+		CHECK_OUTPUT_BYTES(sizeof(uint32_t));
+		wc->indic_pos = wc->compressed_pos;
+		wc->compressed_pos += sizeof(uint32_t);
+	}
+	return wc->indic_pos;
+}
+
+
+static ssize_t encode_match(struct write_context *wc,
+			    struct match match,
+			    const uint8_t *here)
+{
+	uint32_t match_len = match.length - 3;
+	uint32_t best_offset = here - match.there - 1;
+	uint16_t metadata;
+
+	if (best_offset > 8191) {
+		return -1;
+	}
+
+	CHECK_OUTPUT_BYTES(sizeof(uint16_t));
+	metadata = (uint16_t)((best_offset << 3) | MIN(match_len, 7));
+	PUSH_LE_U16(wc->compressed, wc->compressed_pos, metadata);
+	wc->compressed_pos += sizeof(uint16_t);
+
+	if (match_len >= 7) {
+		match_len -= 7;
+
+		if (wc->nibble_index == 0) {
+			wc->nibble_index = wc->compressed_pos;
+
+			CHECK_OUTPUT_BYTES(sizeof(uint8_t));
+			wc->compressed[wc->nibble_index] = MIN(match_len, 15);
+			wc->compressed_pos += sizeof(uint8_t);
+		} else {
+			wc->compressed[wc->nibble_index] |= MIN(match_len, 15) << 4;
+			wc->nibble_index = 0;
+		}
+
+		if (match_len >= 15) {
+			match_len -= 15;
+
+			CHECK_OUTPUT_BYTES(sizeof(uint8_t));
+			wc->compressed[wc->compressed_pos] = MIN(match_len, 255);
+			wc->compressed_pos += sizeof(uint8_t);
+
+			if (match_len >= 255) {
+				/* Additional match_len */
+
+				match_len += 7 + 15;
+
+				if (match_len < (1 << 16)) {
+					CHECK_OUTPUT_BYTES(sizeof(uint16_t));
+					PUSH_LE_U16(wc->compressed, wc->compressed_pos,
+						    match_len);
+					wc->compressed_pos += sizeof(uint16_t);
+				} else {
+					CHECK_OUTPUT_BYTES(sizeof(uint16_t) +
+							   sizeof(uint32_t));
+					PUSH_LE_U16(wc->compressed,
+						    wc->compressed_pos, 0);
+					wc->compressed_pos += sizeof(uint16_t);
+
+					PUSH_LE_U32(wc->compressed,
+						    wc->compressed_pos,
+						    match_len);
+					wc->compressed_pos += sizeof(uint32_t);
+				}
+			}
+		}
+	}
+	return push_indicator_bit(wc, 1);
+}
+
+#undef CHECK_OUTPUT_BYTES
+#define CHECK_OUTPUT_BYTES(__needed) \
+	__CHECK_BYTES(wc.max_compressed_size, wc.compressed_pos, __needed)
+
 
 ssize_t lzxpress_compress(const uint8_t *uncompressed,
 			  uint32_t uncompressed_size,
@@ -68,161 +305,84 @@ ssize_t lzxpress_compress(const uint8_t *uncompressed,
 	 * the match length; they are always at least 16 bits long, and can
 	 * implicitly use unused half-bytes from earlier in the stream.
 	 */
-	uint32_t uncompressed_pos, compressed_pos;
-	uint32_t indic;
-	uint32_t indic_pos;
-	uint32_t indic_bit, nibble_index;
+	ssize_t ret;
+	uint32_t uncompressed_pos;
+	struct write_context wc = {
+		.indic = 0,
+		.indic_pos = 0,
+		.indic_bit = 0,
+		.nibble_index = 0,
+		.compressed = compressed,
+		.compressed_pos = 0,
+		.max_compressed_size = max_compressed_size
+	};
+	uint32_t hash_table[1 << LZX_PLAIN_COMP_HASH_BITS];
+	memset(hash_table, 0xff, sizeof(hash_table));
 
 	if (!uncompressed_size) {
 		return 0;
 	}
 
 	uncompressed_pos = 0;
-	compressed_pos = 0;
-	indic = 0;
 	CHECK_OUTPUT_BYTES(sizeof(uint32_t));
-	PUSH_LE_U32(compressed, compressed_pos, 0);
-	compressed_pos += sizeof(uint32_t);
-	indic_pos = 0;
-
-	indic_bit = 0;
-	nibble_index = 0;
+	PUSH_LE_U32(wc.compressed, wc.compressed_pos, 0);
+	wc.compressed_pos += sizeof(uint32_t);
 
 	while ((uncompressed_pos < uncompressed_size) &&
-	       (compressed_pos < max_compressed_size)) {
-		bool found = false;
+	       (wc.compressed_pos < wc.max_compressed_size)) {
 
-		uint32_t best_len = 2;
-		uint32_t best_offset = 0;
-
-		int32_t offset;
-
-		const uint32_t max_offset = MIN(0x2000, uncompressed_pos);
 		/* maximum len we can encode into metadata */
-		const uint32_t max_len = MIN(0xFFFF + 3, uncompressed_size - uncompressed_pos);
+		const uint32_t max_len = MIN(0xFFFF + 3,
+					     uncompressed_size - uncompressed_pos);
+		const uint8_t *here = uncompressed + uncompressed_pos;
+		uint16_t h;
+		struct match match = {0};
 
-		/* search for the longest match in the window for the lookahead buffer */
-		for (offset = 1; (uint32_t)offset <= max_offset; offset++) {
-			uint32_t len;
+		if (max_len >= 3) {
+			h = three_byte_hash(here);
+			match = lookup_match(hash_table,
+					     h,
+					     uncompressed,
+					     uncompressed_pos,
+					     max_len);
 
-			for (len = 0;
-			     (len < max_len) && (uncompressed[uncompressed_pos + len] ==
-						 uncompressed[uncompressed_pos + len - offset]);
-			     len++);
-
-			/*
-			 * We check if len is better than the value found before, including the
-			 * sequence of identical bytes
-			 */
-			if (len > best_len) {
-				found = true;
-				best_len = len;
-				best_offset = offset;
-				if (best_len == max_len) {
-					/* We're not going to do better than this */
-					break;
-				}
-			}
+			store_match(hash_table, h, uncompressed_pos);
+		} else {
+			match.there = NULL;
+			match.length = 0;
 		}
 
-		if (!found) {
+		if (match.there == NULL) {
 			/*
-			 * This is going to literal byte, which we flag by
-			 * setting a bit in an indicator field somewhere
+			 * This is going to be a literal byte, which we flag
+			 * by setting a bit in an indicator field somewhere
 			 * earlier in the stream.
 			 */
 			CHECK_INPUT_BYTES(sizeof(uint8_t));
 			CHECK_OUTPUT_BYTES(sizeof(uint8_t));
-			compressed[compressed_pos++] = uncompressed[uncompressed_pos++];
+			wc.compressed[wc.compressed_pos++] = *here;
+			uncompressed_pos++;
 
-			indic <<= 1;
-			indic_bit += 1;
-
-			if (indic_bit == 32) {
-				PUSH_LE_U32(compressed, indic_pos, indic);
-				indic_bit = 0;
-				CHECK_OUTPUT_BYTES(sizeof(uint32_t));
-				indic_pos = compressed_pos;
-				compressed_pos += sizeof(uint32_t);
+			ret = push_indicator_bit(&wc, 0);
+			if (ret < 0) {
+				return ret;
 			}
 		} else {
-			uint32_t match_len = best_len;
-
-			uint16_t metadata;
-
-			match_len -= 3;
-			best_offset -= 1;
-
-			/* Classical meta-data */
-			CHECK_OUTPUT_BYTES(sizeof(uint16_t));
-			metadata = (uint16_t)((best_offset << 3) | MIN(match_len, 7));
-			PUSH_LE_U16(compressed, compressed_pos, metadata);
-			compressed_pos += sizeof(uint16_t);
-
-			if (match_len >= 7) {
-				match_len -= 7;
-
-				if (!nibble_index) {
-					nibble_index = compressed_pos;
-
-					CHECK_OUTPUT_BYTES(sizeof(uint8_t));
-					compressed[nibble_index] = MIN(match_len, 15);
-					compressed_pos += sizeof(uint8_t);
-				} else {
-					compressed[nibble_index] |= MIN(match_len, 15) << 4;
-					nibble_index = 0;
-				}
-
-				if (match_len >= 15) {
-					match_len -= 15;
-
-					CHECK_OUTPUT_BYTES(sizeof(uint8_t));
-					compressed[compressed_pos] = MIN(match_len, 255);
-					compressed_pos += sizeof(uint8_t);
-
-					if (match_len >= 255) {
-						/* Additional match_len */
-
-						match_len += 7 + 15;
-
-						if (match_len < (1 << 16)) {
-							CHECK_OUTPUT_BYTES(sizeof(uint16_t));
-							PUSH_LE_U16(compressed, compressed_pos, match_len);
-							compressed_pos += sizeof(uint16_t);
-						} else {
-							CHECK_OUTPUT_BYTES(sizeof(uint16_t) + sizeof(uint32_t));
-							PUSH_LE_U16(compressed, compressed_pos, 0);
-							compressed_pos += sizeof(uint16_t);
-
-							PUSH_LE_U32(compressed, compressed_pos, match_len);
-							compressed_pos += sizeof(uint32_t);
-						}
-					}
-				}
+			ret = encode_match(&wc, match, here);
+			if (ret < 0) {
+				return ret;
 			}
-
-			indic = (indic << 1) | 1;
-			indic_bit += 1;
-
-			if (indic_bit == 32) {
-				PUSH_LE_U32(compressed, indic_pos, indic);
-				indic_bit = 0;
-				CHECK_OUTPUT_BYTES(sizeof(uint32_t));
-				indic_pos = compressed_pos;
-				compressed_pos += sizeof(uint32_t);
-			}
-
-			uncompressed_pos += best_len;
+			uncompressed_pos += match.length;
 		}
 	}
 
-	if (indic_bit != 0) {
-		indic <<= 32 - indic_bit;
+	if (wc.indic_bit != 0) {
+		wc.indic <<= 32 - wc.indic_bit;
 	}
-	indic |= UINT32_MAX >> indic_bit;
-	PUSH_LE_U32(compressed, indic_pos, indic);
+	wc.indic |= UINT32_MAX >> wc.indic_bit;
+	PUSH_LE_U32(wc.compressed, wc.indic_pos, wc.indic);
 
-	return compressed_pos;
+	return wc.compressed_pos;
 }
 
 ssize_t lzxpress_decompress(const uint8_t *input,

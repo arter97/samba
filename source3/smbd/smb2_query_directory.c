@@ -366,6 +366,13 @@ static struct tevent_req *smbd_smb2_query_directory_send(TALLOC_CTX *mem_ctx,
 		state->info_level = SMB_FIND_ID_FULL_DIRECTORY_INFO;
 		break;
 
+	case SMB2_FIND_POSIX_INFORMATION:
+		if (!(fsp->posix_flags & FSP_POSIX_FLAGS_OPEN)) {
+			tevent_req_nterror(req, NT_STATUS_INVALID_LEVEL);
+			return tevent_req_post(req, ev);
+		}
+		state->info_level = SMB2_FILE_POSIX_INFORMATION;
+		break;
 	default:
 		tevent_req_nterror(req, NT_STATUS_INVALID_INFO_CLASS);
 		return tevent_req_post(req, ev);
@@ -409,8 +416,7 @@ static struct tevent_req *smbd_smb2_query_directory_send(TALLOC_CTX *mem_ctx,
 						conn,
 						state->in_file_name,
 						0);
-		if (state->in_file_name == NULL) {
-			tevent_req_oom(req);
+		if (tevent_req_nomem(state->in_file_name, req)) {
 			return tevent_req_post(req, ev);
 		}
 	}
@@ -478,7 +484,7 @@ static struct tevent_req *smbd_smb2_query_directory_send(TALLOC_CTX *mem_ctx,
 	 * handling in future.
 	 */
 	if (state->info_level != SMB_FIND_FILE_NAMES_INFO) {
-		state->ask_sharemode = lp_smbd_search_ask_sharemode(SNUM(conn));
+		state->ask_sharemode = fsp_search_ask_sharemode(fsp);
 
 		state->async_dosmode = lp_smbd_async_dosmode(SNUM(conn));
 	}
@@ -897,8 +903,7 @@ static void fetch_write_time_done(struct tevent_req *subreq)
 		tevent_req_done(req);
 		return;
 	}
-	if (!NT_STATUS_IS_OK(status)) {
-		tevent_req_nterror(req, status);
+	if (tevent_req_nterror(req, status)) {
 		return;
 	}
 
@@ -1009,8 +1014,7 @@ static void fetch_dos_mode_done(struct tevent_req *subreq)
 		tevent_req_done(req);
 		return;
 	}
-	if (!NT_STATUS_IS_OK(status)) {
-		tevent_req_nterror(req, status);
+	if (tevent_req_nterror(req, status)) {
 		return;
 	}
 

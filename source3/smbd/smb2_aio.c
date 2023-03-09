@@ -289,6 +289,8 @@ NTSTATUS schedule_smb2_aio_read(connection_struct *conn,
 	struct aio_extra *aio_ex;
 	size_t min_aio_read_size = lp_aio_read_size(SNUM(conn));
 	struct tevent_req *req;
+	bool is_compound = false;
+	bool is_last_in_compound = false;
 	bool ok;
 
 	ok = vfs_valid_pread_range(startpos, smb_maxcnt);
@@ -316,7 +318,14 @@ NTSTATUS schedule_smb2_aio_read(connection_struct *conn,
 		return NT_STATUS_RETRY;
 	}
 
-	if (smbd_smb2_is_compound(smbreq->smb2req)) {
+	is_compound = smbd_smb2_is_compound(smbreq->smb2req);
+	is_last_in_compound = smbd_smb2_is_last_in_compound(smbreq->smb2req);
+
+	if (is_compound && !is_last_in_compound) {
+		/*
+		 * Only allow going async if this is the last
+		 * request in a compound.
+		 */
 		return NT_STATUS_RETRY;
 	}
 
@@ -411,8 +420,7 @@ static void aio_pread_smb2_done(struct tevent_req *req)
 		   (unsigned int)nread,
 		   vfs_aio_state.error, nt_errstr(status)));
 
-	if (!NT_STATUS_IS_OK(status)) {
-		tevent_req_nterror(subreq, status);
+	if (tevent_req_nterror(subreq, status)) {
 		return;
 	}
 	tevent_req_done(subreq);
@@ -434,6 +442,8 @@ NTSTATUS schedule_aio_smb2_write(connection_struct *conn,
 	struct aio_extra *aio_ex = NULL;
 	size_t min_aio_write_size = lp_aio_write_size(SNUM(conn));
 	struct tevent_req *req;
+	bool is_compound = false;
+	bool is_last_in_compound = false;
 
 	if (fsp_is_alternate_stream(fsp)) {
 		/* No AIO on streams yet */
@@ -456,7 +466,14 @@ NTSTATUS schedule_aio_smb2_write(connection_struct *conn,
 		return NT_STATUS_RETRY;
 	}
 
-	if (smbd_smb2_is_compound(smbreq->smb2req)) {
+	is_compound = smbd_smb2_is_compound(smbreq->smb2req);
+	is_last_in_compound = smbd_smb2_is_last_in_compound(smbreq->smb2req);
+
+	if (is_compound && !is_last_in_compound) {
+		/*
+		 * Only allow going async if this is the last
+		 * request in a compound.
+		 */
 		return NT_STATUS_RETRY;
 	}
 
@@ -560,8 +577,7 @@ static void aio_pwrite_smb2_done(struct tevent_req *req)
 		   (unsigned int)nwritten,
 		   err, nt_errstr(status)));
 
-	if (!NT_STATUS_IS_OK(status)) {
-		tevent_req_nterror(subreq, status);
+	if (tevent_req_nterror(subreq, status)) {
 		return;
 	}
 	tevent_req_done(subreq);

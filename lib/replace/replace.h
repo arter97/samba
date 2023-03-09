@@ -699,12 +699,8 @@ int rep_strerror_r(int errnum, char *buf, size_t buflen);
 #include <stdbool.h>
 #endif
 
-#if !defined(HAVE_BOOL)
-#ifdef HAVE__Bool
-#define bool _Bool
-#else
+#ifndef HAVE_BOOL
 #error Need a real boolean type
-#endif
 #endif
 
 #if !defined(HAVE_INTPTR_T)
@@ -1084,6 +1080,18 @@ static inline bool hex_byte(const char *in, uint8_t *out)
 /* Needed for Solaris atomic_add_XX functions. */
 #if defined(HAVE_SYS_ATOMIC_H)
 #include <sys/atomic.h>
+#endif
+
+/*
+ * This handles the case of missing pthread support and ensures code can use
+ * __thread unconditionally, such that when built on a platform without pthread
+ * support, the __thread qualifier is an empty define.
+ */
+#ifndef HAVE___THREAD
+# ifdef HAVE_PTHREAD
+# error Configure failed to detect pthread library with missing TLS support
+# endif
+#define HAVE___THREAD
 #endif
 
 #endif /* _LIBREPLACE_REPLACE_H */

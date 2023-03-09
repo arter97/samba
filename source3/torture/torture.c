@@ -1435,6 +1435,7 @@ static bool run_tcon_test(int dummy)
 	uint16_t fnum1;
 	uint32_t cnum1, cnum2, cnum3;
 	struct smbXcli_tcon *orig_tcon = NULL;
+	char *orig_share = NULL;
 	uint16_t vuid1, vuid2;
 	char buf[4];
 	bool ret = True;
@@ -1466,16 +1467,13 @@ static bool run_tcon_test(int dummy)
 		return False;
 	}
 
-	orig_tcon = cli_state_save_tcon(cli);
-	if (orig_tcon == NULL) {
-		return false;
-	}
+	cli_state_save_tcon_share(cli, &orig_tcon, &orig_share);
 
 	status = cli_tree_connect_creds(cli, share, "?????", torture_creds);
 	if (!NT_STATUS_IS_OK(status)) {
 		printf("%s refused 2nd tree connect (%s)\n", host,
 		       nt_errstr(status));
-		cli_state_restore_tcon(cli, orig_tcon);
+		cli_state_restore_tcon_share(cli, orig_tcon, orig_share);
 		cli_shutdown(cli);
 		return False;
 	}
@@ -1528,7 +1526,7 @@ static bool run_tcon_test(int dummy)
 	status = cli_close(cli, fnum1);
 	if (!NT_STATUS_IS_OK(status)) {
 		printf("close failed (%s)\n", nt_errstr(status));
-		cli_state_restore_tcon(cli, orig_tcon);
+		cli_state_restore_tcon_share(cli, orig_tcon, orig_share);
 		cli_shutdown(cli);
 		return False;
 	}
@@ -1538,12 +1536,12 @@ static bool run_tcon_test(int dummy)
 	status = cli_tdis(cli);
 	if (!NT_STATUS_IS_OK(status)) {
 		printf("secondary tdis failed (%s)\n", nt_errstr(status));
-		cli_state_restore_tcon(cli, orig_tcon);
+		cli_state_restore_tcon_share(cli, orig_tcon, orig_share);
 		cli_shutdown(cli);
 		return False;
 	}
 
-	cli_state_restore_tcon(cli, orig_tcon);
+	cli_state_restore_tcon_share(cli, orig_tcon, orig_share);
 
 	cli_state_set_tid(cli, cnum1);
 
@@ -3953,8 +3951,15 @@ static bool run_negprot_nowait(int dummy)
 	for (i=0;i<50000;i++) {
 		struct tevent_req *req;
 
-		req = smbXcli_negprot_send(ev, ev, cli->conn, cli->timeout,
-					   PROTOCOL_CORE, PROTOCOL_NT1, 0);
+		req = smbXcli_negprot_send(
+			ev,
+			ev,
+			cli->conn,
+			cli->timeout,
+			PROTOCOL_CORE,
+			PROTOCOL_NT1,
+			0,
+			NULL);
 		if (req == NULL) {
 			TALLOC_FREE(ev);
 			return false;
@@ -7758,6 +7763,7 @@ static bool run_simple_posix_open_test(int dummy)
 	size_t nread;
 	const char *fname_windows = "windows_file";
 	uint16_t fnum2 = (uint16_t)-1;
+	bool ok;
 
 	printf("Starting simple POSIX open test\n");
 
@@ -8026,18 +8032,19 @@ static bool run_simple_posix_open_test(int dummy)
 	if (NT_STATUS_IS_OK(status)) {
 		printf("POSIX open of %s succeeded (should have failed)\n", sname);
 		goto out;
-	} else {
-		if (!check_both_error(__LINE__, status, ERRDOS, ERRbadpath,
-				NT_STATUS_OBJECT_NAME_NOT_FOUND)) {
-			printf("POSIX open of %s should have failed "
-				"with NT_STATUS_OBJECT_NAME_NOT_FOUND, "
-				"failed with %s instead.\n",
-				sname, nt_errstr(status));
-			goto out;
-		}
+	}
+	ok = check_both_error(
+		__LINE__, status, ERRDOS, ERRbadpath,
+		NT_STATUS_OBJECT_NAME_NOT_FOUND);
+	if (!ok) {
+		printf("POSIX open of %s should have failed "
+		       "with NT_STATUS_OBJECT_NAME_NOT_FOUND, "
+		       "failed with %s instead.\n",
+		       sname, nt_errstr(status));
+		goto out;
 	}
 
-	status = cli_posix_readlink(cli1, sname, talloc_tos(), &target);
+	status = cli_readlink(cli1, sname, talloc_tos(), &target, NULL, NULL);
 	if (!NT_STATUS_IS_OK(status)) {
 		printf("POSIX readlink on %s failed (%s)\n", sname, nt_errstr(status));
 		goto out;
@@ -11847,7 +11854,7 @@ static bool run_uid_regression_test(int dummy)
 	 * second tdis call with invalid vuid.
 	 *
 	 * This is a test-only hack. Real client code
-	 * uses cli_state_save_tcon()/cli_state_restore_tcon().
+	 * uses cli_state_save_tcon_share()/cli_state_restore_tcon_share().
 	 */
 	tcon_copy = smbXcli_tcon_copy(cli, cli->smb1.tcon);
 	if (tcon_copy == NULL) {
@@ -15351,6 +15358,34 @@ static struct {
 		.fn    = run_delete_on_close_nonwrite_delete_no_test,
 	},
 	{
+		.name  = "SMB2-DFS-PATHS",
+		.fn    = run_smb2_dfs_paths,
+	},
+	{
+		.name  = "SMB2-NON-DFS-SHARE",
+		.fn    = run_smb2_non_dfs_share,
+	},
+	{
+		.name  = "SMB2-DFS-SHARE-NON-DFS-PATH",
+		.fn    = run_smb2_dfs_share_non_dfs_path,
+	},
+	{
+		.name  = "SMB2-DFS-FILENAME-LEADING-BACKSLASH",
+		.fn    = run_smb2_dfs_filename_leading_backslash,
+	},
+	{
+		.name  = "SMB1-DFS-PATHS",
+		.fn    = run_smb1_dfs_paths,
+	},
+	{
+		.name  = "SMB1-DFS-SEARCH-PATHS",
+		.fn    = run_smb1_dfs_search_paths,
+	},
+	{
+		.name  = "SMB1-DFS-OPERATIONS",
+		.fn    = run_smb1_dfs_operations,
+	},
+	{
 		.name  = "CLEANUP1",
 		.fn    = run_cleanup1,
 	},
@@ -15581,6 +15616,10 @@ static struct {
 	{
 		.name  = "hide-new-files-timeout",
 		.fn    = run_hidenewfiles,
+	},
+	{
+		.name  = "hide-new-files-timeout-showdirs",
+		.fn    = run_hidenewfiles_showdirs,
 	},
 #ifdef CLUSTER_SUPPORT
 	{

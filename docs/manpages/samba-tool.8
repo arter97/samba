@@ -2,12 +2,12 @@
 .\"     Title: samba-tool
 .\"    Author: [see the "AUTHOR" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/09/2023
+.\"      Date: 03/08/2023
 .\"    Manual: System Administration tools
-.\"    Source: Samba 4.17.6
+.\"    Source: Samba 4.18.0
 .\"  Language: English
 .\"
-.TH "SAMBA\-TOOL" "8" "03/09/2023" "Samba 4\&.17\&.6" "System Administration tools"
+.TH "SAMBA\-TOOL" "8" "03/08/2023" "Samba 4\&.18\&.0" "System Administration tools"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -138,9 +138,38 @@ Specifies the credential cache location for Kerberos authentication\&.
 This will set \-\-use\-kerberos=required too\&.
 .RE
 .PP
+\-A|\-\-authentication\-file=filename
+.RS 4
+This option allows you to specify a file from which to read the username and password used in the connection\&. The format of the file is:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+				username = <value>
+				password = <value>
+				domain   = <value>
+			
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Make certain that the permissions on the file restrict access from unwanted users!
+.RE
+.PP
 \-\-ipaddress=IPADDRESS
 .RS 4
 IP address of the server
+.RE
+.PP
+\-\-color=always|never|auto
+.RS 4
+Indicate whether samba\-tool should use ANSI colour codes in its output\&. If \*(Aqauto\*(Aq (the default), samba\-tool will use colour when its output is directed toward a terminal, unless the NO_COLOR environment variable is set and non\-empty\&.
+.sp
+The values \*(Aqyes\*(Aq and \*(Aqforce\*(Aq are accepted as synonyms for \*(Aqalways\*(Aq; \*(Aqno\*(Aq and \*(Aqnone\*(Aq for \*(Aqnever\*(Aq; and \*(Aqtty\*(Aq and \*(Aqif\-tty\*(Aq for \*(Aqauto\*(Aq\&.
+.sp
+Note that asking for colour doesn\*(Aqt mean samba\-tool will necessarily be very colourful\&. Many commands are very monochrome, particularly when successful\&.
 .RE
 .PP
 \-d|\-\-debuglevel=DEBUGLEVEL
@@ -583,6 +612,12 @@ option produces very little output when the replication status seems healthy\&.
 .SS "dsacl"
 .PP
 Administer DS ACLs
+.SS "dsacl delete"
+.PP
+Delete an access list entry on a directory object\&.
+.SS "dsacl get"
+.PP
+Print access list on a directory object\&.
 .SS "dsacl set"
 .PP
 Modify access list on a directory object\&.
@@ -1196,7 +1231,7 @@ because the repsFrom/To objects are not replicated, and it can reveal replicatio
 Gives usage information\&.
 .SH "VERSION"
 .PP
-This man page is complete for version 4\&.17\&.6 of the Samba suite\&.
+This man page is complete for version 4\&.18\&.0 of the Samba suite\&.
 .SH "AUTHOR"
 .PP
 The original Samba software and related utilities were created by Andrew Tridgell\&. Samba is now developed by the Samba Team as an Open Source project similar to the way the Linux kernel is developed\&.

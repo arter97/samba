@@ -67,16 +67,6 @@ global_hexdump = False
 
 
 class FAST_Tests(KDCBaseTest):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-        cls.user_tgt = None
-        cls.user_service_ticket = None
-
-        cls.mach_tgt = None
-        cls.mach_service_ticket = None
-
     def setUp(self):
         super().setUp()
         self.do_asn1_print = global_asn1_print
@@ -1461,7 +1451,8 @@ class FAST_Tests(KDCBaseTest):
 
     def _run_test_sequence(self, test_sequence,
                            client_account=KDCBaseTest.AccountType.USER,
-                           client_opts=None):
+                           client_opts=None,
+                           armor_opts=None):
         if self.strict_checking:
             self.check_kdc_fast_support()
 
@@ -1528,7 +1519,7 @@ class FAST_Tests(KDCBaseTest):
 
                 gen_armor_tgt_fn = kdc_dict.pop('gen_armor_tgt_fn', None)
                 if gen_armor_tgt_fn is not None:
-                    armor_tgt = gen_armor_tgt_fn()
+                    armor_tgt = gen_armor_tgt_fn(armor_opts)
                 else:
                     armor_tgt = None
 
@@ -1542,7 +1533,7 @@ class FAST_Tests(KDCBaseTest):
 
             if rep_type == KRB_TGS_REP:
                 gen_tgt_fn = kdc_dict.pop('gen_tgt_fn')
-                tgt = gen_tgt_fn()
+                tgt = gen_tgt_fn(opts=client_opts)
             else:
                 self.assertNotIn('gen_tgt_fn', kdc_dict)
                 tgt = None
@@ -1878,8 +1869,8 @@ class FAST_Tests(KDCBaseTest):
 
         return auth_data
 
-    def gen_tgt_fast_armor_auth_data(self):
-        user_tgt = self.get_user_tgt()
+    def gen_tgt_fast_armor_auth_data(self, opts):
+        user_tgt = self.get_user_tgt(opts)
 
         auth_data = self.generate_fast_armor_auth_data()
 
@@ -1923,40 +1914,39 @@ class FAST_Tests(KDCBaseTest):
         self.assertTrue(
             security.KERB_ENCTYPE_CLAIMS_SUPPORTED & krbtgt_etypes)
 
-    def get_mach_tgt(self):
-        if self.mach_tgt is None:
-            mach_creds = self.get_mach_creds()
-            type(self).mach_tgt = self.get_tgt(mach_creds)
+    def get_mach_tgt(self, opts):
+        if opts is None:
+            opts = {}
+        mach_creds = self.get_cached_creds(
+            account_type=self.AccountType.COMPUTER,
+            opts={
+                **opts,
+                'fast_support': True,
+                'supported_enctypes': (
+                    security.KERB_ENCTYPE_RC4_HMAC_MD5 |
+                    security.KERB_ENCTYPE_AES256_CTS_HMAC_SHA1_96_SK
+                ),
+            })
+        return self.get_tgt(mach_creds)
 
-        return self.mach_tgt
+    def get_user_tgt(self, opts):
+        user_creds = self.get_cached_creds(
+            account_type=self.AccountType.USER,
+            opts=opts)
+        return self.get_tgt(user_creds)
 
-    def get_user_tgt(self):
-        if self.user_tgt is None:
-            user_creds = self.get_client_creds()
-            type(self).user_tgt = self.get_tgt(user_creds)
+    def get_user_service_ticket(self, opts):
+        user_tgt = self.get_user_tgt(opts)
+        service_creds = self.get_service_creds()
+        return self.get_service_ticket(user_tgt, service_creds)
 
-        return self.user_tgt
+    def get_mach_service_ticket(self, opts):
+        mach_tgt = self.get_mach_tgt(opts)
+        service_creds = self.get_service_creds()
+        return self.get_service_ticket(mach_tgt, service_creds)
 
-    def get_user_service_ticket(self):
-        if self.user_service_ticket is None:
-            user_tgt = self.get_user_tgt()
-            service_creds = self.get_service_creds()
-            type(self).user_service_ticket = (
-                self.get_service_ticket(user_tgt, service_creds))
-
-        return self.user_service_ticket
-
-    def get_mach_service_ticket(self):
-        if self.mach_service_ticket is None:
-            mach_tgt = self.get_mach_tgt()
-            service_creds = self.get_service_creds()
-            type(self).mach_service_ticket = (
-                self.get_service_ticket(mach_tgt, service_creds))
-
-        return self.mach_service_ticket
-
-    def get_service_ticket_invalid_checksum(self):
-        ticket = self.get_user_service_ticket()
+    def get_service_ticket_invalid_checksum(self, opts):
+        ticket = self.get_user_service_ticket(opts)
 
         krbtgt_creds = self.get_krbtgt_creds()
         krbtgt_key = self.TicketDecryptionKey_from_creds(krbtgt_creds)

@@ -79,9 +79,6 @@ extern int sec_ctx_stack_ndx;
 extern bool become_uid_done;
 extern bool become_gid_done;
 
-extern connection_struct *last_conn;
-extern uint16_t last_flags;
-
 extern uint32_t global_client_caps;
 
 extern uint16_t fnf_handle;
@@ -129,8 +126,6 @@ NTSTATUS smbd_do_qfilepathinfo(connection_struct *conn,
 			       bool delete_pending,
 			       struct timespec write_time_ts,
 			       struct ea_list *ea_list,
-			       int lock_data_count,
-			       char *lock_data,
 			       uint16_t flags2,
 			       unsigned int max_data_bytes,
 			       size_t *fixed_portion,
@@ -256,10 +251,11 @@ bool smbXsrv_server_multi_channel_enabled(void);
 
 NTSTATUS smbd_smb2_request_error_ex(struct smbd_smb2_request *req,
 				    NTSTATUS status,
+				    uint8_t error_context_count,
 				    DATA_BLOB *info,
 				    const char *location);
 #define smbd_smb2_request_error(req, status) \
-	smbd_smb2_request_error_ex(req, status, NULL, __location__)
+	smbd_smb2_request_error_ex(req, status, 0, NULL, __location__)
 NTSTATUS smbd_smb2_request_done_ex(struct smbd_smb2_request *req,
 				   NTSTATUS status,
 				   DATA_BLOB body, DATA_BLOB *dyn,

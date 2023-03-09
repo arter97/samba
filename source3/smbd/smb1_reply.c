@@ -53,6 +53,46 @@
 #include "source3/lib/substitute.h"
 
 /****************************************************************************
+ Check if we have a correct fsp pointing to a file. Basic check for open fsp.
+****************************************************************************/
+
+bool check_fsp_open(connection_struct *conn, struct smb_request *req,
+                    files_struct *fsp)
+{
+	if ((fsp == NULL) || (conn == NULL)) {
+		reply_nterror(req, NT_STATUS_INVALID_HANDLE);
+		return false;
+	}
+	if ((conn != fsp->conn) || (req->vuid != fsp->vuid)) {
+		reply_nterror(req, NT_STATUS_INVALID_HANDLE);
+		return false;
+	}
+	return true;
+}
+
+/****************************************************************************
+ Check if we have a correct fsp pointing to a file.
+****************************************************************************/
+
+bool check_fsp(connection_struct *conn, struct smb_request *req,
+               files_struct *fsp)
+{
+	if (!check_fsp_open(conn, req, fsp)) {
+		return false;
+	}
+	if (fsp->fsp_flags.is_directory) {
+		reply_nterror(req, NT_STATUS_INVALID_DEVICE_REQUEST);
+		return false;
+	}
+	if (fsp_get_pathref_fd(fsp) == -1) {
+		reply_nterror(req, NT_STATUS_ACCESS_DENIED);
+		return false;
+	}
+	fsp->num_smb_operations++;
+	return true;
+}
+
+/****************************************************************************
  Reply to a tcon.
  conn POINTER CAN BE NULL HERE !
 ****************************************************************************/
@@ -659,7 +699,6 @@ void reply_getatr(struct smb_request *req)
 	const char *p;
 	NTSTATUS status;
 	TALLOC_CTX *ctx = talloc_tos();
-	bool ask_sharemode = lp_smbd_search_ask_sharemode(SNUM(conn));
 
 	START_PROFILE(SMBgetatr);
 
@@ -685,6 +724,8 @@ void reply_getatr(struct smb_request *req)
 		struct files_struct *dirfsp = NULL;
 		uint32_t ucf_flags = ucf_flags_from_smb_request(req);
 		NTTIME twrp = 0;
+		bool ask_sharemode;
+
 		if (ucf_flags & UCF_GMT_PATHNAME) {
 			extract_snapshot_token(fname, &twrp);
 		}
@@ -716,6 +757,7 @@ void reply_getatr(struct smb_request *req)
 		mode = fdos_mode(smb_fname->fsp);
 		size = smb_fname->st.st_ex_size;
 
+		ask_sharemode = fsp_search_ask_sharemode(smb_fname->fsp);
 		if (ask_sharemode) {
 			struct timespec write_time_ts;
 			struct file_id fileid;
@@ -1029,7 +1071,6 @@ void reply_search(struct smb_request *req)
 	bool mask_contains_wcard = False;
 	bool allow_long_path_components = (req->flags2 & FLAGS2_LONG_PATH_COMPONENTS) ? True : False;
 	TALLOC_CTX *ctx = talloc_tos();
-	bool ask_sharemode = lp_smbd_search_ask_sharemode(SNUM(conn));
 	struct smbXsrv_connection *xconn = req->xconn;
 	struct smbd_server_connection *sconn = req->sconn;
 	files_struct *fsp = NULL;
@@ -1226,6 +1267,7 @@ void reply_search(struct smb_request *req)
 		unsigned int i;
 		size_t hdr_size = ((uint8_t *)smb_buf(req->outbuf) + 3 - req->outbuf);
 		size_t available_space = xconn->smb1.sessions.max_send - hdr_size;
+		bool ask_sharemode;
 
 		maxentries = MIN(maxentries, available_space/DIR_STRUCT_SIZE);
 
@@ -1234,6 +1276,8 @@ void reply_search(struct smb_request *req)
 		if (in_list(directory, lp_dont_descend(ctx, lp_sub, SNUM(conn)),True)) {
 			check_descend = True;
 		}
+
+		ask_sharemode = fsp_search_ask_sharemode(fsp);
 
 		for (i=numentries;(i<maxentries) && !finished;i++) {
 			finished = !get_dir_entry(ctx,
@@ -4740,7 +4784,6 @@ void reply_close(struct smb_request *smb1req)
 	 */
 
 	if (!check_fsp_open(conn, smb1req, fsp)) {
-		reply_nterror(smb1req, NT_STATUS_INVALID_HANDLE);
 		END_PROFILE(SMBclose);
 		return;
 	}

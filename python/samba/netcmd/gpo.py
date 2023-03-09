@@ -1851,30 +1851,54 @@ samba-tool gpo manage sudoers list {31B2F340-016D-11D2-945F-00C04FB984F9}
             # STATUS_OBJECT_NAME_INVALID, STATUS_OBJECT_NAME_NOT_FOUND,
             # STATUS_OBJECT_PATH_NOT_FOUND
             if e.args[0] in [0xC0000033, 0xC0000034, 0xC000003A]:
+                # The file doesn't exist, so there is nothing to list
+                xml_data = None
+            elif e.args[0] == 0xC0000022: # STATUS_ACCESS_DENIED
+                raise CommandError("The authenticated user does "
+                                   "not have sufficient privileges")
+            else:
+                raise
+
+        if xml_data is not None:
+            policy = xml_data.find('policysetting')
+            data = policy.find('data')
+            for entry in data.findall('sudoers_entry'):
+                command = entry.find('command').text
+                user = entry.find('user').text
+                listelements = entry.findall('listelement')
+                principals = []
+                for listelement in listelements:
+                    principals.extend(listelement.findall('principal'))
+                if len(principals) > 0:
+                    uname = ','.join([u.text if u.attrib['type'] == 'user' \
+                        else '%s%%' % u.text for u in principals])
+                else:
+                    uname = 'ALL'
+                nopassword = entry.find('password') is None
+                np_entry = ' NOPASSWD:' if nopassword else ''
+                p = '%s ALL=(%s)%s %s' % (uname, user, np_entry, command)
+                self.outf.write('%s\n' % p)
+
+        pol_file = '\\'.join([realm.lower(), 'Policies', gpo,
+                              'MACHINE\\Registry.pol'])
+        try:
+            pol_data = ndr_unpack(preg.file, conn.loadfile(pol_file))
+        except NTSTATUSError as e:
+            # STATUS_OBJECT_NAME_INVALID, STATUS_OBJECT_NAME_NOT_FOUND,
+            # STATUS_OBJECT_PATH_NOT_FOUND
+            if e.args[0] in [0xC0000033, 0xC0000034, 0xC000003A]:
                 return # The file doesn't exist, so there is nothing to list
             if e.args[0] == 0xC0000022: # STATUS_ACCESS_DENIED
                 raise CommandError("The authenticated user does "
                                    "not have sufficient privileges")
             raise
 
-        policy = xml_data.find('policysetting')
-        data = policy.find('data')
-        for entry in data.findall('sudoers_entry'):
-            command = entry.find('command').text
-            user = entry.find('user').text
-            listelements = entry.findall('listelement')
-            principals = []
-            for listelement in listelements:
-                principals.extend(listelement.findall('principal'))
-            if len(principals) > 0:
-                uname = ','.join([u.text if u.attrib['type'] == 'user' \
-                    else '%s%%' % u.text for u in principals])
-            else:
-                uname = 'ALL'
-            nopassword = entry.find('password') is None
-            np_entry = ' NOPASSWD:' if nopassword else ''
-            p = '%s ALL=(%s)%s %s' % (uname, user, np_entry, command)
-            self.outf.write('%s\n' % p)
+        # Also list the policies set from the GPME
+        keyname = b'Software\\Policies\\Samba\\Unix Settings\\Sudo Rights'
+        for entry in pol_data.entries:
+            if get_bytes(entry.keyname) == keyname and \
+                    get_string(entry.data).strip():
+                self.outf.write('%s\n' % entry.data)
 
 class cmd_remove_sudoers(Command):
     """Removes a Samba Sudoers Group Policy from the sysvol
@@ -1931,14 +1955,30 @@ samba-tool gpo manage sudoers remove {31B2F340-016D-11D2-945F-00C04FB984F9} 'fak
             # STATUS_OBJECT_NAME_INVALID, STATUS_OBJECT_NAME_NOT_FOUND,
             # STATUS_OBJECT_PATH_NOT_FOUND
             if e.args[0] in [0xC0000033, 0xC0000034, 0xC000003A]:
-                raise CommandError("The specified entry does not exist")
+                data = None
             elif e.args[0] == 0xC0000022: # STATUS_ACCESS_DENIED
                 raise CommandError("The authenticated user does "
                                    "not have sufficient privileges")
-            raise
+            else:
+                raise
+
+        pol_file = '\\'.join([realm.lower(), 'Policies', gpo,
+                              'MACHINE\\Registry.pol'])
+        try:
+            pol_data = ndr_unpack(preg.file, conn.loadfile(pol_file))
+        except NTSTATUSError as e:
+            # STATUS_OBJECT_NAME_INVALID, STATUS_OBJECT_NAME_NOT_FOUND,
+            # STATUS_OBJECT_PATH_NOT_FOUND
+            if e.args[0] in [0xC0000033, 0xC0000034, 0xC000003A]:
+                pol_data = None
+            elif e.args[0] == 0xC0000022: # STATUS_ACCESS_DENIED
+                raise CommandError("The authenticated user does "
+                                   "not have sufficient privileges")
+            else:
+                raise
 
         entries = {}
-        for e in data.findall('sudoers_entry'):
+        for e in data.findall('sudoers_entry') if data else []:
             command = e.find('command').text
             user = e.find('user').text
             listelements = e.findall('listelement')
@@ -1955,23 +1995,35 @@ samba-tool gpo manage sudoers remove {31B2F340-016D-11D2-945F-00C04FB984F9} 'fak
             p = '%s ALL=(%s)%s %s' % (uname, user, np_entry, command)
             entries[p] = e
 
-        if entry not in entries.keys():
+        if entry in entries.keys():
+            data.remove(entries[entry])
+
+            out = BytesIO()
+            xml_data.write(out, encoding='UTF-8', xml_declaration=True)
+            out.seek(0)
+            try:
+                create_directory_hier(conn, vgp_dir)
+                conn.savefile(vgp_xml, out.read())
+            except NTSTATUSError as e:
+                if e.args[0] == 0xC0000022: # STATUS_ACCESS_DENIED
+                    raise CommandError("The authenticated user does "
+                                       "not have sufficient privileges")
+                raise
+        elif entry in ([e.data for e in pol_data.entries] if pol_data else []):
+            entries = [e for e in pol_data.entries if e.data != entry]
+            pol_data.num_entries = len(entries)
+            pol_data.entries = entries
+
+            try:
+                conn.savefile(pol_file, ndr_pack(pol_data))
+            except NTSTATUSError as e:
+                if e.args[0] == 0xC0000022: # STATUS_ACCESS_DENIED
+                    raise CommandError("The authenticated user does "
+                                       "not have sufficient privileges")
+                raise
+        else:
             raise CommandError("Cannot remove '%s' because it does not exist" %
-                                entry)
-
-        data.remove(entries[entry])
-
-        out = BytesIO()
-        xml_data.write(out, encoding='UTF-8', xml_declaration=True)
-        out.seek(0)
-        try:
-            create_directory_hier(conn, vgp_dir)
-            conn.savefile(vgp_xml, out.read())
-        except NTSTATUSError as e:
-            if e.args[0] == 0xC0000022: # STATUS_ACCESS_DENIED
-                raise CommandError("The authenticated user does "
-                                   "not have sufficient privileges")
-            raise
+                               entry)
 
 class cmd_sudoers(SuperCommand):
     """Manage Sudoers Group Policy Objects"""
@@ -3126,8 +3178,12 @@ samba-tool gpo manage scripts startup list {31B2F340-016D-11D2-945F-00C04FB984F9
                 run_as = run_as.text
             else:
                 run_as = 'root'
-            self.outf.write('@reboot %s %s %s' % (run_as, script_path,
-                                                  parameters.text))
+            if parameters is not None:
+                parameters = parameters.text
+            else:
+                parameters = ''
+            self.outf.write('@reboot %s %s %s\n' % (run_as, script_path,
+                                                  parameters))
 
 class cmd_add_startup(Command):
     """Adds VGP Startup Script Group Policy to the sysvol
@@ -3135,7 +3191,7 @@ class cmd_add_startup(Command):
 This command adds a startup script policy to the sysvol.
 
 Example:
-samba-tool gpo manage scripts startup add {31B2F340-016D-11D2-945F-00C04FB984F9} test_script.sh '-n'
+samba-tool gpo manage scripts startup add {31B2F340-016D-11D2-945F-00C04FB984F9} test_script.sh '\\-n \\-p all'
     """
 
     synopsis = "%prog <gpo> <script> [args] [run_as] [options]"
@@ -3215,11 +3271,11 @@ samba-tool gpo manage scripts startup add {31B2F340-016D-11D2-945F-00C04FB984F9}
         hash.text = hashlib.md5(script_data).hexdigest().upper()
         if args is not None:
             parameters = ET.SubElement(listelement, 'parameters')
-            parameters.text = args.strip('"').strip("'")
+            parameters.text = args.strip('"').strip("'").replace('\\-', '-')
         if run_as is not None:
             run_as_elm = ET.SubElement(listelement, 'run_as')
             run_as_elm.text = run_as
-        if run_once is not None:
+        if run_once:
             ET.SubElement(listelement, 'run_once')
 
         out = BytesIO()
@@ -3759,7 +3815,8 @@ class cmd_add_access(Command):
     """Adds a VGP Host Access Group Policy to the sysvol
 
 This command adds a host access setting to the sysvol for applying to winbind
-clients.
+clients. Any time an allow entry is detected by the client, an implicit deny
+ALL will be assumed.
 
 Example:
 samba-tool gpo manage access add {31B2F340-016D-11D2-945F-00C04FB984F9} allow goodguy example.com
@@ -3860,13 +3917,11 @@ samba-tool gpo manage access add {31B2F340-016D-11D2-945F-00C04FB984F9} allow go
         etype = ET.SubElement(listelement, 'type')
         etype.text = objectclass.upper()
         entry = ET.SubElement(listelement, 'entry')
-        if objectclass == 'user':
-            entry.text = get_string(res[0]['userPrincipalName'][-1])
-        else:
+        entry.text = '%s\\%s' % (samdb.domain_netbios_name(),
+                                 get_string(res[0]['samaccountname'][-1]))
+        if objectclass == 'group':
             groupattr = ET.SubElement(data, 'groupattr')
             groupattr.text = 'samAccountName'
-            entry.text = '%s\\%s' % (domain,
-                                     get_string(res[0]['samaccountname'][-1]))
         adobject = ET.SubElement(listelement, 'adobject')
         name = ET.SubElement(adobject, 'name')
         name.text = get_string(res[0]['samaccountname'][-1])

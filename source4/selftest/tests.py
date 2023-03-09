@@ -532,7 +532,7 @@ for t in smbtorture4_testsuites("dlz_bind9."):
     # The dlz_bind9 tests needs to look at the DNS database
     plansmbtorture4testsuite(t, "chgdcpass:local", ["ncalrpc:$SERVER", '-U$USERNAME%$PASSWORD'])
 
-planpythontestsuite("nt4_dc_smb1", "samba.tests.libsmb")
+planpythontestsuite("nt4_dc_smb1", "samba.tests.libsmb-basic")
 
 planpythontestsuite("ad_member", "samba.tests.smb-notify",
                     environ={'USERNAME':'$DC_USERNAME',
@@ -1746,7 +1746,7 @@ planoldpythontestsuite(
     'samba.tests.krb5.pac_align_tests',
     environ=krb5_environ)
 planoldpythontestsuite(
-    'ad_dc:local',
+    'ad_dc',
     'samba.tests.krb5.protected_users_tests',
     environ=krb5_environ)
 for env, nt_hash in [("ad_dc:local", True),
@@ -1763,8 +1763,16 @@ planoldpythontestsuite(
     'samba.tests.krb5.kpasswd_tests',
     environ=krb5_environ)
 planoldpythontestsuite(
+    'ad_dc',
+    'samba.tests.krb5.claims_tests',
+    environ=krb5_environ)
+planoldpythontestsuite(
     'ad_dc:local',
     'samba.tests.krb5.lockout_tests',
+    environ=krb5_environ)
+planoldpythontestsuite(
+    'ad_dc',
+    'samba.tests.krb5.group_tests',
     environ=krb5_environ)
 for env, forced_rc4 in [('ad_dc', False),
                         ('promoted_dc', True)]:
@@ -1894,3 +1902,4 @@ planoldpythontestsuite("proclimitdc",
 
 planoldpythontestsuite("none", "samba.tests.usage")
 planpythontestsuite("fileserver", "samba.tests.dcerpc.mdssvc")
+planoldpythontestsuite("none", "samba.tests.compression")

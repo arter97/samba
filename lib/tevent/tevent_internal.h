@@ -169,6 +169,8 @@ struct tevent_req {
 		 * @brief The place where profiling data is kept
 		 */
 		struct tevent_req_profile *profile;
+
+		size_t call_depth;
 	} internal;
 };
 
@@ -397,8 +399,6 @@ struct tevent_context {
 #endif
 };
 
-const struct tevent_ops *tevent_find_ops_byname(const char *name);
-
 int tevent_common_context_destructor(struct tevent_context *ev);
 int tevent_common_loop_wait(struct tevent_context *ev,
 			    const char *location);
@@ -498,10 +498,8 @@ void tevent_epoll_set_panic_fallback(struct tevent_context *ev,
 			bool (*panic_fallback)(struct tevent_context *ev,
 					       bool replay));
 #endif
-#ifdef HAVE_SOLARIS_PORTS
-bool tevent_port_init(void);
-#endif
 
+void tevent_thread_call_depth_set(size_t depth);
 
 void tevent_trace_point_callback(struct tevent_context *ev,
 				 enum tevent_trace_point);

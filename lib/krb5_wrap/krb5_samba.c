@@ -322,7 +322,7 @@ int smb_krb5_create_key_from_string(krb5_context context,
 		}
 
 		mdfour(nt_hash, utf16, utf16_size);
-		memset(utf16, 0, utf16_size);
+		BURN_PTR_SIZE(utf16, utf16_size);
 		ret = smb_krb5_keyblock_init_contents(context,
 						      ENCTYPE_ARCFOUR_HMAC,
 						      nt_hash,
@@ -936,6 +936,36 @@ krb5_error_code smb_krb5_copy_data_contents(krb5_data *p,
 	p->magic = KV5M_DATA;
 	return 0;
 #endif
+}
+
+/*
+ * @brief put a buffer reference into a krb5_data struct
+ *
+ * @param[in] data		The data to reference
+ * @param[in] length		The length of the data to reference
+ * @return krb5_data
+ *
+ * Caller should not free krb5_data.
+ */
+krb5_data smb_krb5_make_data(void *data,
+			     size_t len)
+{
+	krb5_data d;
+
+#ifdef SAMBA4_USES_HEIMDAL
+	d.data = (uint8_t *)data;
+	d.length = len;
+#else
+	d.magic = KV5M_DATA;
+	d.data = data;
+	d.length = len;
+#endif
+	return d;
+}
+
+krb5_data smb_krb5_data_from_blob(DATA_BLOB blob)
+{
+	return smb_krb5_make_data(blob.data, blob.length);
 }
 
 bool smb_krb5_get_smb_session_key(TALLOC_CTX *mem_ctx,
@@ -1600,7 +1630,13 @@ krb5_error_code smb_krb5_kt_get_name(TALLOC_CTX *mem_ctx,
  *
  * @param[in]  keytab        The keytab to operate on.
  *
+ * @param[in]  keep_old_kvno Keep the entries with the previous kvno.
+ *
  * @param[in]  kvno          The kvnco to use.
+ *
+ * @param[in]  enctype_only  Only evaluate the enctype argument if true
+ *
+ * @param[in]  enctype       Only search for entries with the specified enctype
  *
  * @param[in]  princ_s       The principal as a string to search for.
  *
@@ -1608,20 +1644,19 @@ krb5_error_code smb_krb5_kt_get_name(TALLOC_CTX *mem_ctx,
  *
  * @param[in]  flush         Whether to flush the complete keytab.
  *
- * @param[in]  keep_old_entries Keep the entry with the previous kvno.
- *
  * @retval 0 on Sucess
  *
  * @return An appropriate KRB5 error code.
  */
 krb5_error_code smb_krb5_kt_seek_and_delete_old_entries(krb5_context context,
 							krb5_keytab keytab,
+							bool keep_old_kvno,
 							krb5_kvno kvno,
+							bool enctype_only,
 							krb5_enctype enctype,
 							const char *princ_s,
 							krb5_principal princ,
-							bool flush,
-							bool keep_old_entries)
+							bool flush)
 {
 	krb5_error_code ret;
 	krb5_kt_cursor cursor;
@@ -1629,6 +1664,16 @@ krb5_error_code smb_krb5_kt_seek_and_delete_old_entries(krb5_context context,
 	char *ktprinc = NULL;
 	krb5_kvno old_kvno = kvno - 1;
 	TALLOC_CTX *tmp_ctx;
+
+	if (flush) {
+		SMB_ASSERT(!keep_old_kvno);
+		SMB_ASSERT(!enctype_only);
+		SMB_ASSERT(princ_s == NULL);
+		SMB_ASSERT(princ == NULL);
+	} else {
+		SMB_ASSERT(princ_s != NULL);
+		SMB_ASSERT(princ != NULL);
+	}
 
 	ZERO_STRUCT(cursor);
 	ZERO_STRUCT(kt_entry);
@@ -1650,7 +1695,7 @@ krb5_error_code smb_krb5_kt_seek_and_delete_old_entries(krb5_context context,
 		krb5_enctype kt_entry_enctype =
 			smb_krb5_kt_get_enctype_from_entry(&kt_entry);
 
-		if (!flush && (princ_s != NULL)) {
+		if (princ_s != NULL) {
 			ret = smb_krb5_unparse_name(tmp_ctx, context,
 						    kt_entry.principal,
 						    &ktprinc);
@@ -1704,21 +1749,14 @@ krb5_error_code smb_krb5_kt_seek_and_delete_old_entries(krb5_context context,
 		 * the compare accordingly.
 		 */
 
-		if (!flush && ((kt_entry.vno & 0xff) == (old_kvno & 0xff))) {
+		if (keep_old_kvno && ((kt_entry.vno & 0xff) == (old_kvno & 0xff))) {
 			DEBUG(5, (__location__ ": Saving previous (kvno %d) "
 				  "entry for principal: %s.\n",
 				  old_kvno, princ_s));
 			continue;
 		}
 
-		if (keep_old_entries) {
-			DEBUG(5, (__location__ ": Saving old (kvno %d) "
-				  "entry for principal: %s.\n",
-				  kvno, princ_s));
-			continue;
-		}
-
-		if (!flush &&
+		if (enctype_only &&
 		    ((kt_entry.vno & 0xff) == (kvno & 0xff)) &&
 		    (kt_entry_enctype != enctype))
 		{
@@ -1799,8 +1837,6 @@ out:
  *                            this is only set to false for encryption types
  *                            which do not support salting like RC4.
  *
- * @param[in]  keep_old_entries Whether to keep or delete old keytab entries.
- *
  * @retval 0 on Success
  *
  * @return A corresponding KRB5 error code.
@@ -1814,8 +1850,7 @@ krb5_error_code smb_krb5_kt_add_entry(krb5_context context,
 				      const char *salt_principal,
 				      krb5_enctype enctype,
 				      krb5_data *password,
-				      bool no_salt,
-				      bool keep_old_entries)
+				      bool no_salt)
 {
 	krb5_error_code ret;
 	krb5_keytab_entry kt_entry;
@@ -1834,12 +1869,13 @@ krb5_error_code smb_krb5_kt_add_entry(krb5_context context,
 	/* Seek and delete old keytab entries */
 	ret = smb_krb5_kt_seek_and_delete_old_entries(context,
 						      keytab,
+						      true, /* keep_old_kvno */
 						      kvno,
+						      true, /* enctype_only */
 						      enctype,
 						      princ_s,
 						      princ,
-						      false,
-						      keep_old_entries);
+						      false); /* flush */
 	if (ret) {
 		goto out;
 	}
@@ -3370,7 +3406,7 @@ int smb_krb5_principal_is_tgs(krb5_context context,
 	}
 
 	eq = krb5_princ_size(context, principal) == 2 &&
-	     (strequal(p, KRB5_TGS_NAME));
+	     (strcmp(p, KRB5_TGS_NAME) == 0);
 
 	talloc_free(p);
 

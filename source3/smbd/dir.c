@@ -988,6 +988,13 @@ bool smbd_dirptr_get_entry(TALLOC_CTX *ctx,
 			smb_fname = tmp_smb_fname;
 			mode = FILE_ATTRIBUTE_DIRECTORY;
 			get_dosmode = false;
+
+			/* Ensure posix fileid and sids are hidden
+			 */
+			smb_fname->st.st_ex_ino = 0;
+			smb_fname->st.st_ex_dev = 0;
+			smb_fname->st.st_ex_uid = -1;
+			smb_fname->st.st_ex_gid = -1;
 		}
 
 		ok = mode_fn(ctx,
@@ -1404,7 +1411,8 @@ bool is_visible_fsp(struct files_struct *fsp)
 		 * only thing we can check is the
 		 * hide_new_files_timeout.
 		 */
-		if (hide_new_files_timeout != 0) {
+		if ((hide_new_files_timeout != 0) &&
+		    !S_ISDIR(fsp->fsp_name->st.st_ex_mode)) {
 			double age = timespec_elapsed(
 				&fsp->fsp_name->st.st_ex_mtime);
 
@@ -1415,41 +1423,30 @@ bool is_visible_fsp(struct files_struct *fsp)
 		return true;
 	}
 
-	if (hide_unreadable ||
-	    hide_unwriteable ||
-	    hide_special ||
-	    (hide_new_files_timeout != 0))
-	{
-		/* Honour _hide unreadable_ option */
-		if (hide_unreadable &&
-		    !user_can_read_fsp(fsp))
-		{
-			DBG_DEBUG("file %s is unreadable.\n",
-				 fsp_str_dbg(fsp));
-			return false;
-		}
-		/* Honour _hide unwriteable_ option */
-		if (hide_unwriteable &&
-		    !user_can_write_fsp(fsp))
-		{
-			DBG_DEBUG("file %s is unwritable.\n",
-				 fsp_str_dbg(fsp));
-			return false;
-		}
-		/* Honour _hide_special_ option */
-		if (hide_special && file_is_special(fsp->conn, fsp->fsp_name)) {
-			DBG_DEBUG("file %s is special.\n",
-				 fsp_str_dbg(fsp));
-			return false;
-		}
+	/* Honour _hide unreadable_ option */
+	if (hide_unreadable && !user_can_read_fsp(fsp)) {
+		DBG_DEBUG("file %s is unreadable.\n", fsp_str_dbg(fsp));
+		return false;
+	}
 
-		if (hide_new_files_timeout != 0) {
-			double age = timespec_elapsed(
-				&fsp->fsp_name->st.st_ex_mtime);
+	/* Honour _hide unwriteable_ option */
+	if (hide_unwriteable && !user_can_write_fsp(fsp)) {
+		DBG_DEBUG("file %s is unwritable.\n", fsp_str_dbg(fsp));
+		return false;
+	}
 
-			if (age < (double)hide_new_files_timeout) {
-				return false;
-			}
+	/* Honour _hide_special_ option */
+	if (hide_special && file_is_special(fsp->conn, fsp->fsp_name)) {
+		DBG_DEBUG("file %s is special.\n", fsp_str_dbg(fsp));
+		return false;
+	}
+
+	if ((hide_new_files_timeout != 0) &&
+	    !S_ISDIR(fsp->fsp_name->st.st_ex_mode)) {
+		double age = timespec_elapsed(&fsp->fsp_name->st.st_ex_mtime);
+
+		if (age < (double)hide_new_files_timeout) {
+			return false;
 		}
 	}
 
@@ -1931,7 +1928,6 @@ NTSTATUS can_delete_directory_fsp(files_struct *fsp)
 	long dirpos = 0;
 	const char *dname = NULL;
 	char *talloced = NULL;
-	SMB_STRUCT_STAT st;
 	struct connection_struct *conn = fsp->conn;
 	struct smb_Dir *dir_hnd = NULL;
 
@@ -1941,7 +1937,7 @@ NTSTATUS can_delete_directory_fsp(files_struct *fsp)
 		return status;
 	}
 
-	while ((dname = ReadDirName(dir_hnd, &dirpos, &st, &talloced))) {
+	while ((dname = ReadDirName(dir_hnd, &dirpos, NULL, &talloced))) {
 		struct smb_filename *smb_dname_full = NULL;
 		struct smb_filename *direntry_fname = NULL;
 		char *fullname = NULL;

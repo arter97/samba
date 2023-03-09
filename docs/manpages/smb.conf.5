@@ -2,12 +2,12 @@
 .\"     Title: smb.conf
 .\"    Author: [see the "AUTHOR" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/09/2023
+.\"      Date: 03/08/2023
 .\"    Manual: File Formats and Conventions
-.\"    Source: Samba 4.17.6
+.\"    Source: Samba 4.18.0
 .\"  Language: English
 .\"
-.TH "SMB\&.CONF" "5" "03/09/2023" "Samba 4\&.17\&.6" "File Formats and Conventions"
+.TH "SMB\&.CONF" "5" "03/08/2023" "Samba 4\&.18\&.0" "File Formats and Conventions"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1306,9 +1306,6 @@ If this integer parameter is set to a non\-zero value, Samba will read from file
 The only reasonable values for this parameter are 0 (no async I/O) and 1 (always do async I/O)\&.
 .sp
 Related command:
-\m[blue]\fBwrite cache size\fR\m[]
-.sp
-Related command:
 \m[blue]\fBaio write size\fR\m[]
 .sp
 Default:
@@ -1344,9 +1341,6 @@ The only reasonable values for this parameter are 0 (no async I/O) and 1 (always
 Compared to
 \m[blue]\fBaio read size\fR\m[]
 this parameter has a smaller effect, most writes should end up in the file system cache\&. Writes that require space allocation might benefit most from going asynchronous\&.
-.sp
-Related command:
-\m[blue]\fBwrite cache size\fR\m[]
 .sp
 Related command:
 \m[blue]\fBaio read size\fR\m[]
@@ -1828,7 +1822,7 @@ case sensitive (S)
 .PP
 .RS 4
 See the discussion in the section
-\m[blue]\fBname mangling\fR\m[]\&.
+name mangling\&.
 .sp
 Default:
 \fI\fIcase sensitive\fR\fR\fI = \fR\fIauto\fR\fI \fR
@@ -3236,7 +3230,7 @@ default case (S)
 .PP
 .RS 4
 See the section on
-\m[blue]\fBname mangling\fR\m[]\&. Also note the
+name mangling\&. Also note the
 \m[blue]\fBshort preserve case\fR\m[]
 parameter\&.
 .sp
@@ -3282,7 +3276,7 @@ There is no default value for this parameter\&. If this parameter is not given, 
 .sp
 Typically the default service would be a
 \m[blue]\fBguest ok\fR\m[],
-\m[blue]\fBread\-only\fR\m[]
+\m[blue]\fBread only\fR\m[]
 service\&.
 .sp
 Also note that the apparent service name will be changed to equal that of the requested service, this is very useful as it allows you to use macros like
@@ -3625,7 +3619,7 @@ This parameter has been removed for Samba 4\&.0\&.0\&.
 disable netbios (G)
 .PP
 .RS 4
-Enabling this parameter will disable netbios support in Samba\&. Netbios is the only available form of browsing in all windows versions except for 2000 and XP\&.
+Enabling this parameter will disable netbios support in Samba\&. Netbios is the only available form of browsing in Windows versions prior to Windows 2000\&.
 .if n \{\
 .sp
 .\}
@@ -4066,7 +4060,7 @@ Access to extended user attributes must be allowed by the underlying filesystem 
 .RE
 This option exposes the "user" attribute namespace from the underlying filesystem to clients\&. In order to match Windows conventions, the namespace prefix ("user\&.") is stripped from the attribute name on the client side\&. The handling of further attribute namespaces (like "security", "system", or "trusted") is not affected by this option\&.
 .sp
-Note that the SMB protocol allows setting attributes whose value is 64K bytes long, and that on NTFS, the maximum storage space for extended attributes per file is 64K\&. On most UNIX systems (Solaris and ZFS file system being the exception), the limits are much lower \- typically 4K\&. Worse, the same 4K space is often used to store system metadata such as POSIX ACLs, or Samba\*(Aqs NT ACLs\&. Giving clients access to this tight space via extended attribute support could consume all of it by unsuspecting client applications, which would prevent changing system metadata due to lack of space\&. The default has changed to yes in Samba release 4\&.9\&.0 and above to allow better Windows fileserver compatibility in a default install\&.
+Note that the SMB protocol allows setting attributes whose value is 64K bytes long, and that on NTFS, the maximum storage space for extended attributes per file is 64K\&. On some filesystem the limits may be lower\&. Filesystems with too limited EA space may experience unexpected weird effects\&. The default has changed to yes in Samba release 4\&.9\&.0 and above to allow better Windows fileserver compatibility in a default install\&.
 .sp
 Default:
 \fI\fIea support\fR\fR\fI = \fR\fIyes\fR\fI \fR
@@ -5239,7 +5233,7 @@ Default:
 inherit acls (S)
 .PP
 .RS 4
-This parameter can be used to ensure that if default acls exist on parent directories, they are always honored when creating a new file or subdirectory in these parent directories\&. The default behavior is to use the unix mode specified when creating the directory\&. Enabling this option sets the unix mode to 0777, thus guaranteeing that default directory acls are propagated\&. Note that using the VFS modules acl_xattr or acl_tdb which store native Windows as meta\-data will automatically turn this option on for any share for which they are loaded, as they require this option to emulate Windows ACLs correctly\&.
+This parameter is only relevant for filesystems that do not support standardized NFS4 ACLs but only a POSIX draft ACL implementation and which implements default ACLs like most filesystems on Linux\&. It can be used to ensure that if default ACLs exist on parent directories, they are always honored when creating a new file or subdirectory in these parent directories\&. The default behavior is to use the unix mode specified when creating the directory\&. Enabling this option sets the unix mode to 0777, thus guaranteeing that the default directory ACLs are propagated\&. Note that using the VFS modules acl_xattr or acl_tdb which store native Windows as meta\-data will automatically turn this option on for any share for which they are loaded, as they require this option to emulate Windows ACLs correctly\&.
 .sp
 Default:
 \fI\fIinherit acls\fR\fR\fI = \fR\fIno\fR\fI \fR
@@ -5307,7 +5301,7 @@ Common scenarios where this behavior is useful is in implementing drop\-boxes, w
 .sp
 The
 \fBunix only\fR
-option effectively breaks the tie between the Windows owner of a file and the UNIX owner\&. As a logical consequence, in this mode, setting the the Windows owner of a file does not modify the UNIX owner\&. Using this mode should typically be combined with a backing store that can emulate the full NT ACL model without affecting the POSIX permissions, such as the acl_xattr VFS module, coupled with
+option effectively breaks the tie between the Windows owner of a file and the UNIX owner\&. As a logical consequence, in this mode, setting the Windows owner of a file does not modify the UNIX owner\&. Using this mode should typically be combined with a backing store that can emulate the full NT ACL model without affecting the POSIX permissions, such as the acl_xattr VFS module, coupled with
 \m[blue]\fBacl_xattr:ignore system acls = yes\fR\m[]\&. This can be used to emulate folder quotas, when files are exposed only via SMB (without UNIX extensions)\&. The UNIX owner of a directory is locally set and inherited by all subdirectories and files, and they all consume the same quota\&.
 .sp
 Default:
@@ -6520,7 +6514,7 @@ load printers (G)
 .PP
 .RS 4
 A boolean variable that controls whether all printers in the printcap will be loaded for browsing by default\&. See the
-\m[blue]\fBprinters\fR\m[]
+printers
 section for more details\&.
 .sp
 Default:
@@ -6612,7 +6606,7 @@ lock spin time (G)
 .PP
 .RS 4
 The time in milliseconds that smbd should keep waiting to see if a failed lock request can be granted\&. This parameter has changed in default value from Samba 3\&.0\&.23 from 10 to 200\&. The associated
-\m[blue]\fBlock spin count\fR\m[]
+lock spin count
 parameter is no longer used in Samba 3\&.0\&.24\&. You should not need to change the value of this parameter\&.
 .sp
 Default:
@@ -7994,7 +7988,7 @@ mangled names (S)
 This controls whether non\-DOS names under UNIX should be mapped to DOS\-compatible names ("mangled") and made visible, or whether non\-DOS names should simply be ignored\&.
 .sp
 See the section on
-\m[blue]\fBname mangling\fR\m[]
+name mangling
 for details on how to control the mangling process\&.
 .sp
 Possible option settings are
@@ -8111,7 +8105,7 @@ mangling char (S)
 This controls what character is used as the
 \fImagic\fR
 character in
-\m[blue]\fBname mangling\fR\m[]\&. The default is a \*(Aq~\*(Aq but this may interfere with some software\&. Use this option to set it to whatever you prefer\&. This is effective only when mangling method is hash\&.
+name mangling\&. The default is a \*(Aq~\*(Aq but this may interfere with some software\&. Use this option to set it to whatever you prefer\&. This is effective only when mangling method is hash\&.
 .sp
 Default:
 \fI\fImangling char\fR\fR\fI = \fR\fI~\fR\fI \fR
@@ -8135,9 +8129,9 @@ Example:
 map acl inherit (S)
 .PP
 .RS 4
-This boolean parameter controls whether
+This boolean parameter is only relevant for systems that do not support standardized NFS4 ACLs but only a POSIX draft implementation of ACLs\&. Linux is the only common UNIX system which does still not offer standardized NFS4 ACLs actually\&. On such systems this parameter controls whether
 \fBsmbd\fR(8)
-will attempt to map the \*(Aqinherit\*(Aq and \*(Aqprotected\*(Aq access control entry flags stored in Windows ACLs into an extended attribute called user\&.SAMBA_PAI (POSIX ACL Inheritance)\&. This parameter requires supports for extended attributes on the filesystem and allows the Windows ACL editor to store inheritance information while NT ACLs are mapped best\-effort to the POSIX ACLs\&.
+will attempt to map the \*(Aqprotected\*(Aq (don\*(Aqt inherit) flags of the Windows ACLs into an extended attribute called user\&.SAMBA_PAI (POSIX draft ACL Inheritance)\&. This parameter requires support for extended attributes on the filesystem and allows the Windows ACL editor to store (non\-)inheritance information while NT ACLs are mapped best\-effort to the POSIX draft ACLs that the OS and filesystem implements\&.
 .sp
 Default:
 \fI\fImap acl inherit\fR\fR\fI = \fR\fIno\fR\fI \fR
@@ -8224,7 +8218,7 @@ The three settings are :
 \fBPermissions\fR
 \- The read only DOS attribute is mapped to the effective permissions of the connecting user, as evaluated by
 \fBsmbd\fR(8)
-by reading the unix permissions and POSIX ACL (if present)\&. If the connecting user does not have permission to modify the file, the read only attribute is reported as being set on the file\&.
+by reading the unix permissions and filesystem ACL (if present)\&. If the connecting user does not have permission to modify the file, the read only attribute is reported as being set on the file\&.
 .RE
 .sp
 .RS 4
@@ -9084,7 +9078,7 @@ nt acl support (S)
 .RS 4
 This boolean parameter controls whether
 \fBsmbd\fR(8)
-will attempt to map UNIX permissions into Windows NT access control lists\&. The UNIX permissions considered are the traditional UNIX owner and group permissions, as well as POSIX ACLs set on any files or directories\&. This parameter was formally a global parameter in releases prior to 2\&.2\&.2\&.
+will attempt to map UNIX permissions into Windows NT access control lists\&. The UNIX permissions considered are the traditional UNIX owner and group permissions, as well as filesystem ACLs set on any files or directories\&. This parameter was formally a global parameter in releases prior to 2\&.2\&.2\&.
 .sp
 Default:
 \fI\fInt acl support\fR\fR\fI = \fR\fIyes\fR\fI \fR
@@ -9963,7 +9957,7 @@ prefork backoff increment (G)
 .RS 4
 This option specifies the number of seconds added to the delay before a prefork master or worker process is restarted\&. The restart is initially zero, the prefork backoff increment is added to the delay on each restart up to the value specified by "prefork maximum backoff"\&.
 .sp
-Additionally the the backoff for an individual service by using "prefork backoff increment: service name" i\&.e\&. "prefork backoff increment:ldap = 2" to set the backoff increment to 2\&.
+Additionally set the backoff for an individual service by using "prefork backoff increment: service name" i\&.e\&. "prefork backoff increment:ldap = 2" to set the backoff increment to 2\&.
 .sp
 If the backoff increment is 2 and the maximum backoff is 5\&. There will be a zero second delay for the first restart\&. A two second delay for the second restart\&. A four second delay for the third and any subsequent restarts
 .sp
@@ -10749,7 +10743,7 @@ root directory (G)
 The server will
 chroot()
 (i\&.e\&. Change its root directory) to this directory on startup\&. This is not strictly necessary for secure operation\&. Even without it the server will deny access to files not in one of the service entries\&. It may also check for, and deny access to, soft links to other parts of the filesystem, or attempts to use "\&.\&." in file names to access other directories (depending on the setting of the
-\m[blue]\fBwide smbconfoptions\fR\m[]
+\m[blue]\fBwide links\fR\m[]
 parameter)\&.
 .sp
 Adding a
@@ -10899,10 +10893,14 @@ This option affects how clients respond to Samba and is one of the most importan
 smb\&.conf
 file\&.
 .sp
-The default is
+Unless
+\m[blue]\fBserver role\fR\m[]
+is specified, the default is
 security = user, as this is the most common setting, used for a standalone file server or a DC\&.
 .sp
-The alternatives are
+The alternatives to
+security = user
+are
 security = ads
 or
 security = domain, which support joining Samba to a Windows domain
@@ -10928,9 +10926,9 @@ If
 is not specified, this is the default security setting in Samba\&. With user\-level security a client must first "log\-on" with a valid username and password (which can be mapped using the
 \m[blue]\fBusername map\fR\m[]
 parameter)\&. Encrypted passwords (see the
-\m[blue]\fBencrypted passwords\fR\m[]
+\m[blue]\fBencrypt passwords\fR\m[]
 parameter) can also be used in this security mode\&. Parameters such as
-\m[blue]\fBuser\fR\m[]
+\m[blue]\fBforce user\fR\m[]
 and
 \m[blue]\fBguest only\fR\m[]
 if set are then applied and may change the UNIX user to use on this connection, but only after the user has been successfully authenticated\&.
@@ -10948,7 +10946,7 @@ parameter for details on doing this\&.
 This mode will only work correctly if
 \fBnet\fR(8)
 has been used to add this machine into a Windows NT Domain\&. It expects the
-\m[blue]\fBencrypted passwords\fR\m[]
+\m[blue]\fBencrypt passwords\fR\m[]
 parameter to be set to
 \fByes\fR\&. In this mode Samba will try to validate the username/password by passing it to a Windows NT Primary or Backup Domain Controller, in exactly the same way that a Windows NT Server would do\&.
 .sp
@@ -10972,7 +10970,7 @@ parameter for details on doing this\&.
 See also the
 \m[blue]\fBpassword server\fR\m[]
 parameter and the
-\m[blue]\fBencrypted passwords\fR\m[]
+\m[blue]\fBencrypt passwords\fR\m[]
 parameter\&.
 .sp
 \fISECURITY = ADS\fR
@@ -11002,6 +11000,17 @@ security mask (S)
 This parameter has been removed for Samba 4\&.0\&.0\&.
 .sp
 \fINo default\fR
+.RE
+
+server addresses (S)
+.PP
+.RS 4
+This is a per\-share parameter to limit share visibility and accessibility to specific server IP addresses\&. Multi\-homed servers can offer a different set of shares per interface\&.
+.sp
+An empty list means to offer a share on all interfaces\&.
+.sp
+Default:
+\fI\fIserver addresses\fR\fR\fI = \fR\fI\fR\fI \fR
 .RE
 
 max protocol
@@ -11239,9 +11248,9 @@ If
 is also not specified, this is the default security setting in Samba\&. In standalone operation, a client must first "log\-on" with a valid username and password (which can be mapped using the
 \m[blue]\fBusername map\fR\m[]
 parameter) stored on this machine\&. Encrypted passwords (see the
-\m[blue]\fBencrypted passwords\fR\m[]
+\m[blue]\fBencrypt passwords\fR\m[]
 parameter) are by default used in this security mode\&. Parameters such as
-\m[blue]\fBuser\fR\m[]
+\m[blue]\fBforce user\fR\m[]
 and
 \m[blue]\fBguest only\fR\m[]
 if set are then applied and may change the UNIX user to use on this connection, but only after the user has been successfully authenticated\&.
@@ -11251,7 +11260,7 @@ if set are then applied and may change the UNIX user to use on this connection, 
 This mode will only work correctly if
 \fBnet\fR(8)
 has been used to add this machine into a Windows Domain\&. It expects the
-\m[blue]\fBencrypted passwords\fR\m[]
+\m[blue]\fBencrypt passwords\fR\m[]
 parameter to be set to
 \fByes\fR\&. In this mode Samba will try to validate the username/password by passing it to a Windows or Samba Domain Controller, in exactly the same way that a Windows Server would do\&.
 .sp
@@ -12243,6 +12252,15 @@ Please note that the default is 8MiB, but it\*(Aqs limit is based on the smb2 di
 .sp
 Default:
 \fI\fIsmb2 max write\fR\fR\fI = \fR\fI8388608\fR\fI \fR
+.RE
+
+smb3 unix extensions (G)
+.PP
+.RS 4
+Incomplete SMB 3\&.11 Unix Extensions\&. This is only available if Samba is compiled in DEVELOPER mode\&.
+.sp
+Default:
+\fI\fIsmb3 unix extensions\fR\fR\fI = \fR\fIno\fR\fI \fR
 .RE
 
 smbd async dosmode (S)
@@ -14509,7 +14527,7 @@ and
 special sections make life for an administrator easy, but the various combinations of default attributes can be tricky\&. Take extreme care when designing these sections\&. In particular, ensure that the permissions on spool directories are correct\&.
 .SH "VERSION"
 .PP
-This man page is part of version 4\&.17\&.6 of the Samba suite\&.
+This man page is part of version 4\&.18\&.0 of the Samba suite\&.
 .SH "SEE ALSO"
 .PP
 \fBsamba\fR(7),

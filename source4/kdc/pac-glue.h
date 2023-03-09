@@ -48,6 +48,9 @@ krb5_error_code samba_make_krb5_pac(krb5_context context,
 				    const DATA_BLOB *pac_attrs_blob,
 				    const DATA_BLOB *requester_sid_blob,
 				    const DATA_BLOB *deleg_blob,
+				    const DATA_BLOB *client_claims_blob,
+				    const DATA_BLOB *device_info_blob,
+				    const DATA_BLOB *device_claims_blob,
 				    krb5_pac pac);
 
 bool samba_princ_needs_pac(struct samba_kdc_entry *skdc_entry);
@@ -73,7 +76,8 @@ NTSTATUS samba_kdc_get_pac_blobs(TALLOC_CTX *mem_ctx,
 				 DATA_BLOB **_upn_info_blob,
 				 DATA_BLOB **_pac_attrs_blob,
 				 uint64_t pac_attributes,
-				 DATA_BLOB **_requester_sid_blob);
+				 DATA_BLOB **_requester_sid_blob,
+				 DATA_BLOB **_client_claims_blob);
 NTSTATUS samba_kdc_update_pac_blob(TALLOC_CTX *mem_ctx,
 				   krb5_context context,
 				   struct ldb_context *samdb,
@@ -97,8 +101,8 @@ NTSTATUS samba_kdc_check_client_access(struct samba_kdc_entry *kdc_entry,
 
 krb5_error_code samba_kdc_validate_pac_blob(
 		krb5_context context,
-		struct samba_kdc_entry *client_skdc_entry,
-		const krb5_pac pac);
+		const struct samba_kdc_entry *client_skdc_entry,
+		const krb5_const_pac pac);
 
 /*
  * In the RODC case, to confirm that the returned user is permitted to

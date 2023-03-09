@@ -51,11 +51,8 @@ import samba.ndr
 import samba.dcerpc.dcerpc
 import samba.dcerpc.epmapper
 
-try:
-    from unittest import SkipTest
-except ImportError:
-    class SkipTest(Exception):
-        """Test skipped."""
+from unittest import SkipTest
+
 
 BINDIR = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                       "../../../../bin"))
@@ -343,7 +340,7 @@ def env_loadparm():
 def env_get_var_value(var_name, allow_missing=False):
     """Returns value for variable in os.environ
 
-    Function throws AssertionError if variable is defined.
+    Function throws AssertionError if variable is undefined.
     Unit-test based python tests require certain input params
     to be set in environment, otherwise they can't be run
     """
@@ -359,18 +356,6 @@ cmdline_credentials = None
 
 class RpcInterfaceTestCase(TestCase):
     """DCE/RPC Test case."""
-
-
-class ValidNetbiosNameTests(TestCase):
-
-    def test_valid(self):
-        self.assertTrue(samba.valid_netbios_name("FOO"))
-
-    def test_too_long(self):
-        self.assertFalse(samba.valid_netbios_name("FOO" * 10))
-
-    def test_invalid_characters(self):
-        self.assertFalse(samba.valid_netbios_name("*BLA"))
 
 
 class BlackboxProcessError(Exception):

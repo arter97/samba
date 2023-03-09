@@ -107,6 +107,7 @@ planpythontestsuite('ad_dc_fips:local',
                     environ={'GNUTLS_FORCE_FIPS_MODE': '1',
                              'OPENSSL_FORCE_FIPS_MODE': '1'})
 
+planpythontestsuite("none", "samba.tests.safe_tarfile")
 
 def cmdline(script, *args):
     """
@@ -436,6 +437,8 @@ plantestsuite("samba.unittests.memcache", "none",
               [os.path.join(bindir(), "default/lib/util/test_memcache")])
 plantestsuite("samba.unittests.sys_rw", "none",
               [os.path.join(bindir(), "default/lib/util/test_sys_rw")])
+plantestsuite("samba.unittests.stable_sort", "none",
+              [os.path.join(bindir(), "default/lib/util/test_stable_sort")])
 plantestsuite("samba.unittests.ntlm_check", "none",
               [os.path.join(bindir(), "default/libcli/auth/test_ntlm_check")])
 plantestsuite("samba.unittests.gnutls", "none",
@@ -466,12 +469,19 @@ plantestsuite("samba.unittests.credentials", "none",
               [os.path.join(bindir(), "default/auth/credentials/test_creds")])
 plantestsuite("samba.unittests.tsocket_bsd_addr", "none",
               [os.path.join(bindir(), "default/lib/tsocket/test_tsocket_bsd_addr")])
-plantestsuite("samba.unittests.tsocket_tstream", "none",
-              [os.path.join(bindir(), "default/lib/tsocket/test_tstream")],
-              environ={'SOCKET_WRAPPER_DIR': ''})
+if ("HAVE_TCP_USER_TIMEOUT" in config_hash):
+    plantestsuite("samba.unittests.tsocket_tstream", "none",
+                  [os.path.join(bindir(), "default/lib/tsocket/test_tstream")],
+                  environ={'SOCKET_WRAPPER_DIR': ''})
 plantestsuite("samba.unittests.adouble", "none",
               [os.path.join(bindir(), "test_adouble")])
 plantestsuite("samba.unittests.gnutls_aead_aes_256_cbc_hmac_sha512", "none",
               [os.path.join(bindir(), "test_gnutls_aead_aes_256_cbc_hmac_sha512")])
 plantestsuite("samba.unittests.encode_decode", "none",
               [os.path.join(bindir(), "test_encode_decode")])
+
+plantestsuite("samba.unittests.compression.lzxpress_huffman", "none",
+              [os.path.join(bindir(), "default/lib/compression/test_lzx_huffman")])
+plantestsuite("samba.unittests.compression.lzxpress_plain", "none",
+              [os.path.join(bindir(),
+                            "default/lib/compression/test_lzxpress_plain")])

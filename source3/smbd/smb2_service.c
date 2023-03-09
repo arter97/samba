@@ -1,4 +1,4 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
    service (connection) opening and closing
    Copyright (C) Andrew Tridgell 1992-1998
@@ -90,57 +90,6 @@ bool set_conn_connectpath(connection_struct *conn, const char *connectpath)
 	return true;
 }
 
-/****************************************************************************
- Load parameters specific to a connection/service.
-****************************************************************************/
-
-void set_current_case_sensitive(connection_struct *conn, uint16_t flags)
-{
-	int snum;
-	enum remote_arch_types ra_type;
-
-	SMB_ASSERT(conn != NULL);
-
-	snum = SNUM(conn);
-
-	if ((conn == last_conn) && (last_flags == flags)) {
-		return;
-	}
-
-	last_conn = conn;
-	last_flags = flags;
-
-	/*
-	 * Obey the client case sensitivity requests - only for clients that
-	 * support it. */
-	switch (lp_case_sensitive(snum)) {
-	case Auto:
-		/*
-		 * We need this uglyness due to DOS/Win9x clients that lie
-		 * about case insensitivity. */
-		ra_type = get_remote_arch();
-		if (conn->sconn->using_smb2) {
-			conn->case_sensitive = false;
-		} else if ((ra_type != RA_SAMBA) && (ra_type != RA_CIFSFS)) {
-			/*
-			 * Client can't support per-packet case sensitive
-			 * pathnames. */
-			conn->case_sensitive = false;
-		} else {
-			conn->case_sensitive =
-					!(flags & FLAG_CASELESS_PATHNAMES);
-		}
-	break;
-	case True:
-		conn->case_sensitive = true;
-		break;
-	default:
-		conn->case_sensitive = false;
-		break;
-	}
-	return;
-}
-
 bool chdir_current_service(connection_struct *conn)
 {
 	const struct smb_filename connectpath_fname = {
@@ -177,16 +126,40 @@ bool chdir_current_service(connection_struct *conn)
 }
 
 /****************************************************************************
- do some basic sainity checks on the share.  
+ do some basic sainity checks on the share.
  This function modifies dev, ecode.
 ****************************************************************************/
 
-static NTSTATUS share_sanity_checks(const struct tsocket_address *remote_address,
+static NTSTATUS share_sanity_checks(const struct tsocket_address *local_address,
+				    const struct tsocket_address *remote_address,
 				    const char *rhost,
 				    int snum,
 				    fstring dev)
 {
 	char *raddr;
+
+	if (!lp_allow_local_address(snum, local_address)) {
+		char *laddr = NULL;
+
+		laddr = tsocket_address_inet_addr_string(
+			local_address, talloc_tos());
+		if (laddr == NULL) {
+			return NT_STATUS_NO_MEMORY;
+		}
+
+		raddr = tsocket_address_inet_addr_string(
+			remote_address, laddr);
+		if (raddr == NULL) {
+			TALLOC_FREE(laddr);
+			return NT_STATUS_NO_MEMORY;
+		}
+
+		DBG_ERR("Denied connection from %s (%s) to \\\\%s\\%s\n",
+			rhost, raddr, laddr, lp_const_servicename(snum));
+		TALLOC_FREE(laddr);
+
+		return NT_STATUS_BAD_NETWORK_NAME;
+	}
 
 	raddr = tsocket_address_inet_addr_string(remote_address,
 						 talloc_tos());
@@ -236,7 +209,7 @@ static NTSTATUS share_sanity_checks(const struct tsocket_address *remote_address
 }
 
 /*
- * Go through lookup_name etc to find the force'd group.  
+ * Go through lookup_name etc to find the force'd group.
  *
  * Create a new token from src_token, replacing the primary group sid with the
  * one found.
@@ -527,7 +500,8 @@ NTSTATUS make_connection_snum(struct smbXsrv_connection *xconn,
 
 	fstrcpy(dev, pdev);
 
-	status = share_sanity_checks(sconn->remote_address,
+	status = share_sanity_checks(sconn->local_address,
+				       sconn->remote_address,
 				       sconn->remote_hostname,
 				       snum,
 				       dev);

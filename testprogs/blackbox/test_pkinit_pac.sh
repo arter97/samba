@@ -22,14 +22,12 @@ failed=0
 
 samba_bindir="$BINDIR"
 
-samba_kinit="$(command -v kinit)"
-if [ -x "${samba_bindir}/samba4kinit" ]; then
-	samba_kinit="${samba_bindir}/samba4kinit"
-fi
 samba_smbtorture="${samba_bindir}/smbtorture --basedir=$SELFTEST_TMPDIR"
 
 . "$(dirname "$0")"/subunit.sh
 . "$(dirname "$0")"/common_test_fns.inc
+
+samba_kinit=$(system_or_builddir_binary kinit "${BINDIR}" samba4kinit)
 
 KRB5CCNAME_PATH="$PREFIX/tmpccache"
 rm -f "${KRB5CCNAME_PATH}"
@@ -51,7 +49,7 @@ OPTION_REQUEST_PAC="--request-pac"
 
 testit "STEP1 kinit with pkinit (name specified)" \
 	"${samba_kinit}" "${OPTION_REQUEST_PAC}" "${OPTION_RENEWABLE}" \
-		"${X509_USER_IDENTITY}" "${USERNAME}@${REALM}" ||
+	"${X509_USER_IDENTITY}" "${USERNAME}@${REALM}" ||
 	failed=$((failed + 1))
 testit "STEP1 remote.pac verification" \
 	"${samba_smbtorture}" ncacn_np:"${SERVER}" rpc.pac \

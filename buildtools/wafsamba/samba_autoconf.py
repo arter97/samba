@@ -777,6 +777,8 @@ def SAMBA_CONFIG_H(conf, path=None):
                         testflags=True)
         conf.ADD_CFLAGS('-Werror-implicit-function-declaration',
                         testflags=True)
+        conf.ADD_CFLAGS('-Werror=implicit-int',
+                        testflags=True)
         conf.ADD_CFLAGS('-Werror=pointer-arith -Wpointer-arith',
                         testflags=True)
         conf.ADD_CFLAGS('-Werror=declaration-after-statement -Wdeclaration-after-statement',
@@ -788,6 +790,8 @@ def SAMBA_CONFIG_H(conf, path=None):
         conf.ADD_CFLAGS('-Wimplicit-fallthrough',
                         testflags=True)
         conf.ADD_CFLAGS('-Werror=strict-overflow -Wstrict-overflow=2',
+                        testflags=True)
+        conf.ADD_CFLAGS('-Werror=old-style-definition -Wold-style-definition',
                         testflags=True)
 
         conf.ADD_CFLAGS('-Wformat=2 -Wno-format-y2k', testflags=True)

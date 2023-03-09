@@ -18,7 +18,6 @@
 import datetime
 import os
 import sys
-import tarfile
 import logging
 import shutil
 import tempfile
@@ -56,6 +55,7 @@ from samba import sites
 from samba.dsdb import _dsdb_load_udv_v2
 from samba.ndr import ndr_pack
 from samba.credentials import SMB_SIGNING_REQUIRED
+from samba import safe_tarfile as tarfile
 
 
 # work out a SID (based on a free RID) to use when the domain gets restored.
@@ -983,9 +983,15 @@ class cmd_domain_backup_offline(samba.netcmd.Command):
                     return
                 raise e
             raise copy_err
+
+        except FileNotFoundError as e:
+            # tdbbackup tool was not found.
+            raise CommandError(e.strerror, e)
+
         if not os.path.exists(backup_path):
             s = "tdbbackup said backup succeeded but {0} not found"
             raise CommandError(s.format(backup_path))
+
 
     def offline_mdb_copy(self, path):
         mdb_copy(path, path + self.backup_ext)

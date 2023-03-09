@@ -179,7 +179,7 @@ class KdcTgsBaseTests(KDCBaseTest):
                  sname=None,
                  srealm=None,
                  use_fast=False,
-                 expect_claims=True,
+                 till=None,
                  etypes=None,
                  expected_ticket_etype=None,
                  expected_supported_etypes=None,
@@ -288,13 +288,13 @@ class KdcTgsBaseTests(KDCBaseTest):
             expect_pac_attrs=expect_pac_attrs,
             expect_pac_attrs_pac_request=expect_pac_attrs_pac_request,
             expect_requester_sid=expect_requester_sid,
-            expected_sid=expected_sid,
-            expect_claims=expect_claims)
+            expected_sid=expected_sid)
 
         rep = self._generic_kdc_exchange(kdc_exchange_dict,
                                          cname=None,
                                          realm=srealm,
                                          sname=sname,
+                                         till_time=till,
                                          etypes=etypes,
                                          additional_tickets=additional_tickets)
         if expected_error:
@@ -2627,6 +2627,18 @@ class KdcTgsTests(KdcTgsBaseTests):
         self._run_tgs(tgt, expected_error=(KDC_ERR_TGT_REVOKED,
                                            KDC_ERR_C_PRINCIPAL_UNKNOWN))
 
+    # Test making a TGS request for a ticket expiring post-2038.
+    def test_tgs_req_future_till(self):
+        creds = self._get_creds()
+        tgt = self._get_tgt(creds)
+
+        target_creds = self.get_service_creds()
+        self._tgs_req(
+            tgt=tgt,
+            expected_error=0,
+            target_creds=target_creds,
+            till='99990913024805Z')
+
     def _modify_renewable(self, enc_part):
         # Set the renewable flag.
         enc_part = self.modify_ticket_flag(enc_part, 'renewable', value=True)
@@ -2972,7 +2984,7 @@ class KdcTgsTests(KdcTgsBaseTests):
         return self._tgs_req(tgt, expected_error, tgt_creds,
                              expected_cname=user_cname,
                              generate_padata_fn=generate_s4u2self_padata,
-                             expect_claims=False, expect_edata=expect_edata,
+                             expect_edata=expect_edata,
                              expected_status=expected_status,
                              expect_pac=expect_pac)
 

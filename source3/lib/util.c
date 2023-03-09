@@ -429,8 +429,7 @@ static void reinit_after_fork_pipe_handler(struct tevent_context *ev,
 
 NTSTATUS reinit_after_fork(struct messaging_context *msg_ctx,
 			   struct tevent_context *ev_ctx,
-			   bool parent_longlived,
-			   const char *comment)
+			   bool parent_longlived)
 {
 	NTSTATUS status = NT_STATUS_OK;
 	int ret;
@@ -501,10 +500,6 @@ NTSTATUS reinit_after_fork(struct messaging_context *msg_ctx,
 				return map_nt_error_from_unix(ret);
 			}
 		}
-	}
-
-	if (comment) {
-		prctl_set_comment("%s", comment);
 	}
 
  done:
@@ -1240,13 +1235,6 @@ bool remote_arch_cache_delete(const struct GUID *client_guid)
 	return true;
 }
 
-const char *tab_depth(int level, int depth)
-{
-	if( CHECK_DEBUGLVL(level) ) {
-		dbgtext("%*s", depth*4, "");
-	}
-	return "";
-}
 
 /*****************************************************************************
  Provide a checksum on a string
@@ -1591,27 +1579,6 @@ bool name_to_fqdn(fstring fqdn, const char *name)
 	return true;
 }
 
-uint32_t map_share_mode_to_deny_mode(uint32_t share_access, uint32_t private_options)
-{
-	switch (share_access & ~FILE_SHARE_DELETE) {
-		case FILE_SHARE_NONE:
-			return DENY_ALL;
-		case FILE_SHARE_READ:
-			return DENY_WRITE;
-		case FILE_SHARE_WRITE:
-			return DENY_READ;
-		case FILE_SHARE_READ|FILE_SHARE_WRITE:
-			return DENY_NONE;
-	}
-	if (private_options & NTCREATEX_FLAG_DENY_DOS) {
-		return DENY_DOS;
-	} else if (private_options & NTCREATEX_FLAG_DENY_FCB) {
-		return DENY_FCB;
-	}
-
-	return (uint32_t)-1;
-}
-
 struct server_id interpret_pid(const char *pid_string)
 {
 	return server_id_from_string(get_my_vnn(), pid_string);
@@ -1643,16 +1610,6 @@ bool is_offset_safe(const char *buf_base, size_t buf_len, char *ptr, size_t off)
 }
 
 /****************************************************************
- Return a safe pointer into a buffer, or NULL.
-****************************************************************/
-
-char *get_safe_ptr(const char *buf_base, size_t buf_len, char *ptr, size_t off)
-{
-	return is_offset_safe(buf_base, buf_len, ptr, off) ?
-			ptr + off : NULL;
-}
-
-/****************************************************************
  Return a safe pointer into a string within a buffer, or NULL.
 ****************************************************************/
 
@@ -1668,37 +1625,6 @@ char *get_safe_str_ptr(const char *buf_base, size_t buf_len, char *ptr, size_t o
 	return ptr + off;
 }
 
-/****************************************************************
- Return an SVAL at a pointer, or failval if beyond the end.
-****************************************************************/
-
-int get_safe_SVAL(const char *buf_base, size_t buf_len, char *ptr, size_t off, int failval)
-{
-	/*
-	 * Note we use off+1 here, not off+2 as SVAL accesses ptr[0] and ptr[1],
- 	 * NOT ptr[2].
- 	 */
-	if (!is_offset_safe(buf_base, buf_len, ptr, off+1)) {
-		return failval;
-	}
-	return SVAL(ptr,off);
-}
-
-/****************************************************************
- Return an IVAL at a pointer, or failval if beyond the end.
-****************************************************************/
-
-int get_safe_IVAL(const char *buf_base, size_t buf_len, char *ptr, size_t off, int failval)
-{
-	/*
-	 * Note we use off+3 here, not off+4 as IVAL accesses
-	 * ptr[0] ptr[1] ptr[2] ptr[3] NOT ptr[4].
- 	 */
-	if (!is_offset_safe(buf_base, buf_len, ptr, off+3)) {
-		return failval;
-	}
-	return IVAL(ptr,off);
-}
 
 /****************************************************************
  Split DOM\user into DOM and user. Do not mix with winbind variants of that

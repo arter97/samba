@@ -81,6 +81,7 @@ from samba.dsdb import (
     DS_DOMAIN_FUNCTION_2008_R2,
     DS_DOMAIN_FUNCTION_2012,
     DS_DOMAIN_FUNCTION_2012_R2,
+    DS_DOMAIN_FUNCTION_2016,
     DS_NTDSDSA_OPT_DISABLE_OUTBOUND_REPL,
     DS_NTDSDSA_OPT_DISABLE_INBOUND_REPL,
     UF_WORKSTATION_TRUST_ACCOUNT,
@@ -110,9 +111,13 @@ from samba.trust_utils import CreateTrustedDomainRelax
 from samba import dsdb
 
 string_version_to_constant = {
+    "2000": DS_DOMAIN_FUNCTION_2000,
+    "2003": DS_DOMAIN_FUNCTION_2003,
+    "2008": DS_DOMAIN_FUNCTION_2008,
     "2008_R2": DS_DOMAIN_FUNCTION_2008_R2,
     "2012": DS_DOMAIN_FUNCTION_2012,
     "2012_R2": DS_DOMAIN_FUNCTION_2012_R2,
+    "2016": DS_DOMAIN_FUNCTION_2016,
 }
 
 common_provision_join_options = [
@@ -152,6 +157,32 @@ common_ntvfs_options = [
     Option("--use-ntvfs", help="Use NTVFS for the fileserver (default = no)",
            action="store_true")
 ]
+
+
+def level_to_string(level):
+    """turn the level enum number into a printable string."""
+    if level < DS_DOMAIN_FUNCTION_2000:
+        return "invalid"
+    strings = {
+        DS_DOMAIN_FUNCTION_2000: "2000",
+        DS_DOMAIN_FUNCTION_2003_MIXED: \
+            "2003 with mixed domains/interim (NT4 DC support)",
+        DS_DOMAIN_FUNCTION_2003: "2003",
+        DS_DOMAIN_FUNCTION_2008: "2008",
+        DS_DOMAIN_FUNCTION_2008_R2: "2008 R2",
+        DS_DOMAIN_FUNCTION_2012: "2012",
+        DS_DOMAIN_FUNCTION_2012_R2: "2012 R2",
+        DS_DOMAIN_FUNCTION_2016: "2016",
+    }
+    return strings.get(level, "higher than 2016")
+
+
+def string_to_level(string):
+    """Interpret a string indicating a functional level."""
+    try:
+        return string_version_to_constant[string]
+    except KeyError as e:
+        raise CommandError(f"'{string}' is not a valid domain level")
 
 
 def get_testparm_var(testparm, smbconf, varname):
@@ -1134,74 +1165,23 @@ class cmd_domain_level(Command):
 
             self.message("")
 
-            if level_forest == DS_DOMAIN_FUNCTION_2000:
-                outstr = "2000"
-            elif level_forest == DS_DOMAIN_FUNCTION_2003_MIXED:
-                outstr = "2003 with mixed domains/interim (NT4 DC support)"
-            elif level_forest == DS_DOMAIN_FUNCTION_2003:
-                outstr = "2003"
-            elif level_forest == DS_DOMAIN_FUNCTION_2008:
-                outstr = "2008"
-            elif level_forest == DS_DOMAIN_FUNCTION_2008_R2:
-                outstr = "2008 R2"
-            elif level_forest == DS_DOMAIN_FUNCTION_2012:
-                outstr = "2012"
-            elif level_forest == DS_DOMAIN_FUNCTION_2012_R2:
-                outstr = "2012 R2"
-            else:
-                outstr = "higher than 2012 R2"
+            outstr = level_to_string(level_forest)
             self.message("Forest function level: (Windows) " + outstr)
 
-            if level_domain == DS_DOMAIN_FUNCTION_2000 and level_domain_mixed != 0:
+            if level_domain == DS_DOMAIN_FUNCTION_2000 and level_domain_mixed:
                 outstr = "2000 mixed (NT4 DC support)"
-            elif level_domain == DS_DOMAIN_FUNCTION_2000 and level_domain_mixed == 0:
-                outstr = "2000"
-            elif level_domain == DS_DOMAIN_FUNCTION_2003_MIXED:
-                outstr = "2003 with mixed domains/interim (NT4 DC support)"
-            elif level_domain == DS_DOMAIN_FUNCTION_2003:
-                outstr = "2003"
-            elif level_domain == DS_DOMAIN_FUNCTION_2008:
-                outstr = "2008"
-            elif level_domain == DS_DOMAIN_FUNCTION_2008_R2:
-                outstr = "2008 R2"
-            elif level_domain == DS_DOMAIN_FUNCTION_2012:
-                outstr = "2012"
-            elif level_domain == DS_DOMAIN_FUNCTION_2012_R2:
-                outstr = "2012 R2"
             else:
-                outstr = "higher than 2012 R2"
+                outstr = level_to_string(level_domain)
             self.message("Domain function level: (Windows) " + outstr)
 
-            if min_level_dc == DS_DOMAIN_FUNCTION_2000:
-                outstr = "2000"
-            elif min_level_dc == DS_DOMAIN_FUNCTION_2003:
-                outstr = "2003"
-            elif min_level_dc == DS_DOMAIN_FUNCTION_2008:
-                outstr = "2008"
-            elif min_level_dc == DS_DOMAIN_FUNCTION_2008_R2:
-                outstr = "2008 R2"
-            elif min_level_dc == DS_DOMAIN_FUNCTION_2012:
-                outstr = "2012"
-            elif min_level_dc == DS_DOMAIN_FUNCTION_2012_R2:
-                outstr = "2012 R2"
-            else:
-                outstr = "higher than 2012 R2"
+            outstr = level_to_string(min_level_dc)
             self.message("Lowest function level of a DC: (Windows) " + outstr)
 
         elif subcommand == "raise":
             msgs = []
 
             if domain_level is not None:
-                if domain_level == "2003":
-                    new_level_domain = DS_DOMAIN_FUNCTION_2003
-                elif domain_level == "2008":
-                    new_level_domain = DS_DOMAIN_FUNCTION_2008
-                elif domain_level == "2008_R2":
-                    new_level_domain = DS_DOMAIN_FUNCTION_2008_R2
-                elif domain_level == "2012":
-                    new_level_domain = DS_DOMAIN_FUNCTION_2012
-                elif domain_level == "2012_R2":
-                    new_level_domain = DS_DOMAIN_FUNCTION_2012_R2
+                new_level_domain = string_to_level(domain_level)
 
                 if new_level_domain <= level_domain and level_domain_mixed == 0:
                     raise CommandError("Domain function level can't be smaller than or equal to the actual one!")
@@ -1253,16 +1233,7 @@ class cmd_domain_level(Command):
                 msgs.append("Domain function level changed!")
 
             if forest_level is not None:
-                if forest_level == "2003":
-                    new_level_forest = DS_DOMAIN_FUNCTION_2003
-                elif forest_level == "2008":
-                    new_level_forest = DS_DOMAIN_FUNCTION_2008
-                elif forest_level == "2008_R2":
-                    new_level_forest = DS_DOMAIN_FUNCTION_2008_R2
-                elif forest_level == "2012":
-                    new_level_forest = DS_DOMAIN_FUNCTION_2012
-                elif forest_level == "2012_R2":
-                    new_level_forest = DS_DOMAIN_FUNCTION_2012_R2
+                new_level_forest = string_to_level(forest_level)
 
                 if new_level_forest <= level_forest:
                     raise CommandError("Forest function level can't be smaller than or equal to the actual one!")
@@ -1381,7 +1352,7 @@ class cmd_domain_passwordsettings_set(Command):
         Option("--max-pwd-age",
                help="The maximum password age (<integer in days> | default).  Default is 43.", type=str),
         Option("--account-lockout-duration",
-               help="The the length of time an account is locked out after exeeding the limit on bad password attempts (<integer in mins> | default).  Default is 30 mins.", type=str),
+               help="The length of time an account is locked out after exceeding the limit on bad password attempts (<integer in mins> | default).  Default is 30 mins.", type=str),
         Option("--account-lockout-threshold",
                help="The number of bad password attempts allowed before locking out the account (<integer> | default).  Default is 0 (never lock out).", type=str),
         Option("--reset-account-lockout-after",
@@ -1497,7 +1468,8 @@ class cmd_domain_passwordsettings_set(Command):
                 account_lockout_duration = int(account_lockout_duration)
 
             if account_lockout_duration < 0 or account_lockout_duration > 99999:
-                raise CommandError("Maximum password age must be in the range of 0 to 99999!")
+                raise CommandError("Account lockout duration "
+                                   "must be in the range of 0 to 99999!")
 
             # minutes -> ticks
             if account_lockout_duration == 0:
@@ -4412,7 +4384,7 @@ class cmd_domain_functional_prep(Command):
         lp = sambaopts.get_loadparm()
         creds = credopts.get_credentials(lp)
         H = kwargs.get("H")
-        target_level = string_version_to_constant[kwargs.get("function_level")]
+        target_level = string_to_level(kwargs.get("function_level"))
         forest_prep = kwargs.get("forest_prep")
         domain_prep = kwargs.get("domain_prep")
 

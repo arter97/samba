@@ -47,6 +47,7 @@
 #include "libcli/smb/smbXcli_base.h"
 #include "lib/util/time_basic.h"
 #include "source3/lib/substitute.h"
+#include "lib/util/util_process.h"
 
 /* Internal message queue for deferred opens. */
 struct pending_message_list {
@@ -1014,6 +1015,44 @@ static void smb1srv_update_crypto_flags(struct smbXsrv_session *session,
 	*update_session_globalp = update_session;
 	*update_tcon_globalp = update_tcon;
 	return;
+}
+
+static void set_current_case_sensitive(connection_struct *conn, uint16_t flags)
+{
+	int snum;
+	enum remote_arch_types ra_type;
+
+	SMB_ASSERT(conn != NULL);
+	SMB_ASSERT(!conn->sconn->using_smb2);
+
+	snum = SNUM(conn);
+
+	/*
+	 * Obey the client case sensitivity requests - only for clients that
+	 * support it. */
+	switch (lp_case_sensitive(snum)) {
+	case Auto:
+		/*
+		 * We need this uglyness due to DOS/Win9x clients that lie
+		 * about case insensitivity. */
+		ra_type = get_remote_arch();
+		if ((ra_type != RA_SAMBA) && (ra_type != RA_CIFSFS)) {
+			/*
+			 * Client can't support per-packet case sensitive
+			 * pathnames. */
+			conn->case_sensitive = false;
+		} else {
+			conn->case_sensitive =
+					!(flags & FLAG_CASELESS_PATHNAMES);
+		}
+	break;
+	case True:
+		conn->case_sensitive = true;
+		break;
+	default:
+		conn->case_sensitive = false;
+		break;
+	}
 }
 
 /****************************************************************************
@@ -2605,13 +2644,13 @@ bool fork_echo_handler(struct smbXsrv_connection *xconn)
 
 		status = smbd_reinit_after_fork(xconn->client->msg_ctx,
 						xconn->client->raw_ev_ctx,
-						true,
-						"smbd-echo");
+						true);
 		if (!NT_STATUS_IS_OK(status)) {
 			DEBUG(1, ("reinit_after_fork failed: %s\n",
 				  nt_errstr(status)));
 			exit(1);
 		}
+		process_set_title("smbd-echo", "echo handler");
 		initialize_password_db(true, xconn->client->raw_ev_ctx);
 		smbd_echo_loop(xconn, listener_pipe[1]);
 		exit(0);

@@ -810,7 +810,17 @@ static PyObject *py_smbd_set_nt_acl(PyObject *self, PyObject *args, PyObject *kw
 
 	status = set_nt_acl_conn(fname, security_info_sent, sd, conn);
 	TALLOC_FREE(frame);
-	PyErr_NTSTATUS_IS_ERR_RAISE(status);
+	if (NT_STATUS_IS_ERR(status)) {
+		if (NT_STATUS_EQUAL(status, NT_STATUS_OBJECT_NAME_NOT_FOUND)) {
+			/*
+			 * This will show up as a FileNotFoundError in python.
+			 */
+			PyErr_SetFromErrnoWithFilename(PyExc_OSError, fname);
+		} else {
+			PyErr_SetNTSTATUS(status);
+		}
+		return NULL;
+	}
 
 	Py_RETURN_NONE;
 }
@@ -865,6 +875,7 @@ static PyObject *py_smbd_get_nt_acl(PyObject *self, PyObject *args, PyObject *kw
 			"Expected auth_session_info for "
 			"session_info argument got %s",
 			pytalloc_get_name(py_session));
+		TALLOC_FREE(frame);
 		return NULL;
 	}
 
@@ -875,7 +886,20 @@ static PyObject *py_smbd_get_nt_acl(PyObject *self, PyObject *args, PyObject *kw
 	}
 
 	status = get_nt_acl_conn(frame, fname, conn, security_info_wanted, &sd);
-	PyErr_NTSTATUS_IS_ERR_RAISE(status);
+	if (NT_STATUS_IS_ERR(status)) {
+		if (NT_STATUS_EQUAL(status, NT_STATUS_OBJECT_NAME_NOT_FOUND)) {
+			/*
+			 * This will show up as a FileNotFoundError in python,
+			 * from which samba-tool can at least produce a short
+			 * message containing the problematic filename.
+			 */
+			PyErr_SetFromErrnoWithFilename(PyExc_OSError, fname);
+		} else {
+			PyErr_SetNTSTATUS(status);
+		}
+		TALLOC_FREE(frame);
+		return NULL;
+	}
 
 	py_sd = py_return_ndr_struct("samba.dcerpc.security", "descriptor", sd, sd);
 

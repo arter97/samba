@@ -50,11 +50,6 @@ static bool msdfs_servicename_matches_connection(struct connection_struct *conn,
 	int snum;
 	bool match = false;
 
-	if (conn == NULL) {
-		/* No connection always matches. */
-		return true;
-	}
-
 	snum = SNUM(conn);
 
 	conn_servicename = lp_servicename(talloc_tos(), lp_sub, snum);
@@ -78,6 +73,147 @@ static bool msdfs_servicename_matches_connection(struct connection_struct *conn,
 done:
 	TALLOC_FREE(conn_servicename);
 	return match;
+}
+
+/**********************************************************************
+ Parse a DFS pathname of the form(s)
+
+ \hostname\service			- self referral
+ \hostname\service\remainingpath	- Windows referral path
+
+ FIXME! Should we also parse:
+ \hostname\service/remainingpath	- POSIX referral path
+ as currently nothing uses this ?
+
+ into the dfs_path components. Strict form.
+
+ Checks DFS path starts with separator.
+ Checks hostname is ours.
+ Ensures servicename (share) is sent, and
+     if so, terminates the name or is followed by
+     \pathname.
+
+ If returned, remainingpath is untouched. Caller must call
+ check_path_syntaxXXX() on it.
+
+ Called by all non-fileserver processing (DFS RPC, FSCTL_DFS_GET_REFERRALS)
+ etc. Errors out on any inconsistency in the path.
+**********************************************************************/
+
+static NTSTATUS parse_dfs_path_strict(TALLOC_CTX *ctx,
+				const char *pathname,
+				char **_hostname,
+				char **_servicename,
+				char **_remaining_path)
+{
+	char *pathname_local = NULL;
+	char *p = NULL;
+	const char *hostname = NULL;
+	const char *servicename = NULL;
+	const char *reqpath = NULL;
+	bool my_hostname = false;
+	NTSTATUS status;
+
+	DBG_DEBUG("path = |%s|\n", pathname);
+
+	pathname_local = talloc_strdup(talloc_tos(), pathname);
+	if (pathname_local == NULL) {
+		return NT_STATUS_NO_MEMORY;
+	}
+	/*
+	 * parse_dfs_path_strict() is called from
+	 * get_referred_path() and create_junction()
+	 * which use Windows DFS paths of \server\share.
+	 */
+
+	/*
+	 * Strict DFS paths *must* start with the
+	 * path separator '\\'.
+	 */
+
+	if (pathname_local[0] != '\\') {
+		DBG_ERR("path %s doesn't start with \\\n",
+			pathname_local);
+		status = NT_STATUS_NOT_FOUND;
+		goto out;
+	}
+
+	/* Now tokenize. */
+	/* Parse out hostname. */
+	p = strchr(pathname_local + 1, '\\');
+	if (p == NULL) {
+		DBG_ERR("can't parse hostname from path %s\n",
+			pathname_local);
+		status = NT_STATUS_NOT_FOUND;
+		goto out;
+	}
+	*p = '\0';
+	hostname = &pathname_local[1];
+
+	DBG_DEBUG("hostname: %s\n", hostname);
+
+	/* Is this really our hostname ? */
+	my_hostname = is_myname_or_ipaddr(hostname);
+	if (!my_hostname) {
+		DBG_ERR("Hostname %s is not ours.\n",
+			hostname);
+		status = NT_STATUS_NOT_FOUND;
+		goto out;
+	}
+
+	servicename = p + 1;
+
+	/*
+	 * Find the end of servicename by looking for
+	 * a directory separator character. The character
+	 * should be '\\' for a Windows path.
+	 * If there is no separator, then this is a self-referral
+	 * of "\server\share".
+	 */
+
+	p = strchr(servicename, '\\');
+	if (p != NULL) {
+		*p = '\0';
+	}
+
+	DBG_DEBUG("servicename: %s\n", servicename);
+
+	if (p == NULL) {
+		/* Client sent self referral "\server\share". */
+		reqpath = "";
+	} else {
+		/* Step past the '\0' we just replaced '\\' with. */
+		reqpath = p + 1;
+	}
+
+	DBG_DEBUG("rest of the path: %s\n", reqpath);
+
+	if (_hostname != NULL) {
+		*_hostname = talloc_strdup(ctx, hostname);
+		if (*_hostname == NULL) {
+			status = NT_STATUS_NO_MEMORY;
+			goto out;
+		}
+	}
+	if (_servicename != NULL) {
+		*_servicename = talloc_strdup(ctx, servicename);
+		if (*_servicename == NULL) {
+			status = NT_STATUS_NO_MEMORY;
+			goto out;
+		}
+	}
+	if (_remaining_path != NULL) {
+		*_remaining_path = talloc_strdup(ctx, reqpath);
+		if (*_remaining_path == NULL) {
+			status = NT_STATUS_NO_MEMORY;
+			goto out;
+		}
+	}
+
+	status = NT_STATUS_OK;
+out:
+	TALLOC_FREE(pathname_local);
+	return status;
 }
 
 /**********************************************************************
@@ -105,7 +241,6 @@ done:
 static NTSTATUS parse_dfs_path(TALLOC_CTX *ctx,
 				connection_struct *conn,
 				const char *pathname,
-				bool allow_broken_path,
 				char **_hostname,
 				char **_servicename,
 				char **_remaining_path)
@@ -117,16 +252,17 @@ static NTSTATUS parse_dfs_path(TALLOC_CTX *ctx,
 	char *reqpath = NULL;
 	char *eos_ptr = NULL;
 	bool servicename_matches = false;
+	bool using_smb1 = !conn->sconn->using_smb2;
 
 	pathname_local = talloc_strdup(ctx, pathname);
 	if (pathname_local == NULL) {
 		return NT_STATUS_NO_MEMORY;
 	}
 	/*
-	 * parse_dfs_path() can be called from
-	 * get_referred_path() and create_junction()
-	 * which use Windows DFS paths of \server\share.
-	 * Ensure we only have to cope with '/' separators.
+	 * parse_dfs_path() is only called from
+	 * dfs_filename_convert() with SMB1/2/3 DFS
+	 * names. Ensure we only have to cope with
+	 * '/' separators.
 	 */
 	string_replace(pathname_local, '\\', '/');
 
@@ -135,11 +271,16 @@ static NTSTATUS parse_dfs_path(TALLOC_CTX *ctx,
 	p = pathname_local;
 
 	/*
-	 * Non-broken DFS paths *must* start with the
-	 * path separator '/'.
+	 * SMB1 DFS paths sent to the fileserver should start with
+	 * the path separator '/'. However, libsmbclient libraries
+	 * will set the DFS bit on SMB1 calls and then send non-DFS
+	 * paths. We must cope with this.
+	 *
+	 * Note SMB2 paths sent to the fileserver never start with
+	 * the path separator '/'.
 	 */
 
-	if (allow_broken_path && (*p != '/')) {
+	if (using_smb1 && (*p != '/')) {
 		DBG_ERR("path %s doesn't start with /\n", p);
 		/*
 		 * Possibly client sent a local path by mistake.
@@ -949,7 +1090,7 @@ static NTSTATUS dfs_path_lookup(TALLOC_CTX *ctx,
 		}
 		removed_components--;
 		if (p == NULL && removed_components != 0) {
-			DBG_ERR("Component missmatch. path = %s, "
+			DBG_ERR("Component mismatch. path = %s, "
 				"%zu components left\n",
 				canon_dfspath,
 				removed_components);
@@ -985,28 +1126,28 @@ NTSTATUS dfs_filename_convert(TALLOC_CTX *ctx,
 			      const char *dfs_path_in,
 			      char **pp_path_out)
 {
-	char *hostname = NULL;
-	char *servicename = NULL;
 	char *reqpath = NULL;
 	NTSTATUS status;
+
+	/*
+	 * We must use the non-strict version of parse_dfs_path for
+	 * pathnames sent to the fileserver over SMB1/2/3.
+	 * libsmbclient callers always set the FLAGS2_DFS_PATHNAMES
+	 * but then don't send a DFS path in (for example) FindFirst
+	 * or other calls. This is a problem with our client libraries
+	 * for both SMB1 and SMB2+ and will remain so whilst broken
+	 * versions of libsmbclient are being used.
+	 */
 
 	status = parse_dfs_path(ctx,
 				conn,
 				dfs_path_in,
-				!conn->sconn->using_smb2,
-				&hostname,
-				&servicename,
+				NULL, /* hostname */
+				NULL, /* servicename */
 				&reqpath);
 	if (!NT_STATUS_IS_OK(status)) {
 		return status;
 	}
-
-	/*
-	 * Caller doesn't care about hostname
-	 * or servicename.
-	 */
-	TALLOC_FREE(hostname);
-	TALLOC_FREE(servicename);
 
 	/*
 	 * If parse_dfs_path fell back to a local path
@@ -1075,7 +1216,6 @@ NTSTATUS get_referred_path(TALLOC_CTX *ctx,
 			   const char *dfs_path,
 			   const struct tsocket_address *remote_address,
 			   const struct tsocket_address *local_address,
-			   bool allow_broken_path,
 			   struct junction_map *jucn,
 			   size_t *consumedcntp,
 			   bool *self_referralp)
@@ -1092,11 +1232,10 @@ NTSTATUS get_referred_path(TALLOC_CTX *ctx,
 
 	*self_referralp = False;
 
-	status = parse_dfs_path(frame,
-				NULL,
+	status = parse_dfs_path_strict(
+				frame,
 				dfs_path,
-				allow_broken_path,
-				NULL,
+				NULL, /* hostname */
 				&servicename,
 				&reqpath);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -1323,33 +1462,22 @@ int setup_dfs_referral(connection_struct *orig_conn,
 
 bool create_junction(TALLOC_CTX *ctx,
 		const char *dfs_path,
-		bool allow_broken_path,
 		struct junction_map *jucn)
 {
 	const struct loadparm_substitution *lp_sub =
 		loadparm_s3_global_substitution();
 	int snum;
-	char *hostname = NULL;
 	char *servicename = NULL;
 	char *reqpath = NULL;
 	NTSTATUS status;
 
-	status = parse_dfs_path(ctx,
-				NULL,
+	status = parse_dfs_path_strict(
+				ctx,
 				dfs_path,
-				allow_broken_path,
-				&hostname,
+				NULL,
 				&servicename,
 				&reqpath);
 	if (!NT_STATUS_IS_OK(status)) {
-		return False;
-	}
-
-	/* check if path is dfs : validate first token */
-	if (!is_myname_or_ipaddr(hostname)) {
-		DEBUG(4,("create_junction: Invalid hostname %s "
-			"in dfs path %s\n",
-			hostname, dfs_path));
 		return False;
 	}
 

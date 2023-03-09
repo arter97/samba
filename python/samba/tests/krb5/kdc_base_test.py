@@ -32,7 +32,7 @@ from enum import Enum
 from collections import namedtuple
 import ldb
 from ldb import SCOPE_BASE
-from samba import generate_random_password
+from samba import common, generate_random_password
 from samba.auth import system_session
 from samba.credentials import (
     Credentials,
@@ -139,6 +139,56 @@ class KDCBaseTest(RawKerberosTest):
 
         cls.ldb_cleanups = []
 
+        cls._claim_types_dn = None
+
+    def get_claim_types_dn(self):
+        samdb = self.get_samdb()
+
+        if self._claim_types_dn is None:
+            claim_config_dn = samdb.get_config_basedn()
+
+            claim_config_dn.add_child('CN=Claims Configuration,CN=Services')
+            details = {
+                'dn': claim_config_dn,
+                'objectClass': 'container',
+            }
+            try:
+                samdb.add(details)
+            except ldb.LdbError as err:
+                num, _ = err.args
+                if num != ldb.ERR_ENTRY_ALREADY_EXISTS:
+                    raise
+            else:
+                self.accounts.append(str(claim_config_dn))
+
+            claim_types_dn = claim_config_dn
+            claim_types_dn.add_child('CN=Claim Types')
+            details = {
+                'dn': claim_types_dn,
+                'objectClass': 'msDS-ClaimTypes',
+            }
+            try:
+                samdb.add(details)
+            except ldb.LdbError as err:
+                num, _ = err.args
+                if num != ldb.ERR_ENTRY_ALREADY_EXISTS:
+                    raise
+            else:
+                self.accounts.append(str(claim_types_dn))
+
+            type(self)._claim_types_dn = claim_types_dn
+
+        # Return a copy of the DN.
+        return ldb.Dn(samdb, str(self._claim_types_dn))
+
+    def tearDown(self):
+        # Clean up any accounts created for single tests.
+        if self._ldb is not None:
+            for dn in reversed(self.test_accounts):
+                delete_force(self._ldb, dn)
+
+        super().tearDown()
+
     @classmethod
     def tearDownClass(cls):
         # Clean up any accounts created by create_account. This is
@@ -163,6 +213,10 @@ class KDCBaseTest(RawKerberosTest):
         super().setUp()
         self.do_asn1_print = global_asn1_print
         self.do_hexdump = global_hexdump
+
+        # A list containing DNs of accounts that should be removed when the
+        # current test finishes.
+        self.test_accounts = []
 
     def get_lp(self):
         if self._lp is None:
@@ -255,7 +309,7 @@ class KDCBaseTest(RawKerberosTest):
 
         return default_enctypes
 
-    def create_group(self, samdb, name, ou=None):
+    def create_group(self, samdb, name, ou=None, gtype=None):
         if ou is None:
             ou = samdb.get_wellknown_dn(samdb.get_default_basedn(),
                                         DS_GUID_USERS_CONTAINER)
@@ -273,9 +327,93 @@ class KDCBaseTest(RawKerberosTest):
             'dn': dn,
             'objectClass': 'group'
         }
+        if gtype is not None:
+            details['groupType'] = common.normalise_int32(gtype)
         samdb.add(details)
 
         return dn
+
+    def get_dn_from_attribute(self, attribute):
+        return self.get_dn_from_schema(attribute, 'attributeSchema')
+
+    def get_dn_from_class(self, attribute):
+        return self.get_dn_from_schema(attribute, 'classSchema')
+
+    def get_dn_from_schema(self, name, object_class):
+        samdb = self.get_samdb()
+        schema_dn = samdb.get_schema_basedn()
+
+        res = samdb.search(base=schema_dn,
+                           scope=ldb.SCOPE_ONELEVEL,
+                           expression=(f'(&(objectClass={object_class})'
+                                       f'(lDAPDisplayName={name}))'))
+        self.assertEqual(1, len(res),
+                         f'could not locate {name} in {object_class}')
+
+        return res[0].dn
+
+    def create_claim(self,
+                     claim_id,
+                     enabled=None,
+                     attribute=None,
+                     single_valued=None,
+                     source=None,
+                     source_type=None,
+                     for_classes=None,
+                     value_type=None):
+        samdb = self.get_samdb()
+
+        claim_dn = self.get_claim_types_dn()
+        claim_dn.add_child(f'CN={claim_id}')
+
+        details = {
+            'dn': claim_dn,
+            'objectClass': 'msDS-ClaimType',
+        }
+
+        if enabled is True:
+            enabled = 'TRUE'
+        elif enabled is False:
+            enabled = 'FALSE'
+
+        if attribute is not None:
+            attribute = str(self.get_dn_from_attribute(attribute))
+
+        if single_valued is True:
+            single_valued = 'TRUE'
+        elif single_valued is False:
+            single_valued = 'FALSE'
+
+        if for_classes is not None:
+            for_classes = [str(self.get_dn_from_class(name))
+                           for name in for_classes]
+
+        if isinstance(value_type, int):
+            value_type = str(value_type)
+
+        if enabled is not None:
+            details['Enabled'] = enabled
+        if attribute is not None:
+            details['msDS-ClaimAttributeSource'] = attribute
+        if single_valued is not None:
+            details['msDS-ClaimIsSingleValued'] = single_valued
+        if source is not None:
+            details['msDS-ClaimSource'] = source
+        if source_type is not None:
+            details['msDS-ClaimSourceType'] = source_type
+        if for_classes is not None:
+            details['msDS-ClaimTypeAppliesToClass'] = for_classes
+        if value_type is not None:
+            details['msDS-ClaimValueType'] = value_type
+
+        # Save the claim DN so it can be deleted in tearDown()
+        self.test_accounts.append(str(claim_dn))
+
+        # Remove the claim if it exists; this will happen if a previous test
+        # run failed
+        delete_force(samdb, claim_dn)
+
+        samdb.add(details)
 
     def create_account(self, samdb, name, account_type=AccountType.USER,
                        spn=None, upn=None, additional_details=None,
@@ -725,15 +863,22 @@ class KDCBaseTest(RawKerberosTest):
         elif members is None:
             members = ()
 
-        members = list(members)
-        members.append(account_dn)
+        # Use a set so we can handle the same group being added twice.
+        members = set(members)
+
+        self.assertNotIsInstance(account_dn, ldb.Dn,
+                                 'ldb.MessageElement does not support ldb.Dn')
+
+        if isinstance(account_dn, str):
+            members.add(account_dn)
+        else:
+            members.update(account_dn)
 
         msg = ldb.Message()
         msg.dn = group_dn
-        msg[group_attr] = ldb.MessageElement(members,
+        msg[group_attr] = ldb.MessageElement(list(members),
                                              ldb.FLAG_MOD_REPLACE,
                                              group_attr)
-
         cleanup = samdb.msg_diff(msg, orig_msg)
         self.ldb_cleanups.append(cleanup)
         samdb.modify(msg)
@@ -794,6 +939,7 @@ class KDCBaseTest(RawKerberosTest):
             'delegation_from_dn': None,
             'trusted_to_auth_for_delegation': False,
             'fast_support': False,
+            'sid_compression_support': True,
             'member_of': None,
             'kerberos_enabled': True,
             'secure_channel_type': None,
@@ -842,6 +988,7 @@ class KDCBaseTest(RawKerberosTest):
                             delegation_from_dn,
                             trusted_to_auth_for_delegation,
                             fast_support,
+                            sid_compression_support,
                             member_of,
                             kerberos_enabled,
                             secure_channel_type,
@@ -880,6 +1027,9 @@ class KDCBaseTest(RawKerberosTest):
         if fast_support:
             enctypes = enctypes or 0
             enctypes |= KerberosCredentials.fast_supported_bits
+        if sid_compression_support is False:
+            enctypes = enctypes or 0
+            enctypes |= security.KERB_ENCTYPE_RESOURCE_SID_COMPRESSION_DISABLED
 
         if enctypes is not None:
             details['msDS-SupportedEncryptionTypes'] = str(enctypes)
@@ -1535,18 +1685,37 @@ class KDCBaseTest(RawKerberosTest):
         return rep, enc_part
 
     def get_service_ticket(self, tgt, target_creds, service='host',
+                           sname=None,
                            target_name=None, till=None, rc4_support=True,
                            to_rodc=False, kdc_options=None,
                            expected_flags=None, unexpected_flags=None,
+                           expected_groups=None,
+                           unexpected_groups=None,
+                           expect_client_claims=None,
+                           expect_device_claims=None,
+                           expected_client_claims=None,
+                           unexpected_client_claims=None,
+                           expected_device_claims=None,
+                           unexpected_device_claims=None,
                            pac_request=True, expect_pac=True, fresh=False):
         user_name = tgt.cname['name-string'][0]
         ticket_sname = tgt.sname
         if target_name is None:
             target_name = target_creds.get_username()[:-1]
+        else:
+            self.assertIsNone(sname, 'supplied both target name and sname')
         cache_key = (user_name, target_name, service, to_rodc, kdc_options,
                      pac_request, str(expected_flags), str(unexpected_flags),
                      till, rc4_support,
                      str(ticket_sname),
+                     str(sname),
+                     str(expected_groups),
+                     str(unexpected_groups),
+                     expect_client_claims, expect_device_claims,
+                     str(expected_client_claims),
+                     str(unexpected_client_claims),
+                     str(expected_device_claims),
+                     str(unexpected_device_claims),
                      expect_pac)
 
         if not fresh:
@@ -1561,8 +1730,10 @@ class KDCBaseTest(RawKerberosTest):
             kdc_options = '0'
         kdc_options = str(krb5_asn1.KDCOptions(kdc_options))
 
-        sname = self.PrincipalName_create(name_type=NT_PRINCIPAL,
-                                          names=[service, target_name])
+        if sname is None:
+            sname = self.PrincipalName_create(name_type=NT_PRINCIPAL,
+                                              names=[service, target_name])
+
         srealm = target_creds.get_realm()
 
         authenticator_subkey = self.RandomKey(kcrypto.Enctype.AES256)
@@ -1577,6 +1748,14 @@ class KDCBaseTest(RawKerberosTest):
             expected_supported_etypes=target_creds.tgs_supported_enctypes,
             expected_flags=expected_flags,
             unexpected_flags=unexpected_flags,
+            expected_groups=expected_groups,
+            unexpected_groups=unexpected_groups,
+            expect_client_claims=expect_client_claims,
+            expect_device_claims=expect_device_claims,
+            expected_client_claims=expected_client_claims,
+            unexpected_client_claims=unexpected_client_claims,
+            expected_device_claims=expected_device_claims,
+            unexpected_device_claims=unexpected_device_claims,
             ticket_decryption_key=decryption_key,
             check_rep_fn=self.generic_check_kdc_rep,
             check_kdc_private_fn=self.generic_check_kdc_private,
@@ -1620,15 +1799,22 @@ class KDCBaseTest(RawKerberosTest):
 
     def get_tgt(self, creds, to_rodc=False, kdc_options=None,
                 client_account=None, client_name_type=NT_PRINCIPAL,
+                target_creds=None, ticket_etype=None,
                 expected_flags=None, unexpected_flags=None,
                 expected_account_name=None, expected_upn_name=None,
                 expected_cname=None,
                 expected_sid=None,
                 sname=None, realm=None,
+                expected_groups=None,
+                unexpected_groups=None,
                 pac_request=True, expect_pac=True,
                 expect_pac_attrs=None, expect_pac_attrs_pac_request=None,
                 expect_requester_sid=None,
                 rc4_support=True,
+                expect_edata=None,
+                expect_client_claims=None, expect_device_claims=None,
+                expected_client_claims=None, unexpected_client_claims=None,
+                expected_device_claims=None, unexpected_device_claims=None,
                 fresh=False):
         if client_account is not None:
             user_name = client_account
@@ -1637,13 +1823,21 @@ class KDCBaseTest(RawKerberosTest):
 
         cache_key = (user_name, to_rodc, kdc_options, pac_request,
                      client_name_type,
+                     ticket_etype,
                      str(expected_flags), str(unexpected_flags),
                      expected_account_name, expected_upn_name, expected_sid,
                      str(sname), str(realm),
+                     str(expected_groups),
+                     str(unexpected_groups),
                      str(expected_cname),
                      rc4_support,
                      expect_pac, expect_pac_attrs,
-                     expect_pac_attrs_pac_request, expect_requester_sid)
+                     expect_pac_attrs_pac_request, expect_requester_sid,
+                     expect_client_claims, expect_device_claims,
+                     str(expected_client_claims),
+                     str(unexpected_client_claims),
+                     str(expected_device_claims),
+                     str(unexpected_device_claims))
 
         if not fresh:
             tgt = self.tkt_cache.get(cache_key)
@@ -1672,12 +1866,15 @@ class KDCBaseTest(RawKerberosTest):
 
         till = self.get_KerberosTime(offset=36000)
 
-        if to_rodc:
+        if target_creds is not None:
+            krbtgt_creds = target_creds
+        elif to_rodc:
             krbtgt_creds = self.get_rodc_krbtgt_creds()
         else:
             krbtgt_creds = self.get_krbtgt_creds()
         ticket_decryption_key = (
-            self.TicketDecryptionKey_from_creds(krbtgt_creds))
+            self.TicketDecryptionKey_from_creds(krbtgt_creds,
+                                                etype=ticket_etype))
 
         expected_etypes = krbtgt_creds.tgs_supported_enctypes
 
@@ -1704,6 +1901,8 @@ class KDCBaseTest(RawKerberosTest):
             expected_account_name=expected_account_name,
             expected_upn_name=expected_upn_name,
             expected_sid=expected_sid,
+            expected_groups=expected_groups,
+            unexpected_groups=unexpected_groups,
             expected_salt=salt,
             expected_flags=expected_flags,
             unexpected_flags=unexpected_flags,
@@ -1720,6 +1919,12 @@ class KDCBaseTest(RawKerberosTest):
             expect_pac_attrs_pac_request=expect_pac_attrs_pac_request,
             expect_requester_sid=expect_requester_sid,
             rc4_support=rc4_support,
+            expect_client_claims=expect_client_claims,
+            expect_device_claims=expect_device_claims,
+            expected_client_claims=expected_client_claims,
+            unexpected_client_claims=unexpected_client_claims,
+            expected_device_claims=expected_device_claims,
+            unexpected_device_claims=unexpected_device_claims,
             to_rodc=to_rodc)
         self.check_pre_authentication(rep)
 
@@ -1749,6 +1954,8 @@ class KDCBaseTest(RawKerberosTest):
             expected_account_name=expected_account_name,
             expected_upn_name=expected_upn_name,
             expected_sid=expected_sid,
+            expected_groups=expected_groups,
+            unexpected_groups=unexpected_groups,
             expected_salt=salt,
             expected_flags=expected_flags,
             unexpected_flags=unexpected_flags,
@@ -1765,6 +1972,12 @@ class KDCBaseTest(RawKerberosTest):
             expect_pac_attrs_pac_request=expect_pac_attrs_pac_request,
             expect_requester_sid=expect_requester_sid,
             rc4_support=rc4_support,
+            expect_client_claims=expect_client_claims,
+            expect_device_claims=expect_device_claims,
+            expected_client_claims=expected_client_claims,
+            unexpected_client_claims=unexpected_client_claims,
+            expected_device_claims=expected_device_claims,
+            unexpected_device_claims=unexpected_device_claims,
             to_rodc=to_rodc)
         self.check_as_reply(rep)
 
@@ -2075,23 +2288,14 @@ class KDCBaseTest(RawKerberosTest):
 
         return cachefile
 
-    def create_ccache_with_user(self, user_credentials, mach_credentials,
-                                service="host", target_name=None, pac=True):
-        # Obtain a service ticket authorising the user and place it into a
-        # newly created credentials cache file.
+    def create_ccache_with_ticket(self, user_credentials, ticket, pac=True):
+        # Place the ticket into a newly created credentials cache file.
 
         user_name = user_credentials.get_username()
         realm = user_credentials.get_realm()
 
         cname = self.PrincipalName_create(name_type=NT_PRINCIPAL,
                                           names=[user_name])
-
-        tgt = self.get_tgt(user_credentials)
-
-        # Request a ticket to the host service on the machine account
-        ticket = self.get_service_ticket(tgt, mach_credentials,
-                                         service=service,
-                                         target_name=target_name)
 
         if not pac:
             ticket = self.modified_ticket(ticket, exclude_pac=True)
@@ -2110,3 +2314,17 @@ class KDCBaseTest(RawKerberosTest):
 
         # Return the credentials along with the cache file.
         return (creds, cachefile)
+
+    def create_ccache_with_user(self, user_credentials, mach_credentials,
+                                service="host", target_name=None, pac=True):
+        # Obtain a service ticket authorising the user and place it into a
+        # newly created credentials cache file.
+
+        tgt = self.get_tgt(user_credentials)
+
+        ticket = self.get_service_ticket(tgt, mach_credentials,
+                                         service=service,
+                                         target_name=target_name)
+
+        return self.create_ccache_with_ticket(user_credentials, ticket,
+                                              pac=pac)

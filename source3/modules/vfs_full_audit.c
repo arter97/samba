@@ -1,4 +1,4 @@
-/* 
+/*
  * Auditing VFS module for samba.  Log selected file operations to syslog
  * facility.
  *
@@ -12,12 +12,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *  
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -44,7 +44,7 @@
  * smbd_audit: nobody|192.168.234.1|create_file|ok|0x3|file|open|/tmp/file.txt
  *
  * where "nobody" is the connected username and "192.168.234.1" is the
- * client's IP address. 
+ * client's IP address.
  *
  * Options:
  *
@@ -134,7 +134,6 @@ typedef enum _vfs_op_type {
 	SMB_VFS_OP_SENDFILE,
 	SMB_VFS_OP_RECVFILE,
 	SMB_VFS_OP_RENAMEAT,
-	SMB_VFS_OP_FSYNC,
 	SMB_VFS_OP_FSYNC_SEND,
 	SMB_VFS_OP_FSYNC_RECV,
 	SMB_VFS_OP_STAT,
@@ -272,7 +271,6 @@ static struct {
 	{ SMB_VFS_OP_SENDFILE,	"sendfile" },
 	{ SMB_VFS_OP_RECVFILE,  "recvfile" },
 	{ SMB_VFS_OP_RENAMEAT,	"renameat" },
-	{ SMB_VFS_OP_FSYNC,	"fsync" },
 	{ SMB_VFS_OP_FSYNC_SEND,	"fsync_send" },
 	{ SMB_VFS_OP_FSYNC_RECV,	"fsync_recv" },
 	{ SMB_VFS_OP_STAT,	"stat" },
@@ -1102,7 +1100,7 @@ static int smb_full_audit_closedir(vfs_handle_struct *handle,
 	int result;
 
 	result = SMB_VFS_NEXT_CLOSEDIR(handle, dirp);
-	
+
 	do_log(SMB_VFS_OP_CLOSEDIR, (result >= 0), handle, "");
 
 	return result;
@@ -1203,7 +1201,7 @@ static NTSTATUS smb_full_audit_create_file(vfs_handle_struct *handle,
 static int smb_full_audit_close(vfs_handle_struct *handle, files_struct *fsp)
 {
 	int result;
-	
+
 	result = SMB_VFS_NEXT_CLOSE(handle, fsp);
 
 	do_log(SMB_VFS_OP_CLOSE, (result >= 0), handle, "%s",
@@ -1547,20 +1545,20 @@ static int smb_full_audit_stat(vfs_handle_struct *handle,
 			       struct smb_filename *smb_fname)
 {
 	int result;
-	
+
 	result = SMB_VFS_NEXT_STAT(handle, smb_fname);
 
 	do_log(SMB_VFS_OP_STAT, (result >= 0), handle, "%s",
 	       smb_fname_str_do_log(handle->conn, smb_fname));
 
-	return result;    
+	return result;
 }
 
 static int smb_full_audit_fstat(vfs_handle_struct *handle, files_struct *fsp,
 		       SMB_STRUCT_STAT *sbuf)
 {
 	int result;
-	
+
 	result = SMB_VFS_NEXT_FSTAT(handle, fsp, sbuf);
 
 	do_log(SMB_VFS_OP_FSTAT, (result >= 0), handle, "%s",
@@ -1573,13 +1571,13 @@ static int smb_full_audit_lstat(vfs_handle_struct *handle,
 				struct smb_filename *smb_fname)
 {
 	int result;
-	
+
 	result = SMB_VFS_NEXT_LSTAT(handle, smb_fname);
 
 	do_log(SMB_VFS_OP_LSTAT, (result >= 0), handle, "%s",
 	       smb_fname_str_do_log(handle->conn, smb_fname));
 
-	return result;    
+	return result;
 }
 
 static int smb_full_audit_fstatat(
@@ -1646,7 +1644,7 @@ static int smb_full_audit_fchmod(vfs_handle_struct *handle, files_struct *fsp,
 			mode_t mode)
 {
 	int result;
-	
+
 	result = SMB_VFS_NEXT_FCHMOD(handle, fsp, mode);
 
 	do_log(SMB_VFS_OP_FCHMOD, (result >= 0), handle,
@@ -1705,7 +1703,7 @@ static struct smb_filename *smb_full_audit_getwd(vfs_handle_struct *handle,
 	struct smb_filename *result;
 
 	result = SMB_VFS_NEXT_GETWD(handle, ctx);
-	
+
 	do_log(SMB_VFS_OP_GETWD, (result != NULL), handle, "%s",
 		result == NULL? "" : result->base_name);
 
@@ -2115,12 +2113,14 @@ static NTSTATUS smb_full_audit_get_real_filename_at(
 	return result;
 }
 
-static const char *smb_full_audit_connectpath(vfs_handle_struct *handle,
-					const struct smb_filename *smb_fname)
+static const char *smb_full_audit_connectpath(
+	vfs_handle_struct *handle,
+	const struct files_struct *dirfsp,
+	const struct smb_filename *smb_fname)
 {
 	const char *result;
 
-	result = SMB_VFS_NEXT_CONNECTPATH(handle, smb_fname);
+	result = SMB_VFS_NEXT_CONNECTPATH(handle, dirfsp, smb_fname);
 
 	do_log(SMB_VFS_OP_CONNECTPATH,
 	       result != NULL,
@@ -3057,6 +3057,6 @@ NTSTATUS vfs_full_audit_init(TALLOC_CTX *ctx)
 		DEBUG(10, ("vfs_full_audit: Debug class number of "
 			   "'full_audit': %d\n", vfs_full_audit_debug_level));
 	}
-	
+
 	return ret;
 }

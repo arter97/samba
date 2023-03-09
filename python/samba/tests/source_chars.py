@@ -70,6 +70,7 @@ IGNORED_RE = (
     r'^third_party/heimdal/lib/hx509/data/',
     r'^third_party/heimdal/po',
     r'^third_party/heimdal/tests/kdc/hdb-mitdb',
+    r'^testdata/compression/',
     r'^third_party/heimdal/lib/asn1/fuzz-inputs/',
 )
 
@@ -111,6 +112,7 @@ SAFE_FORMAT_CHARS = {
 # In the real world mixing directions would be normal in bilingual
 # documents, but it is rare in Samba source code.
 BIDI_FILES = {
+    'third_party/heimdal/lib/base/test_base.c',
     'third_party/heimdal/lib/wind/NormalizationTest.txt',
     'testdata/source-chars-bidi.py',
 }

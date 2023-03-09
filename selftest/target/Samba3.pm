@@ -253,7 +253,7 @@ sub check_env($$)
 	ad_member_offlogon  => ["ad_dc"],
 	ad_member_oneway    => ["fl2000dc"],
 	ad_member_idmap_nss => ["ad_dc"],
-	ad_member_s3_join   => ["ad_dc"],
+	ad_member_s3_join   => ["vampire_dc"],
 
 	clusteredmember => ["nt4_dc"],
 );
@@ -2593,6 +2593,12 @@ sub provision($$)
 	my $msdfs_shrdir2="$shrdir/msdfsshare2";
 	push(@dirs,$msdfs_shrdir2);
 
+	my $msdfs_pathname_share="$shrdir/msdfs_pathname_share";
+	push(@dirs,$msdfs_pathname_share);
+
+	my $non_msdfs_pathname_share="$shrdir/non_msdfs_pathname_share";
+	push(@dirs,$non_msdfs_pathname_share);
+
 	my $msdfs_deeppath="$msdfs_shrdir/deeppath";
 	push(@dirs,$msdfs_deeppath);
 
@@ -3022,6 +3028,14 @@ sub provision($$)
 	path = $msdfs_shrdir2
 	msdfs root = yes
 	guest ok = yes
+[msdfs-pathname-share]
+	path = $msdfs_pathname_share
+	msdfs root = yes
+	guest ok = yes
+[non-msdfs-pathname-share]
+	path = $non_msdfs_pathname_share
+	msdfs root = no
+	guest ok = yes
 [hideunread]
 	copy = tmp
 	hide unreadable = yes
@@ -3123,6 +3137,14 @@ sub provision($$)
 	directory mask = 0777
 	force directory mode = 0
 	vfs objects = xattr_tdb streams_depot
+[smb3_posix_share]
+	vfs objects = fake_acls xattr_tdb streams_depot time_audit full_audit
+	create mask = 07777
+	directory mask = 07777
+	mangled names = no
+	path = $shrdir
+	read only = no
+	guest ok = yes
 [aio]
 	copy = durable
 	aio read size = 1
@@ -3419,6 +3441,9 @@ sub provision($$)
 	copy = tmp
 	path = $nosymlinks_shrdir
 	follow symlinks = no
+[nosymlinks_smb1allow]
+	copy=nosymlinks
+	follow symlinks = yes
 
 [local_symlinks]
 	copy = tmp
@@ -3509,6 +3534,10 @@ sub provision($$)
 [full_audit_fail_bad_name]
 	copy = tmp
 	full_audit:failure = badname
+
+[only_ipv6]
+	copy = tmpguest
+	server addresses = $server_ipv6
 
 include = $aliceconfdir/%U.conf
 	";

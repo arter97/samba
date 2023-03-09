@@ -345,7 +345,7 @@ bool secrets_fetch_trust_account_password_legacy(const char *domain,
 
 	if (size != sizeof(*pass)) {
 		DEBUG(0, ("secrets were of incorrect size!\n"));
-		SAFE_FREE(pass);
+		BURN_FREE(pass, size);
 		return False;
 	}
 
@@ -358,34 +358,8 @@ bool secrets_fetch_trust_account_password_legacy(const char *domain,
 		*channel = get_default_sec_channel();
 	}
 
-	SAFE_FREE(pass);
+	BURN_FREE(pass, size);
 	return True;
-}
-
-/************************************************************************
- Routine to get the trust account password for a domain.
- The user of this function must have locked the trust password file using
- the above secrets_lock_trust_account_password().
-************************************************************************/
-
-bool secrets_fetch_trust_account_password(const char *domain, uint8_t ret_pwd[16],
-					  time_t *pass_last_set_time,
-					  enum netr_SchannelType *channel)
-{
-	char *plaintext;
-
-	plaintext = secrets_fetch_machine_password(domain, pass_last_set_time,
-						   channel);
-	if (plaintext) {
-		DEBUG(4,("Using cleartext machine password\n"));
-		E_md4hash(plaintext, ret_pwd);
-		SAFE_FREE(plaintext);
-		return True;
-	}
-
-	return secrets_fetch_trust_account_password_legacy(domain, ret_pwd,
-							   pass_last_set_time,
-							   channel);
 }
 
 /************************************************************************
@@ -711,6 +685,28 @@ char *secrets_fetch_machine_password(const char *domain,
 	return ret;
 }
 
+static int password_nt_hash_destructor(struct secrets_domain_info1_password *pw)
+{
+	ZERO_STRUCT(pw->nt_hash);
+
+	return 0;
+}
+
+static int setup_password_zeroing(struct secrets_domain_info1_password *pw)
+{
+	if (pw != NULL) {
+		size_t i;
+
+		talloc_keep_secret(pw->cleartext_blob.data);
+		talloc_set_destructor(pw, password_nt_hash_destructor);
+		for (i = 0; i < pw->num_keys; i++) {
+			talloc_keep_secret(pw->keys[i].value.data);
+		}
+	}
+
+	return 0;
+}
+
 static char *domain_info_keystr(const char *domain)
 {
 	char *keystr;
@@ -745,12 +741,19 @@ static NTSTATUS secrets_fetch_domain_info1_by_key(const char *key,
 	/* unpack trusted domain password */
 	ndr_err = ndr_pull_struct_blob(&blob, mem_ctx, &sdib,
 			(ndr_pull_flags_fn_t)ndr_pull_secrets_domain_infoB);
-	SAFE_FREE(blob.data);
+	BURN_FREE(blob.data, blob.length);
 	if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
 		DBG_ERR("ndr_pull_struct_blob failed - %s!\n",
 			ndr_errstr(ndr_err));
 		return NT_STATUS_INTERNAL_DB_CORRUPTION;
 	}
+
+	if (sdib.info.info1->next_change != NULL) {
+		setup_password_zeroing(sdib.info.info1->next_change->password);
+	}
+	setup_password_zeroing(sdib.info.info1->password);
+	setup_password_zeroing(sdib.info.info1->old_password);
+	setup_password_zeroing(sdib.info.info1->older_password);
 
 	if (sdib.version != SECRETS_DOMAIN_INFO_VERSION_1) {
 		DBG_ERR("sdib.version = %u\n", (unsigned)sdib.version);
@@ -1074,6 +1077,7 @@ static int secrets_domain_info_kerberos_keys(struct secrets_domain_info1_passwor
 		TALLOC_FREE(keys);
 		return ENOMEM;
 	}
+	talloc_keep_secret(arc4_b.data);
 
 #ifdef HAVE_ADS
 	if (salt_principal == NULL) {
@@ -1119,6 +1123,7 @@ static int secrets_domain_info_kerberos_keys(struct secrets_domain_info1_passwor
 		TALLOC_FREE(keys);
 		return krb5_ret;
 	}
+	talloc_keep_secret(cleartext_utf8_b.data);
 	cleartext_utf8.data = (void *)cleartext_utf8_b.data;
 	cleartext_utf8.length = cleartext_utf8_b.length;
 
@@ -1147,6 +1152,7 @@ static int secrets_domain_info_kerberos_keys(struct secrets_domain_info1_passwor
 		TALLOC_FREE(salt_data);
 		return ENOMEM;
 	}
+	talloc_keep_secret(aes_256_b.data);
 
 	krb5_ret = smb_krb5_create_key_from_string(krb5_ctx,
 						   NULL,
@@ -1173,6 +1179,7 @@ static int secrets_domain_info_kerberos_keys(struct secrets_domain_info1_passwor
 		TALLOC_FREE(salt_data);
 		return ENOMEM;
 	}
+	talloc_keep_secret(aes_128_b.data);
 
 	krb5_free_context(krb5_ctx);
 no_kerberos:
@@ -1244,10 +1251,12 @@ static NTSTATUS secrets_domain_info_password_create(TALLOC_CTX *mem_ctx,
 		TALLOC_FREE(p);
 		return status;
 	}
+	talloc_keep_secret(p->cleartext_blob.data);
 	mdfour(p->nt_hash.hash,
 	       p->cleartext_blob.data,
 	       p->cleartext_blob.length);
 
+	talloc_set_destructor(p, password_nt_hash_destructor);
 	ret = secrets_domain_info_kerberos_keys(p, salt_principal);
 	if (ret != 0) {
 		NTSTATUS status = krb5_to_nt_status(ret);
@@ -1343,8 +1352,8 @@ NTSTATUS secrets_fetch_or_upgrade_domain_info(const char *domain,
 		DBG_ERR("secrets_fetch_domain_sid(%s) failed\n",
 			domain);
 		dbwrap_transaction_cancel(db);
-		SAFE_FREE(old_pw);
-		SAFE_FREE(pw);
+		BURN_FREE_STR(old_pw);
+		BURN_FREE_STR(pw);
 		TALLOC_FREE(frame);
 		return NT_STATUS_CANT_ACCESS_DOMAIN_INFO;
 	}
@@ -1359,8 +1368,8 @@ NTSTATUS secrets_fetch_or_upgrade_domain_info(const char *domain,
 	if (info->account_name == NULL) {
 		DBG_ERR("talloc_asprintf(%s$) failed\n", info->computer_name);
 		dbwrap_transaction_cancel(db);
-		SAFE_FREE(old_pw);
-		SAFE_FREE(pw);
+		BURN_FREE_STR(old_pw);
+		BURN_FREE_STR(pw);
 		TALLOC_FREE(frame);
 		return NT_STATUS_NO_MEMORY;
 	}
@@ -1398,8 +1407,8 @@ NTSTATUS secrets_fetch_or_upgrade_domain_info(const char *domain,
 			DBG_ERR("talloc_asprintf(%s#%02X) failed\n",
 				domain, NBT_NAME_PDC);
 			dbwrap_transaction_cancel(db);
-			SAFE_FREE(pw);
-			SAFE_FREE(old_pw);
+			BURN_FREE_STR(pw);
+			BURN_FREE_STR(old_pw);
 			TALLOC_FREE(frame);
 			return NT_STATUS_NO_MEMORY;
 		}
@@ -1420,8 +1429,8 @@ NTSTATUS secrets_fetch_or_upgrade_domain_info(const char *domain,
 		p = kerberos_secrets_fetch_salt_princ();
 		if (p == NULL) {
 			dbwrap_transaction_cancel(db);
-			SAFE_FREE(old_pw);
-			SAFE_FREE(pw);
+			BURN_FREE_STR(old_pw);
+			BURN_FREE_STR(pw);
 			TALLOC_FREE(frame);
 			return NT_STATUS_INTERNAL_ERROR;
 		}
@@ -1429,8 +1438,8 @@ NTSTATUS secrets_fetch_or_upgrade_domain_info(const char *domain,
 		SAFE_FREE(p);
 		if (info->salt_principal == NULL) {
 			dbwrap_transaction_cancel(db);
-			SAFE_FREE(pw);
-			SAFE_FREE(old_pw);
+			BURN_FREE_STR(pw);
+			BURN_FREE_STR(old_pw);
 			TALLOC_FREE(frame);
 			return NT_STATUS_NO_MEMORY;
 		}
@@ -1445,12 +1454,12 @@ NTSTATUS secrets_fetch_or_upgrade_domain_info(const char *domain,
 						     info->salt_principal,
 						     last_set_nt, server,
 						     &info->password);
-	SAFE_FREE(pw);
+	BURN_FREE_STR(pw);
 	if (!NT_STATUS_IS_OK(status)) {
 		DBG_ERR("secrets_domain_info_password_create(pw) failed "
 			"for %s - %s\n", domain, nt_errstr(status));
 		dbwrap_transaction_cancel(db);
-		SAFE_FREE(old_pw);
+		BURN_FREE_STR(old_pw);
 		TALLOC_FREE(frame);
 		return status;
 	}
@@ -1464,7 +1473,7 @@ NTSTATUS secrets_fetch_or_upgrade_domain_info(const char *domain,
 							     info->salt_principal,
 							     0, server,
 							     &info->old_password);
-		SAFE_FREE(old_pw);
+		BURN_FREE_STR(old_pw);
 		if (!NT_STATUS_IS_OK(status)) {
 			DBG_ERR("secrets_domain_info_password_create(old) failed "
 				"for %s - %s\n", domain, nt_errstr(status));

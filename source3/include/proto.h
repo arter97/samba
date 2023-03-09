@@ -301,12 +301,10 @@ NTSTATUS init_before_fork(void);
 int parent_watch_fd(void);
 NTSTATUS reinit_after_fork(struct messaging_context *msg_ctx,
 			   struct tevent_context *ev_ctx,
-			   bool parent_longlived,
-			   const char *comment);
+			   bool parent_longlived);
 NTSTATUS smbd_reinit_after_fork(struct messaging_context *msg_ctx,
 				struct tevent_context *ev_ctx,
-				bool parent_longlived,
-				const char *comment);
+				bool parent_longlived);
 void *malloc_(size_t size);
 void *Realloc(void *p, size_t size, bool free_old_on_error);
 void add_to_large_array(TALLOC_CTX *mem_ctx, size_t element_size,
@@ -337,11 +335,9 @@ void set_remote_arch(enum remote_arch_types type);
 enum remote_arch_types get_remote_arch(void);
 bool remote_arch_cache_update(const struct GUID *client_guid);
 bool remote_arch_cache_delete(const struct GUID *client_guid);
-const char *tab_depth(int level, int depth);
 int str_checksum(const char *s);
 void zero_free(void *p, size_t size);
 int set_maxfiles(int requested_max);
-int smb_mkstemp(char *name_template);
 void *smb_xmalloc_array(size_t size, unsigned int count);
 char *myhostname(void);
 char *myhostname_upper(void);
@@ -355,16 +351,12 @@ bool mask_match_search(const char *string, const char *pattern, bool is_case_sen
 bool mask_match_list(const char *string, char **list, int listLen, bool is_case_sensitive);
 #include "lib/util/unix_match.h"
 bool name_to_fqdn(fstring fqdn, const char *name);
-uint32_t map_share_mode_to_deny_mode(uint32_t share_access, uint32_t private_options);
 
 #include "lib/util_procid.h"
 
 struct server_id interpret_pid(const char *pid_string);
 bool is_offset_safe(const char *buf_base, size_t buf_len, char *ptr, size_t off);
-char *get_safe_ptr(const char *buf_base, size_t buf_len, char *ptr, size_t off);
 char *get_safe_str_ptr(const char *buf_base, size_t buf_len, char *ptr, size_t off);
-int get_safe_SVAL(const char *buf_base, size_t buf_len, char *ptr, size_t off, int failval);
-int get_safe_IVAL(const char *buf_base, size_t buf_len, char *ptr, size_t off, int failval);
 bool split_domain_user(TALLOC_CTX *mem_ctx,
 		       const char *full_name,
 		       char **domain,
@@ -531,7 +523,6 @@ bool trim_char(char *s,char cfront,char cback);
 bool strhasupper(const char *s);
 bool strhaslower(const char *s);
 bool in_list(const char *s, const char *list, bool casesensitive);
-void fstring_sub(char *s,const char *pattern,const char *insert);
 char *realloc_string_sub2(char *string,
 			const char *pattern,
 			const char *insert,
@@ -541,7 +532,6 @@ char *realloc_string_sub(char *string,
 			const char *pattern,
 			const char *insert);
 void all_string_sub(char *s,const char *pattern,const char *insert, size_t len);
-char *octal_string(int i);
 char *string_truncate(char *s, unsigned int length);
 char *strchr_m(const char *src, char c);
 char *strrchr_m(const char *s, char c);
@@ -765,8 +755,8 @@ void unbecome_root(void);
 /* The following definitions come from lib/smbd_shim.c */
 
 int find_service(TALLOC_CTX *ctx, const char *service_in, char **p_service_out);
-void send_stat_cache_delete_message(struct messaging_context *msg_ctx,
-				    const char *name);
+bool lp_allow_local_address(
+	int snum, const struct tsocket_address *local_address);
 NTSTATUS can_delete_directory_fsp(files_struct *fsp);
 bool change_to_root_user(void);
 bool become_authenticated_pipe_user(struct auth_session_info *session_info);

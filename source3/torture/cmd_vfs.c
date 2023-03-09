@@ -190,9 +190,14 @@ static NTSTATUS cmd_opendir(struct vfs_state *vfs, TALLOC_CTX *mem_ctx, int argc
 
 static NTSTATUS cmd_readdir(struct vfs_state *vfs, TALLOC_CTX *mem_ctx, int argc, const char **argv)
 {
+	struct smb_Dir *currentdir = vfs->currentdir;
+	files_struct *dirfsp = dir_hnd_fetch_fsp(currentdir);
+	connection_struct *conn = dirfsp->conn;
 	SMB_STRUCT_STAT st;
 	const char *dname = NULL;
+	struct smb_filename *fname = NULL;
 	char *talloced = NULL;
+	int ret;
 
 	if (vfs->currentdir == NULL) {
 		printf("readdir: error=-1 (no open directory)\n");
@@ -201,15 +206,25 @@ static NTSTATUS cmd_readdir(struct vfs_state *vfs, TALLOC_CTX *mem_ctx, int argc
 
         dname = ReadDirName(vfs->currentdir,
 			    &vfs->currentdir_offset,
-			    &st,
+			    NULL,
 			    &talloced);
 	if (dname == NULL) {
 		printf("readdir: NULL\n");
 		return NT_STATUS_OK;
 	}
 
+	fname = synthetic_smb_fname(
+		talloc_tos(), dname, NULL, 0, 0, ssf_flags());
+	if (fname == NULL) {
+		printf("readdir: no memory\n");
+		return NT_STATUS_OK;
+	}
+
 	printf("readdir: %s\n", dname);
-	if (VALID_STAT(st)) {
+
+	ret = SMB_VFS_FSTATAT(conn, dirfsp, fname, &st, AT_SYMLINK_NOFOLLOW);
+
+	if ((ret == 0) && VALID_STAT(st)) {
 		time_t tmp_time;
 		printf("  stat available");
 		if (S_ISREG(st.st_ex_mode)) printf("  Regular File\n");
@@ -371,10 +386,14 @@ static NTSTATUS cmd_open(struct vfs_state *vfs, TALLOC_CTX *mem_ctx, int argc, c
 		flagstr++;
 	}
 	if ((how.flags & O_CREAT) && argc == 4) {
-		if (sscanf(argv[3], "%ho", (unsigned short *)&how.mode) == 0) {
+		short _mode = 0;
+
+		if (sscanf(argv[3], "%ho", &_mode) == 0) {
 			printf("open: error=-1 (invalid mode!)\n");
 			return NT_STATUS_UNSUCCESSFUL;
 		}
+
+		how.mode = _mode;
 	}
 
 	fsp = talloc_zero(vfs, struct files_struct);
@@ -1319,6 +1338,7 @@ static NTSTATUS cmd_link(struct vfs_state *vfs, TALLOC_CTX *mem_ctx, int argc, c
 
 static NTSTATUS cmd_mknod(struct vfs_state *vfs, TALLOC_CTX *mem_ctx, int argc, const char **argv)
 {
+	short _mode = 0;
 	mode_t mode;
 	unsigned int dev_val;
 	SMB_DEV_T dev;
@@ -1332,10 +1352,11 @@ static NTSTATUS cmd_mknod(struct vfs_state *vfs, TALLOC_CTX *mem_ctx, int argc, 
 		return NT_STATUS_OK;
 	}
 
-	if (sscanf(argv[2], "%ho", (unsigned short *)&mode) == 0) {
+	if (sscanf(argv[2], "%ho", &_mode) == 0) {
 		printf("open: error=-1 (invalid mode!)\n");
 		return NT_STATUS_UNSUCCESSFUL;
 	}
+	mode = _mode;
 
 	if (sscanf(argv[3], "%x", &dev_val) == 0) {
 		printf("open: error=-1 (invalid dev!)\n");
@@ -2100,7 +2121,6 @@ static NTSTATUS cmd_translate_name(struct vfs_state *vfs, TALLOC_CTX *mem_ctx,
 {
 	const char *dname = NULL;
 	char *dname_talloced = NULL;
-	SMB_STRUCT_STAT st;
 	bool found = false;
 	char *translated = NULL;
 	struct smb_filename *smb_fname = NULL;
@@ -2141,7 +2161,7 @@ static NTSTATUS cmd_translate_name(struct vfs_state *vfs, TALLOC_CTX *mem_ctx,
 		/* ReadDirName() returns Windows "encoding" */
 		dname = ReadDirName(vfs->currentdir,
 				    &vfs->currentdir_offset,
-				    &st,
+				    NULL,
 				    &dname_talloced);
 		if (dname == NULL) {
 			break;

@@ -525,46 +525,6 @@ size_t srvstr_pull_req_talloc(TALLOC_CTX *ctx, struct smb_request *req,
 }
 
 /****************************************************************************
- Check if we have a correct fsp pointing to a file. Basic check for open fsp.
-****************************************************************************/
-
-bool check_fsp_open(connection_struct *conn, struct smb_request *req,
-		    files_struct *fsp)
-{
-	if ((fsp == NULL) || (conn == NULL)) {
-		reply_nterror(req, NT_STATUS_INVALID_HANDLE);
-		return False;
-	}
-	if ((conn != fsp->conn) || (req->vuid != fsp->vuid)) {
-		reply_nterror(req, NT_STATUS_INVALID_HANDLE);
-		return False;
-	}
-	return True;
-}
-
-/****************************************************************************
- Check if we have a correct fsp pointing to a file.
-****************************************************************************/
-
-bool check_fsp(connection_struct *conn, struct smb_request *req,
-	       files_struct *fsp)
-{
-	if (!check_fsp_open(conn, req, fsp)) {
-		return False;
-	}
-	if (fsp->fsp_flags.is_directory) {
-		reply_nterror(req, NT_STATUS_INVALID_DEVICE_REQUEST);
-		return False;
-	}
-	if (fsp_get_pathref_fd(fsp) == -1) {
-		reply_nterror(req, NT_STATUS_ACCESS_DENIED);
-		return False;
-	}
-	fsp->num_smb_operations++;
-	return True;
-}
-
-/****************************************************************************
  Check if we have a correct fsp pointing to a quota fake file. Replacement for
  the CHECK_NTQUOTA_HANDLE_OK macro.
 ****************************************************************************/
@@ -572,7 +532,11 @@ bool check_fsp(connection_struct *conn, struct smb_request *req,
 bool check_fsp_ntquota_handle(connection_struct *conn, struct smb_request *req,
 			      files_struct *fsp)
 {
-	if (!check_fsp_open(conn, req, fsp)) {
+	if ((fsp == NULL) || (conn == NULL)) {
+		return false;
+	}
+
+	if ((conn != fsp->conn) || (req->vuid != fsp->vuid)) {
 		return false;
 	}
 
@@ -1714,6 +1678,18 @@ NTSTATUS rename_internals_fsp(connection_struct *conn,
 		 * destination parent name.
 		 */
 		parent_dir_fname_src = parent_dir_fname_dst;
+
+		/*
+		 * Ensure we have a pathref fsp on the
+		 * parent_dir_fname_src_atname to match the code in the else
+		 * branch where we use parent_pathref().
+		 */
+		status = reference_smb_fname_fsp_link(
+			parent_dir_fname_src_atname,
+			fsp->fsp_name);
+		if (!NT_STATUS_IS_OK(status)) {
+			goto out;
+		}
 	} else {
 		/*
 		 * source and destination parent directories are
@@ -2129,9 +2105,7 @@ struct smbd_do_unlocking_state {
 };
 
 static void smbd_do_unlocking_fn(
-	const uint8_t *buf,
-	size_t buflen,
-	bool *pmodified_dependent,
+	struct share_mode_lock *lck,
 	void *private_data)
 {
 	struct smbd_do_unlocking_state *state = private_data;
@@ -2165,7 +2139,7 @@ static void smbd_do_unlocking_fn(
 		}
 	}
 
-	*pmodified_dependent = true;
+	share_mode_wakeup_waiters(fsp->file_id);
 }
 
 NTSTATUS smbd_do_unlocking(struct smb_request *req,
@@ -2182,11 +2156,11 @@ NTSTATUS smbd_do_unlocking(struct smb_request *req,
 
 	DBG_NOTICE("%s num_ulocks=%"PRIu16"\n", fsp_fnum_dbg(fsp), num_ulocks);
 
-	status = share_mode_do_locked(
+	status = share_mode_do_locked_vfs_allowed(
 		fsp->file_id, smbd_do_unlocking_fn, &state);
 
 	if (!NT_STATUS_IS_OK(status)) {
-		DBG_DEBUG("share_mode_do_locked failed: %s\n",
+		DBG_DEBUG("share_mode_do_locked_vfs_allowed failed: %s\n",
 			  nt_errstr(status));
 		return status;
 	}

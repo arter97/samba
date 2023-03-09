@@ -258,7 +258,6 @@ static NTSTATUS vfswrap_get_dfs_referrals(struct vfs_handle_struct *handle,
 				   pathnamep,
 				   handle->conn->sconn->remote_address,
 				   handle->conn->sconn->local_address,
-				   !handle->conn->sconn->using_smb2,
 				   junction, &consumedcnt, &self_referral);
 	if (!NT_STATUS_IS_OK(status)) {
 		struct smb_filename connectpath_fname = {
@@ -749,7 +748,7 @@ static int vfswrap_openat(vfs_handle_struct *handle,
 		 *   conflicting flags are specified in how.flags.
 		 *
 		 * So we better clear ignored/invalid flags
-		 * and only keep the exptected once.
+		 * and only keep the expected ones.
 		 */
 		flags &= (O_PATH|O_CLOEXEC|O_DIRECTORY|O_NOFOLLOW);
 	}
@@ -1423,14 +1422,12 @@ static NTSTATUS vfswrap_parent_pathname(struct vfs_handle_struct *handle,
 					struct smb_filename **parent_dir_out,
 					struct smb_filename **atname_out)
 {
-	TALLOC_CTX *frame = talloc_stackframe();
 	struct smb_filename *parent = NULL;
 	struct smb_filename *name = NULL;
 	char *p = NULL;
 
-	parent = cp_smb_filename_nostream(frame, smb_fname_in);
+	parent = cp_smb_filename_nostream(mem_ctx, smb_fname_in);
 	if (parent == NULL) {
-		TALLOC_FREE(frame);
 		return NT_STATUS_NO_MEMORY;
 	}
 	SET_STAT_INVALID(parent->st);
@@ -1440,7 +1437,7 @@ static NTSTATUS vfswrap_parent_pathname(struct vfs_handle_struct *handle,
 		TALLOC_FREE(parent->base_name);
 		parent->base_name = talloc_strdup(parent, ".");
 		if (parent->base_name == NULL) {
-			TALLOC_FREE(frame);
+			TALLOC_FREE(parent);
 			return NT_STATUS_NO_MEMORY;
 		}
 		p = smb_fname_in->base_name;
@@ -1450,27 +1447,23 @@ static NTSTATUS vfswrap_parent_pathname(struct vfs_handle_struct *handle,
 	}
 
 	if (atname_out == NULL) {
-		*parent_dir_out = talloc_move(mem_ctx, &parent);
-		TALLOC_FREE(frame);
+		*parent_dir_out = parent;
 		return NT_STATUS_OK;
 	}
 
-	name = cp_smb_filename(frame, smb_fname_in);
+	name = synthetic_smb_fname(
+		parent,
+		p,
+		smb_fname_in->stream_name,
+		&smb_fname_in->st,
+		smb_fname_in->twrp,
+		smb_fname_in->flags);
 	if (name == NULL) {
-		TALLOC_FREE(frame);
-		return NT_STATUS_NO_MEMORY;
-	}
-	TALLOC_FREE(name->base_name);
-
-	name->base_name = talloc_strdup(name, p);
-	if (name->base_name == NULL) {
-		TALLOC_FREE(frame);
 		return NT_STATUS_NO_MEMORY;
 	}
 
-	*parent_dir_out = talloc_move(mem_ctx, &parent);
-	*atname_out = talloc_move(*parent_dir_out, &name);
-	TALLOC_FREE(frame);
+	*parent_dir_out = parent;
+	*atname_out = name;
 	return NT_STATUS_OK;
 }
 
@@ -3460,6 +3453,7 @@ static NTSTATUS vfswrap_get_real_filename_at(
 }
 
 static const char *vfswrap_connectpath(struct vfs_handle_struct *handle,
+				   const struct files_struct *dirfsp,
 				   const struct smb_filename *smb_fname)
 {
 	return handle->conn->connectpath;
@@ -3701,7 +3695,7 @@ static struct tevent_req *vfswrap_getxattrat_send(
 
 	/*
 	 * Now allocate all parameters from a memory context that won't go away
-	 * no matter what. These paremeters will get used in threads and we
+	 * no matter what. These parameters will get used in threads and we
 	 * can't reliably cancel threads, so all buffers passed to the threads
 	 * must not be freed before all referencing threads terminate.
 	 */

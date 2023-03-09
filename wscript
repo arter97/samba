@@ -348,12 +348,14 @@ def configure(conf):
 
     conf.RECURSE('source3')
     conf.RECURSE('lib/texpect')
+    conf.RECURSE('lib/tsocket')
     conf.RECURSE('python')
     if conf.env.with_ctdb:
         conf.RECURSE('ctdb')
     conf.RECURSE('lib/socket')
     conf.RECURSE('lib/mscat')
     conf.RECURSE('packaging')
+    conf.RECURSE('lib/krb5_wrap')
 
     conf.SAMBA_CHECK_UNDEFINED_SYMBOL_FLAGS()
 
@@ -362,7 +364,8 @@ def configure(conf):
     # allows us to find problems on our development hosts faster.
     # It also results in faster load time.
 
-    if conf.CHECK_LDFLAGS('-Wl,--as-needed'):
+    if (not Options.options.address_sanitizer
+        and conf.CHECK_LDFLAGS('-Wl,--as-needed')):
         conf.env.append_unique('LINKFLAGS', '-Wl,--as-needed')
 
     if not conf.CHECK_NEED_LC("-lc not needed"):

@@ -153,6 +153,7 @@ struct winbindd_domain {
 	} backend_data;
 
 	/* A working DC */
+	bool force_dc;
 	char *dcname;
 	const char *ping_dcname;
 	struct sockaddr_storage dcaddr;
@@ -191,6 +192,7 @@ struct wb_parent_idmap_config_dom {
 struct wb_parent_idmap_config {
 	struct tevent_queue *queue;
 	uint32_t num_doms;
+	bool initialized;
 	struct wb_parent_idmap_config_dom *doms;
 };
 

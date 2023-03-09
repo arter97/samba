@@ -56,7 +56,7 @@ void mit_samba_context_free(struct mit_samba_context *ctx)
 }
 
 /*
- * Implemant a callback to log to the MIT KDC log facility
+ * Implement a callback to log to the MIT KDC log facility
  *
  * http://web.mit.edu/kerberos/krb5-devel/doc/plugindev/general.html#logging-from-kdc-and-kadmind-plugin-modules
  */
@@ -183,7 +183,7 @@ int mit_samba_generate_random_password(krb5_data *pwd)
 
 	tmp_ctx = talloc_named(NULL,
 			       0,
-			       "mit_samba_create_principal_password context");
+			       "mit_samba_generate_random_password context");
 	if (tmp_ctx == NULL) {
 		return ENOMEM;
 	}
@@ -485,7 +485,7 @@ int mit_samba_get_pac(struct mit_samba_context *smb_ctx,
 
 	tmp_ctx = talloc_named(smb_ctx,
 			       0,
-			       "mit_samba_get_pac_data_blobs context");
+			       "mit_samba_get_pac context");
 	if (tmp_ctx == NULL) {
 		return ENOMEM;
 	}
@@ -505,7 +505,8 @@ int mit_samba_get_pac(struct mit_samba_context *smb_ctx,
 					    &upn_dns_info_blob,
 					    is_krbtgt ? &pac_attrs_blob : NULL,
 					    PAC_ATTRIBUTE_FLAG_PAC_WAS_GIVEN_IMPLICITLY,
-					    is_krbtgt ? &requester_sid_blob : NULL);
+					    is_krbtgt ? &requester_sid_blob : NULL,
+					    NULL);
 	if (!NT_STATUS_IS_OK(nt_status)) {
 		talloc_free(tmp_ctx);
 		if (NT_STATUS_EQUAL(nt_status,
@@ -534,6 +535,9 @@ int mit_samba_get_pac(struct mit_samba_context *smb_ctx,
 				   upn_dns_info_blob,
 				   pac_attrs_blob,
 				   requester_sid_blob,
+				   NULL,
+				   NULL,
+				   NULL,
 				   NULL,
 				   *pac);
 

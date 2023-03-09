@@ -1,4 +1,4 @@
-
+---
 .build_image_template:
   image: quay.io/podman/stable:latest
   stage: images
@@ -91,16 +91,24 @@
 ubuntu1804:
   extends: .build_image_template
 
+ubuntu1804-32bit:
+  extends: .build_image_template
+  variables:
+    SAMBA_CI_TEST_JOB: "samba-32bit"
+
 ubuntu2004:
+  extends: .build_image_template
+
+ubuntu2204:
   extends: .build_image_template
 
 debian11:
   extends: .build_image_template
 
-fedora36:
+fedora37:
   extends: .build_image_template
 
-f36mit120:
+f37mit120:
   extends: .build_image_template
 
 centos8s:
@@ -114,5 +122,5 @@ centos7:
     # We install a compat-gnutls34 package for GnuTLS >= 3.4.7
     PKG_CONFIG_PATH: /usr/lib64/compat-gnutls34/pkgconfig:/usr/lib64/compat-nettle32/pkgconfig
 
-opensuse153:
+opensuse154:
   extends: .build_image_template

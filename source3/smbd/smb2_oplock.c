@@ -61,6 +61,8 @@ NTSTATUS set_file_oplock(files_struct *fsp)
 			(koplocks != NULL);
 	struct file_id_buf buf;
 
+	smb_vfs_assert_allowed();
+
 	if (fsp->oplock_type == LEVEL_II_OPLOCK && use_kernel) {
 		DEBUG(10, ("Refusing level2 oplock, kernel oplocks "
 			   "don't support them\n"));
@@ -98,6 +100,8 @@ static void release_fsp_kernel_oplock(files_struct *fsp)
 	struct kernel_oplocks *koplocks = sconn->oplocks.kernel_ops;
 	bool use_kernel;
 
+	smb_vfs_assert_allowed();
+
 	if (koplocks == NULL) {
 		return;
 	}
@@ -122,7 +126,7 @@ static void release_fsp_kernel_oplock(files_struct *fsp)
  Attempt to release an oplock on a file. Decrements oplock count.
 ****************************************************************************/
 
-static void release_file_oplock(files_struct *fsp)
+void release_file_oplock(files_struct *fsp)
 {
 	struct smbd_server_connection *sconn = fsp->conn->sconn;
 
@@ -153,6 +157,8 @@ static void downgrade_file_oplock(files_struct *fsp)
 	struct kernel_oplocks *koplocks = sconn->oplocks.kernel_ops;
 	bool use_kernel = lp_kernel_oplocks(SNUM(fsp->conn)) &&
 			(koplocks != NULL);
+
+	smb_vfs_assert_allowed();
 
 	if (!EXCLUSIVE_OPLOCK_TYPE(fsp->oplock_type)) {
 		DEBUG(0, ("trying to downgrade an already-downgraded oplock!\n"));
@@ -836,6 +842,8 @@ static void process_oplock_break_message(struct messaging_context *msg_ctx,
 	uint16_t break_to;
 	bool break_needed = true;
 
+	smb_vfs_assert_allowed();
+
 	msg = talloc(talloc_tos(), struct oplock_break_message);
 	if (msg == NULL) {
 		DBG_WARNING("talloc failed\n");
@@ -1142,6 +1150,7 @@ struct break_to_none_state {
 	struct smb2_lease_key lease_key;
 	struct GUID client_guid;
 	size_t num_read_leases;
+	uint32_t total_lease_types;
 };
 
 static bool do_break_lease_to_none(struct share_mode_entry *e,
@@ -1170,6 +1179,8 @@ static bool do_break_lease_to_none(struct share_mode_entry *e,
 			    nt_errstr(status));
 		return false;
 	}
+
+	state->total_lease_types |= current_state;
 
 	if ((current_state & SMB2_LEASE_READ) == 0) {
 		return false;
@@ -1220,6 +1231,8 @@ static bool do_break_oplock_to_none(struct share_mode_entry *e,
 	 */
 
 	DBG_DEBUG("e->op_type == %d\n", e->op_type);
+
+	state->total_lease_types |= map_oplock_to_lease_type(e->op_type);
 
 	if (e->op_type == NO_OPLOCK) {
 		return false;
@@ -1305,14 +1318,14 @@ static void contend_level2_oplocks_begin_default(files_struct *fsp,
 		DBG_WARNING("share_mode_forall_entries failed\n");
 	}
 
-	if (state.num_read_leases == 0) {
+	{
 		/*
-		 * Lazy update here. It might be that the read lease
-		 * has gone in the meantime.
+		 * Lazy update here. It might be that all leases
+		 * have gone in the meantime.
 		 */
 		uint32_t acc, sh, ls;
 		share_mode_flags_get(lck, &acc, &sh, &ls);
-		ls &= ~SMB2_LEASE_READ;
+		ls = state.total_lease_types;
 		share_mode_flags_set(lck, acc, sh, ls, NULL);
 	}
 

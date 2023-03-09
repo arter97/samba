@@ -1,4 +1,4 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
    main select loop and event handling
    Copyright (C) Andrew Tridgell 2003
@@ -130,14 +130,12 @@ static void tevent_backend_init(void)
 	tevent_poll_mt_init();
 #if defined(HAVE_EPOLL)
 	tevent_epoll_init();
-#elif defined(HAVE_SOLARIS_PORTS)
-	tevent_port_init();
 #endif
 
 	tevent_standard_init();
 }
 
-_PRIVATE_ const struct tevent_ops *tevent_find_ops_byname(const char *name)
+const struct tevent_ops *tevent_find_ops_byname(const char *name)
 {
 	struct tevent_ops_list *e;
 
@@ -763,7 +761,7 @@ void tevent_loop_set_nesting_hook(struct tevent_context *ev,
 				  tevent_nesting_hook hook,
 				  void *private_data)
 {
-	if (ev->nesting.hook_fn && 
+	if (ev->nesting.hook_fn &&
 	    (ev->nesting.hook_fn != hook ||
 	     ev->nesting.hook_private != private_data)) {
 		/* the way the nesting hook code is currently written
@@ -789,7 +787,7 @@ static void tevent_abort_nesting(struct tevent_context *ev, const char *location
 }
 
 /*
-  do a single event loop using the events defined in ev 
+  do a single event loop using the events defined in ev
 */
 int _tevent_loop_once(struct tevent_context *ev, const char *location)
 {
@@ -824,6 +822,9 @@ int _tevent_loop_once(struct tevent_context *ev, const char *location)
 	tevent_trace_point_callback(ev, TEVENT_TRACE_BEFORE_LOOP_ONCE);
 	ret = ev->ops->loop_once(ev, location);
 	tevent_trace_point_callback(ev, TEVENT_TRACE_AFTER_LOOP_ONCE);
+
+	/* New event (and request) will always start with call depth 0. */
+	tevent_thread_call_depth_set(0);
 
 	if (ev->nesting.level > 0) {
 		if (ev->nesting.hook_fn) {
@@ -971,7 +972,7 @@ int _tevent_loop_wait(struct tevent_context *ev, const char *location)
 /*
   re-initialise a tevent context. This leaves you with the same
   event context, but all events are wiped and the structure is
-  re-initialised. This is most useful after a fork()  
+  re-initialised. This is most useful after a fork()
 
   zero is returned on success, non-zero on failure
 */

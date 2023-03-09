@@ -382,7 +382,7 @@ static int db_ctdb_transaction_start(struct db_context *db)
 	 * Wait a day, i.e. forever...
 	 */
 	status = g_lock_lock(ctx->lock_ctx, string_term_tdb_data(h->lock_name),
-			     G_LOCK_WRITE, timeval_set(86400, 0));
+			     G_LOCK_WRITE, timeval_set(86400, 0), NULL, NULL);
 	if (!NT_STATUS_IS_OK(status)) {
 		DEBUG(0, ("g_lock_lock failed: %s\n", nt_errstr(status)));
 		TALLOC_FREE(h);
@@ -674,11 +674,11 @@ static NTSTATUS db_ctdb_storev_transaction(
 	struct db_ctdb_transaction_handle *h = talloc_get_type_abort(
 		rec->private_data, struct db_ctdb_transaction_handle);
 	NTSTATUS status;
-	TDB_DATA data;
+	TDB_DATA data = {0};
 
-	data = dbwrap_merge_dbufs(rec, dbufs, num_dbufs);
-	if (data.dptr == NULL) {
-		return NT_STATUS_NO_MEMORY;
+	status = dbwrap_merge_dbufs(&data, rec, dbufs, num_dbufs);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
 	}
 
 	status = db_ctdb_transaction_store(h, rec->key, data);
