@@ -2,12 +2,12 @@
 .\"     Title: smb.conf
 .\"    Author: [see the "AUTHOR" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/08/2023
+.\"      Date: 03/29/2023
 .\"    Manual: File Formats and Conventions
-.\"    Source: Samba 4.18.0
+.\"    Source: Samba 4.18.1
 .\"  Language: English
 .\"
-.TH "SMB\&.CONF" "5" "03/08/2023" "Samba 4\&.18\&.0" "File Formats and Conventions"
+.TH "SMB\&.CONF" "5" "03/29/2023" "Samba 4\&.18\&.1" "File Formats and Conventions"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -2139,20 +2139,24 @@ and
 \fIseal\fR
 are only available if Samba has been compiled against a modern OpenLDAP version (2\&.3\&.x or higher)\&.
 .sp
-This option is needed in the case of Domain Controllers enforcing the usage of signed LDAP connections (e\&.g\&. Windows 2000 SP3 or higher)\&. LDAP sign and seal can be controlled with the registry key "HKLM\eSystem\eCurrentControlSet\eServices\e
-NTDS\eParameters\eLDAPServerIntegrity" on the Windows server side\&.
-.sp
-Depending on the used KRB5 library (MIT and older Heimdal versions) it is possible that the message "integrity only" is not supported\&. In this case,
-\fIsign\fR
-is just an alias for
+This option is needed firstly to secure the privacy of administrative connections from
+samba\-tool, including in particular new or reset passwords for users\&. For this reason the default is
 \fIseal\fR\&.
 .sp
+Additionally,
+winbindd
+and the
+net
+tool can use LDAP to communicate with Domain Controllers, so this option also controls the level of privacy for those connections\&. All supported AD DC versions will enforce the usage of at least signed LDAP connections by default, so a value of at least
+\fIsign\fR
+is required in practice\&.
+.sp
 The default value is
-\fIsign\fR\&. That implies synchronizing the time with the KDC in the case of using
+\fIseal\fR\&. That implies synchronizing the time with the KDC in the case of using
 \fIKerberos\fR\&.
 .sp
 Default:
-\fI\fIclient ldap sasl wrapping\fR\fR\fI = \fR\fIsign\fR\fI \fR
+\fI\fIclient ldap sasl wrapping\fR\fR\fI = \fR\fIseal\fR\fI \fR
 .RE
 
 client max protocol (G)
@@ -14527,7 +14531,7 @@ and
 special sections make life for an administrator easy, but the various combinations of default attributes can be tricky\&. Take extreme care when designing these sections\&. In particular, ensure that the permissions on spool directories are correct\&.
 .SH "VERSION"
 .PP
-This man page is part of version 4\&.18\&.0 of the Samba suite\&.
+This man page is part of version 4\&.18\&.1 of the Samba suite\&.
 .SH "SEE ALSO"
 .PP
 \fBsamba\fR(7),
