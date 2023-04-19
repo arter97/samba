@@ -1,3 +1,55 @@
+samba (2:4.18.2+dfsg-1) experimental; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15302
+     Log flood: smbd_calculate_access_mask_fsp: Access denied:
+     message level should be lower.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15306
+     Floating point exception (FPE) via cli_pull_send
+     at source3/libsmb/clireadwrite.c.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15328
+     test_tstream_more_tcp_user_timeout_spin fails intermittently
+     on Rackspace GitLab runners.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15329
+     Reduce flapping of ridalloc test.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15351
+     large_ldap test is unreliable.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15143
+     New filename parser doesn't check veto files smb.conf parameter.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15354
+     mdssvc may crash when initializing.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15313
+     large directory optimization broken for non-lcomp path elements.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15357
+     streams_depot fails to create streams.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15358
+     shadow_copy2 and streams_depot don't play well together.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15316
+     Flapping tests in samba_tool_drs_show_repl.py.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15317
+     winbindd idmap child contacts the domain controller without a need.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15318
+     idmap_autorid may fail to map sids of trusted domains for the first time.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15319
+     idmap_hash doesn't use ID_TYPE_BOTH for reverse mappings.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15323
+     net ads search -P doesn't work against servers in other domains.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15353
+     Temporary smbXsrv_tcon_global.tdb can't be parsed.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15316
+     Flapping tests in samba_tool_drs_show_repl.py.
+   - https://bugzilla.samba.org/show_bug.cgi?id=15343
+     Tests use depricated and removed methods like assertRegexpMatches.
+  * d/rules, d/libldb2.symbols; add ldb 2.6.2 version
+  * heimdal-to-support-KEYRING-ccache.patch: enable KEYRING in heimdal
+    (Closes: #1023609)
+  * d/control: build-depend on libkeyutils-dev
+    (it is pulled by some other dep, but better to be safe)
+  * -s3-smbd-open.c-smbd_calculate_access_mask_fsp-lower-.patch
+    (the change has been applied upstream)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 19 Apr 2023 14:02:49 +0300
+
 samba (2:4.18.1+dfsg-1~exp1) experimental; urgency=high
 
   * upstream stable/security/bugfix release, fixing the following issues:
