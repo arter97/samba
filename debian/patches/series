@@ -23,5 +23,4 @@ fruit-disable-useless-size_t-overflow-check.patch
 meaningful-error-if-no-samba-ad-provision.patch
 meaningful-error-if-no-python3-markdown.patch
 ctdb-use-run-instead-of-var-run.patch
-s3-smbd-open.c-smbd_calculate_access_mask_fsp-lower-.patch
 heimdal-to-support-KEYRING-ccache.patch
