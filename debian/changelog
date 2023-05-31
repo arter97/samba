@@ -1,4 +1,4 @@
-samba (2:4.18.3+dfsg-1) UNRELEASED; urgency=medium
+samba (2:4.18.3+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
    - https://bugzilla.samba.org/show_bug.cgi?id=15375
@@ -24,8 +24,17 @@ samba (2:4.18.3+dfsg-1) UNRELEASED; urgency=medium
      if no arguments are given
    - https://bugzilla.samba.org/show_bug.cgi?id=15325
      dsgetdcname: assumes local system uses IPv4
+  * dnsserver-rename-dns_name_equal.patch
+    (forgotten) patch from upstream targetting next stable
+    Fixes crashes of named with samba DLZ plugin due to
+    symbol name conflict (dns_name_equal() function).
+    There's no resulting code changes, just a symbol rename.
+    https://bugzilla.samba.org/show_bug.cgi?id=14030
+    Closes: #1036587, #927747
+  * remove generated manpage files upstream ships in
+    docs/manpages/ and ctdb/doc/
 
- -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 31 May 2023 20:01:50 +0300
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 31 May 2023 20:09:05 +0300
 
 samba (2:4.18.2+dfsg-1) experimental; urgency=medium
 
