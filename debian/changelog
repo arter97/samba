@@ -1,3 +1,32 @@
+samba (2:4.18.3+dfsg-1) UNRELEASED; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15375
+     Symlinks to files can have random DOS mode information
+     in a directory listing
+   - https://bugzilla.samba.org/show_bug.cgi?id=15378
+     vfs_fruit might cause a failing open for delete
+   - https://bugzilla.samba.org/show_bug.cgi?id=15361
+     winbind recurses into itself via rpcd_lsad
+   - https://bugzilla.samba.org/show_bug.cgi?id=15366
+     wbinfo -u fails on ad dc with >1000 users
+   - https://bugzilla.samba.org/show_bug.cgi?id=15338
+     DS ACEs might be inherited to unrelated object classes
+   - https://bugzilla.samba.org/show_bug.cgi?id=15362
+     a lot of messages: get_static_share_mode_data:
+     get_static_share_mode_data_fn failed: NT_STATUS_NOT_FOUND
+   - https://bugzilla.samba.org/show_bug.cgi?id=15374
+     aes256 smb3 encryption algorithms are not allowed in smb3_sid_parse()
+   - https://bugzilla.samba.org/show_bug.cgi?id=15360
+     Setting veto files = /.*/ break listing directories
+   - https://bugzilla.samba.org/show_bug.cgi?id=15363
+     "samba-tool domain provision" does not run interactive mode
+     if no arguments are given
+   - https://bugzilla.samba.org/show_bug.cgi?id=15325
+     dsgetdcname: assumes local system uses IPv4
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 31 May 2023 20:01:50 +0300
+
 samba (2:4.18.2+dfsg-1) experimental; urgency=medium
 
   * new upstream stable/bugfix release:
