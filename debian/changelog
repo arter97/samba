@@ -1,3 +1,15 @@
+samba (2:4.18.3+dfsg-2) unstable; urgency=medium
+
+  * d/rules: include -latomic gcc issue workaround for select arches
+    apparently due to a gcc issue, some architectures (armel, mipsel, ...)
+    fail to link samba due to not finidng __atomic_load_8 etc symbols
+    after using atomic_load etc from stdatomic.h (part of gcc).
+    Add -latomic explicitly to the list of libraries we link with.
+  * d/rules: add libwbclient0 to the list of krb5-versioned packages
+   (thanks to Andrew Kornilov)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 20 Jun 2023 11:35:13 +0300
+
 samba (2:4.18.3+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
