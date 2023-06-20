@@ -121,7 +121,7 @@ mitkrb5-dep-pkgs += samba samba-common-bin python3-samba
 mitkrb5-dep-pkgs += samba-dsdb-modules samba-vfs-modules
 mitkrb5-dep-pkgs += libsmbclient smbclient
 mitkrb5-dep-pkgs += libnss-winbind libpam-winbind
-mitkrb5-dep-pkgs += winbind
+mitkrb5-dep-pkgs += winbind libwbclient0
 mitkrb5-dep-pkgs += samba-testsuite
 mitkrb5-dep-pkgs += ctdb
 else
