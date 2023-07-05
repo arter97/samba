@@ -34,6 +34,7 @@ from selftesthelpers import valgrindify, smbtorture4_testsuites
 from selftesthelpers import smbtorture4_options
 from selftesthelpers import smbcontrol
 from selftesthelpers import smbstatus
+from selftesthelpers import timelimit
 smbtorture4_options.extend([
     '--option=torture:sharedelay=100000',
    '--option=torture:writetimeupdatedelay=500000',
@@ -822,6 +823,11 @@ for env in ["fileserver"]:
                   '$SERVER', 'fruit_resource_stream', '$USERNAME', '$PASSWORD',
                   '$LOCAL_PATH/fruit_resource_stream', smbclient3])
 
+plantestsuite("samba3.blackbox.smbclient_old_dir", "fileserver_smb1",
+              [os.path.join(samba3srcdir,
+                            "script/tests/test_old_dirlisting.sh"),
+               timelimit, smbclient3])
+
 for env in ["fileserver:local"]:
     plantestsuite("samba3.blackbox.net_usershare", env, [os.path.join(samba3srcdir, "script/tests/test_net_usershare.sh"), '$SERVER', '$SERVER_IP', '$USERNAME', '$PASSWORD', smbclient3])
 
@@ -1413,6 +1419,13 @@ plantestsuite("samba3.blackbox.chdir-cache", "simpleserver:local",
                "error_inject",
                '$PREFIX',
                'simpleserver'])
+
+plantestsuite("samba3.blackbox.rofs_error", "simpleserver",
+              [os.path.join(samba3srcdir, "script/tests/test_rofs.sh"),
+               configuration,
+               os.path.join(bindir(), "smbclient"),
+               '$SERVER_IP',
+               "error_inject"])
 
 plantestsuite("samba3.blackbox.zero_readsize",
               "simpleserver:local",
