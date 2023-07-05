@@ -24,4 +24,3 @@ meaningful-error-if-no-samba-ad-provision.patch
 meaningful-error-if-no-python3-markdown.patch
 ctdb-use-run-instead-of-var-run.patch
 heimdal-to-support-KEYRING-ccache.patch
-dnsserver-rename-dns_name_equal.patch
