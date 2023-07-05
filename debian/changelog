@@ -1,3 +1,39 @@
+samba (2:4.18.4+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release, including:
+   - https://bugzilla.samba.org/show_bug.cgi?id=2312
+     smbcacls and smbcquotas do not check // before the server
+   - https://bugzilla.samba.org/show_bug.cgi?id=14030
+     Named crashes on DLZ zone update (was in debian before)
+   - https://bugzilla.samba.org/show_bug.cgi?id=15355
+     NSS_WRAPPER_HOSTNAME doesn't match NSS_WRAPPER_HOSTS entry
+     and causes test timeouts
+   - https://bugzilla.samba.org/show_bug.cgi?id=15381
+     Register Samba processes with GPFS
+   - https://bugzilla.samba.org/show_bug.cgi?id=15382
+     cli_list loops 100% CPU against pre-lanman2 servers
+   - https://bugzilla.samba.org/show_bug.cgi?id=15383
+     Remove comments about deprecated 'write cache size'
+   - https://bugzilla.samba.org/show_bug.cgi?id=15384
+     net ads lookup (with unspecified realm) fails
+   - https://bugzilla.samba.org/show_bug.cgi?id=15390
+     Python tarfile extraction needs change to avoid a warning
+     (CVE-2007-4559 mitigation)
+   - https://bugzilla.samba.org/show_bug.cgi?id=15391
+     smbclient leaks fds with showacls
+   - https://bugzilla.samba.org/show_bug.cgi?id=15398
+     The winbind child segfaults when listing users with
+     `winbind scan trusted domains = yes`
+   - https://bugzilla.samba.org/show_bug.cgi?id=15402
+     smbd returns NOT_FOUND when creating files on a r/o filesystem
+   - https://bugzilla.samba.org/show_bug.cgi?id=15403
+     smbget memory leak if failed to download files recursively
+   - https://bugzilla.samba.org/show_bug.cgi?id=15404
+     Backport --pidl-developer fixes
+  * remove dnsserver-rename-dns_name_equal.patch (applied upstream)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 05 Jul 2023 18:14:20 +0300
+
 samba (2:4.18.3+dfsg-3) unstable; urgency=medium
 
   * d/rules: query for DEB_HOST_ARCH, not DEB_HOST_ARCH_CPU,
