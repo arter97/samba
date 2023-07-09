@@ -105,15 +105,17 @@ with-glusterfs =
 endif
 
 ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
-# for some reason these platforms fail to find __atomic_{load,store}_8
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81358
+# on these platforms gcc does not link with -latomic, resulting in
 #   third_party/heimdal/lib/krb5/krcache.c.55.o: in function `krcc_get_principal':
 #   third_party/heimdal/lib/krb5/krcache.c:1395: undefined reference to `__atomic_load_8'
 #     ids.krcu_cache_and_princ_id = heim_base_atomic_load(&data->krc_cache_and_principal_id);
 #   third_party/heimdal/lib/base/heimbase-atomics.h:
 #     #include <stdatomic.h>
 #     #define heim_base_atomic_load(x)        atomic_load((x))
-# include a rough workaround for now (-latomic and <stdatomic.h> comes from gcc)
-LDFLAGS := ${LDFLAGS} -Wl,--as-needed -latomic
+# include a workaround for now
+# (-latomic and <stdatomic.h> comes from gcc, --as-needed is already in use)
+LDFLAGS := ${LDFLAGS} -latomic
 endif
 
 config-args += $(if ${with-ceph},\
