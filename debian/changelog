@@ -1,3 +1,15 @@
+samba (2:4.18.4+dfsg-2) unstable; urgency=medium
+
+  * +fix-unsupported-netr_LogonGetCapabilities-l2.patch
+    Fix windows logon/trust issues with 2023-07 windows updates:
+    https://bugzilla.samba.org/show_bug.cgi?id=15418
+  * d/copyright: also remove ctdb/doc/*.?.html pre-generated manpages
+    from the upstream tarball (forgotten previously)
+  * d/rules: add comment about -latomic gcc issue and drop --as-needed
+    there since it is already in use
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 14 Jul 2023 12:30:31 +0300
+
 samba (2:4.18.4+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release, including:
