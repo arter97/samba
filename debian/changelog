@@ -1,3 +1,32 @@
+samba (2:4.18.5+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/security release 4.18.5, including:
+   o CVE-2022-2127:  When winbind is used for NTLM authentication,
+     a maliciously crafted request can trigger an out-of-bounds read
+     in winbind and possibly crash it.
+     https://www.samba.org/samba/security/CVE-2022-2127.html
+   o CVE-2023-3347:  SMB2 packet signing is not enforced if an admin
+     configured "server signing = required" or for SMB2 connections to
+     Domain Controllers where SMB2 packet signing is mandatory.
+     https://www.samba.org/samba/security/CVE-2023-3347.html
+   o CVE-2023-34966: An infinite loop bug in Samba's mdssvc RPC service
+     for Spotlight can be triggered by an unauthenticated attacker by
+     issuing a malformed RPC request.
+     https://www.samba.org/samba/security/CVE-2023-34966.html
+   o CVE-2023-34967: Missing type validation in Samba's mdssvc RPC service
+     for Spotlight can be used by an unauthenticated attacker to trigger
+     a process crash in a shared RPC mdssvc worker process.
+     https://www.samba.org/samba/security/CVE-2023-34967.html
+   o CVE-2023-34968: As part of the Spotlight protocol Samba discloses
+     the server-side absolute path of shares and files and directories
+     in search results.
+     https://www.samba.org/samba/security/CVE-2023-34968.html
+   o BUG 15418: Secure channel faulty since Windows 10/11 update 07/2023.
+     https://bugzilla.samba.org/show_bug.cgi?id=15418
+     (this has been patched in the previous upload; Closes: #1041043)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 19 Jul 2023 17:55:58 +0300
+
 samba (2:4.18.4+dfsg-2) unstable; urgency=medium
 
   * +fix-unsupported-netr_LogonGetCapabilities-l2.patch
