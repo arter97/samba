@@ -39,7 +39,7 @@ Build-Depends-Arch:
 	libcmocka-dev (>= 1.1.3),
 	libcups2-dev,
 	libdbus-1-dev,
-	libglusterfs-dev [linux-any],
+	libglusterfs-dev [amd64 arm64 ppc64el ppc64 riscv64 mips64el s390x ia64 sparc64],
 	libgnutls28-dev,
 	libgpgme11-dev,
 	libicu-dev,

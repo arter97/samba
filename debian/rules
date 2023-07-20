@@ -75,7 +75,7 @@ config-args = \
 	--with-logdir=/var/log/ctdb \
 
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
-with-glusterfs = yes
+with-glusterfs = $(if $(filter amd64 arm64 ppc64el ppc64 riscv64 mips64el s390x ia64 sparc64,${DEB_HOST_ARCH}),yes)
 with-ceph = yes
 with-snapper = yes
 
@@ -101,7 +101,6 @@ endif
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
 omit-pkgs += ctdb libpam-winbind samba samba-testsuite samba-vfs-modules
 with-ceph =
-with-glusterfs =
 endif
 
 ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
