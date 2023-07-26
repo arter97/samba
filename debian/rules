@@ -76,13 +76,8 @@ config-args = \
 
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
 with-glusterfs = $(if $(filter amd64 arm64 ppc64el ppc64 riscv64 mips64el s390x ia64 sparc64,${DEB_HOST_ARCH}),yes)
-with-ceph = yes
+with-ceph = $(if $(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, ${DEB_HOST_ARCH}),yes)
 with-snapper = yes
-
-# Ceph is not available on all platforms
-ifeq (,$(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, ${DEB_HOST_ARCH}))
-with-ceph =
-endif
 
 config-args += \
 	--with-quota \
@@ -100,7 +95,6 @@ endif
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages and modules
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
 omit-pkgs += ctdb libpam-winbind samba samba-testsuite samba-vfs-modules
-with-ceph =
 endif
 
 ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
