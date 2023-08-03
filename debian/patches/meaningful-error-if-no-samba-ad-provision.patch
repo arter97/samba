@@ -1,6 +1,6 @@
-From 9610c15759fd6b27615615160f2c5019a32a7154 Mon Sep 17 00:00:00 2001
 From: Michael Tokarev <mjt@tls.msk.ru>
 Date: Fri, 2 Dec 2022 10:54:31 +0300
+Updated: Thu, 03 Aug 2023 17:06:24 +0300
 Subject: print meaningful error message if samba-ad-provision is not installed
 
 ---
@@ -8,13 +8,12 @@ Subject: print meaningful error message if samba-ad-provision is not installed
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/python/samba/provision/common.py b/python/samba/provision/common.py
-index 2f95492d33a..0561624baf8 100644
+index a6851b7e4c1..935918aa73f 100644
 --- a/python/samba/provision/common.py
 +++ b/python/samba/provision/common.py
-@@ -39,7 +39,10 @@ FILL_DRS = "DRS"
- 
+@@ -40,5 +40,8 @@ FILL_DRS = "DRS"
  def setup_path(file):
-     """Return an absolute path to the provision tempate file specified by file"""
+     """Return an absolute path to the provision template file specified by file"""
 -    return os.path.join(setup_dir(), file)
 +    path = os.path.join(setup_dir(), file)
 +    if not os.path.exists(path):
@@ -22,7 +21,3 @@ index 2f95492d33a..0561624baf8 100644
 +    return path
  
  
- def setup_add_ldif(ldb, ldif_path, subst_vars=None, controls=["relax:0"]):
--- 
-2.30.2
-

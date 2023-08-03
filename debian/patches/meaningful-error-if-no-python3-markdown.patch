@@ -1,18 +1,17 @@
-From 545162e59916b3bd712d2e8e52063278cf2bb7ca Mon Sep 17 00:00:00 2001
 From: Michael Tokarev <mjt@tls.msk.ru>
 Date: Fri, 2 Dec 2022 11:08:27 +0300
+Updated: Thu, 03 Aug 2023 17:10:59 +0300
 Subject: print meaningful error message if python3-markdown is not installed
 
 ---
- python/samba/netcmd/domain.py | 4 ++--
+ python/samba/netcmd/domain/schemaupgrade.py | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/python/samba/netcmd/domain.py b/python/samba/netcmd/domain.py
-index 2a548ed1ad4..cfbd602dce8 100644
---- a/python/samba/netcmd/domain.py
-+++ b/python/samba/netcmd/domain.py
-@@ -4133,8 +4133,8 @@ class cmd_domain_schema_upgrade(Command):
-         try:
+diff --git a/python/samba/netcmd/domain/schemaupgrade.py b/python/samba/netcmd/domain/schemaupgrade.py
+index 1d67ab58c15..858802635a2 100644
+--- a/python/samba/netcmd/domain/schemaupgrade.py
++++ b/python/samba/netcmd/domain/schemaupgrade.py
+@@ -229,6 +229,6 @@ class cmd_domain_schema_upgrade(Command):
              from samba.ms_schema_markdown import read_ms_markdown
          except ImportError as e:
 -            self.outf.write("Exception in importing markdown: %s" % e)
@@ -21,7 +20,3 @@ index 2a548ed1ad4..cfbd602dce8 100644
 +            raise CommandError('Failed to import module markdown, please install python3-markdown package')
          from samba.schema import Schema
  
-         updates_allowed_overridden = False
--- 
-2.30.2
-
