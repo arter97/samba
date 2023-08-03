@@ -95,7 +95,6 @@ usr/lib/*/samba/libmsghdr-samba4.so.0
 usr/lib/*/samba/libmsrpc3-samba4.so.0
 usr/lib/*/samba/libndr-samba-samba4.so.0
 usr/lib/*/samba/libndr-samba4.so.0
-usr/lib/*/samba/libnet-keytab-samba4.so.0
 usr/lib/*/samba/libnetif-samba4.so.0
 usr/lib/*/samba/libnpa-tstream-samba4.so.0
 usr/lib/*/samba/libpac-samba4.so.0
