@@ -45,6 +45,7 @@ usr/lib/*/samba/libMESSAGING-samba4.so.0
 usr/lib/*/samba/libREG-FULL-samba4.so.0
 usr/lib/*/samba/libRPC-SERVER-LOOP-samba4.so.0
 usr/lib/*/samba/libRPC-WORKER-samba4.so.0
+usr/lib/*/samba/libad-claims-samba4.so.0
 usr/lib/*/samba/libaddns-samba4.so.0
 usr/lib/*/samba/libads-samba4.so.0
 usr/lib/*/samba/libasn1util-samba4.so.0
@@ -52,6 +53,7 @@ usr/lib/*/samba/libauth-unix-token-samba4.so.0
 usr/lib/*/samba/libauth-samba4.so.0
 usr/lib/*/samba/libauth4-samba4.so.0
 usr/lib/*/samba/libauthkrb5-samba4.so.0
+usr/lib/*/samba/libauthn-policy-util-samba4.so.0
 usr/lib/*/samba/libcli-cldap-samba4.so.0
 usr/lib/*/samba/libcli-ldap-common-samba4.so.0
 usr/lib/*/samba/libcli-ldap-samba4.so.0
