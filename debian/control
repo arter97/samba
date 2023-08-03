@@ -183,8 +183,8 @@ Description: Samba common files used by both the server and the client
  or member server in Active Directory or NT4-style domains.
  .
  This package contains the common files that are used by both the server
- (provided in the samba package) and the client (provided in the samba-clients
- package).
+ (provided in the samba package) and the client (provided in the smbclient
+ libsmbclient packages).
 
 Package: samba-ad-dc
 Architecture: all
