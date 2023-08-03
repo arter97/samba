@@ -120,7 +120,6 @@ usr/lib/*/samba/libsecrets3-samba4.so.0
 usr/lib/*/samba/libserver-id-db-samba4.so.0
 usr/lib/*/samba/libserver-role-samba4.so.0
 usr/lib/*/samba/libservice-samba4.so.0
-usr/lib/*/samba/libshares-samba4.so.0
 usr/lib/*/samba/libsmb-transport-samba4.so.0
 usr/lib/*/samba/libsmbclient-raw-samba4.so.0
 usr/lib/*/samba/libsmbd-base-samba4.so.0
