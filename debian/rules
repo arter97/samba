@@ -15,8 +15,10 @@ WAF := PYTHONHASHSEED=1 ./buildtools/bin/waf \
 	$(patsubst parallel=%,-j%,$(filter parallel=%,${DEB_BUILD_OPTIONS}))
 
 ifeq (linux,${DEB_HOST_ARCH_OS})
+ifneq (${DEB_HOST_GNU_TYPE},${DEB_BUILD_GNU_TYPE})
 # for cross-build or build with foreign python binary (it is _gnu0_i386-gnu on hurd)
 export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__${DEB_HOST_ARCH_OS}_${DEB_HOST_MULTIARCH}
+endif
 endif
 
 DESTDIR = ${CURDIR}/debian/tmp
