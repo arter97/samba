@@ -66,8 +66,8 @@ Build-Depends-Arch:
 	python3-dnspython,
 	python3-etcd,
 	python3-markdown,
-	python3-testtools,
 # dependencies needed for selftest:
+#	python3-testtools <!nocheck>,
 #	lmdb-utils <!nocheck>,
 #	openssl <!nocheck>,
 #	python3-cryptography <!nocheck>,
