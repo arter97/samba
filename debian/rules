@@ -14,6 +14,9 @@ V := $(if $(filter terse, ${DEB_BUILD_OPTIONS}),,1)
 WAF := PYTHONHASHSEED=1 ./buildtools/bin/waf \
 	$(patsubst parallel=%,-j%,$(filter parallel=%,${DEB_BUILD_OPTIONS}))
 
+# stop python from generating .pyc caches
+export PYTHONDONTWRITEBYTECODE=1
+
 ifeq (linux,${DEB_HOST_ARCH_OS})
 ifneq (${DEB_HOST_GNU_TYPE},${DEB_BUILD_GNU_TYPE})
 # for cross-build or build with foreign python binary (it is _gnu0_i386-gnu on hurd)
