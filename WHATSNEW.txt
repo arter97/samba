@@ -1,7 +1,7 @@
 Release Announcements
 =====================
 
-This is the second release candidate of Samba 4.19.  This is *not*
+This is the fourth release candidate of Samba 4.19.  This is *not*
 intended for production environments and is designed for testing
 purposes only.  Please report any defects via the Samba bug reporting
 system at https://bugzilla.samba.org/.
@@ -135,6 +135,23 @@ member server's own domain, to only consume a header and 4 bytes per
 group in the PAC, not a full-length SID worth of space each.  This is
 known as "Resource SID compression".
 
+Resource Based Constrained Delegation (RBCD) support in both MIT and Heimdal
+-----------------------------------------------------------------------------
+
+Samba AD DC built with MIT Kerberos (1.20 and later) has offered RBCD
+support since Samba 4.17.  Samba 4.19 brings this feature to the
+default Heimdal KDC.
+
+Samba 4.17 added to samba-tool delegation the 'add-principal' and
+'del-principal' subcommands in order to manage RBCD, and the database
+changes made by these tools are now honoured by the Heimdal KDC once
+Samba is upgraded.
+
+Likewise, now both MIT (1.20 and later) and Heimdal KDCs add the
+Asserted Identity [1] SID into the PAC for constrained delegation.
+
+[1] https://docs.microsoft.com/en-us/windows-server/security/kerberos/kerberos-constrained-delegation-overview
+
 New samba-tool support for silos, claims, sites and subnets.
 ------------------------------------------------------------
 
@@ -233,6 +250,48 @@ smb.conf changes
   --------------                          -----------     -------
   winbind debug traceid                   Add traceid     No
   directory name cache size               Removed
+
+
+CHANGES SINCE 4.19.0rc3
+=======================
+
+o  Martin Schwenke <mschwenke@ddn.com>
+   * BUG 15460: Logging to stdout/stderr with DEBUG_SYSLOG_FORMAT_ALWAYS can log
+     to syslog.
+
+o  Joseph Sutton <josephsutton@catalyst.net.nz>
+   * BUG 15458: ‘samba-tool domain level raise’ fails unless given a URL.
+
+
+CHANGES SINCE 4.19.0rc2
+=======================
+
+o  Jeremy Allison <jra@samba.org>
+   * BUG 15420: reply_sesssetup_and_X() can dereference uninitialized tmp
+     pointer.
+   * BUG 15430: missing return in reply_exit_done().
+   * BUG 15432: TREE_CONNECT without SETUP causes smbd to use uninitialized
+     pointer.
+
+o  Andrew Bartlett <abartlet@samba.org>
+   * BUG 15401: Avoid infinite loop in initial user sync with Azure AD Connect
+     when synchronising a large Samba AD domain.
+   * BUG 15407: Samba replication logs show (null) DN.
+
+o  Stefan Metzmacher <metze@samba.org>
+   * BUG 15346: 2-3min delays at reconnect with smb2_validate_sequence_number:
+     bad message_id 2.
+   * BUG 15446: DCERPC_PKT_CO_CANCEL and DCERPC_PKT_ORPHANED can't be parsed.
+
+o  Martin Schwenke <mschwenke@ddn.com>
+   * BUG 15438: CID 1539212 causes real issue when output contains only
+     newlines.
+
+o  Joseph Sutton <josephsutton@catalyst.net.nz>
+   * BUG 15452: KDC encodes INT64 claims incorrectly.
+
+o  Jones Syue <jonessyue@qnap.com>
+   * BUG 15449: mdssvc: Do an early talloc_free() in _mdssvc_open().
 
 
 CHANGES SINCE 4.19.0rc1
