@@ -33,6 +33,7 @@ libndr.so.3 #PACKAGE# #MINVER#
  NDR_1.0.2@NDR_1.0.2 2:4.17.2
  NDR_2.0.0@NDR_2.0.0 2:4.17.2
  NDR_3.0.0@NDR_3.0.0 2:4.17.2
+ NDR_3.0.1@NDR_3.0.1 2:4.19.0~rc4
  _ndr_pull_error@NDR_1.0.0 2:4.17.2
  _ndr_push_error@NDR_1.0.0 2:4.17.2
  ndr_align_size@NDR_0.0.1 2:4.17.2
@@ -77,6 +78,7 @@ libndr.so.3 #PACKAGE# #MINVER#
  ndr_print_int16@NDR_0.0.1 2:4.17.2
  ndr_print_int3264@NDR_0.0.1 2:4.17.2
  ndr_print_int32@NDR_0.0.1 2:4.17.2
+ ndr_print_int64@NDR_3.0.1 2:4.19.0~rc4
  ndr_print_int8@NDR_0.0.1 2:4.17.2
  ndr_print_ipv4address@NDR_0.0.1 2:4.17.2
  ndr_print_ipv6address@NDR_0.0.1 2:4.17.2
@@ -144,6 +146,7 @@ libndr.so.3 #PACKAGE# #MINVER#
  ndr_pull_init_blob@NDR_0.0.1 2:4.17.2
  ndr_pull_int16@NDR_0.0.1 2:4.17.2
  ndr_pull_int32@NDR_0.0.1 2:4.17.2
+ ndr_pull_int64@NDR_3.0.1 2:4.19.0~rc4
  ndr_pull_int8@NDR_0.0.1 2:4.17.2
  ndr_pull_ipv4address@NDR_0.0.1 2:4.17.2
  ndr_pull_ipv6address@NDR_0.0.1 2:4.17.2
@@ -217,6 +220,7 @@ libndr.so.3 #PACKAGE# #MINVER#
  ndr_push_init_ctx@NDR_0.0.1 2:4.17.2
  ndr_push_int16@NDR_0.0.1 2:4.17.2
  ndr_push_int32@NDR_0.0.1 2:4.17.2
+ ndr_push_int64@NDR_3.0.1 2:4.19.0~rc4
  ndr_push_int8@NDR_0.0.1 2:4.17.2
  ndr_push_ipv4address@NDR_0.0.1 2:4.17.2
  ndr_push_ipv6address@NDR_0.0.1 2:4.17.2
