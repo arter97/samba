@@ -5846,7 +5846,7 @@ static bool run_deletetest(int dummy)
 
   fail:
 	/* FIXME: This will crash if we aborted before cli2 got
-	 * intialized, because these functions don't handle
+	 * initialized, because these functions don't handle
 	 * uninitialized connections. */
 
 	if (fnum1 != (uint16_t)-1) cli_close(cli1, fnum1);
@@ -9908,7 +9908,7 @@ bool torture_ioctl_test(int dummy)
 
 
 /*
-  tries varients of chkpath
+  tries variants of chkpath
  */
 bool torture_chkpath_test(int dummy)
 {
@@ -10073,7 +10073,7 @@ static bool run_eatest(int dummy)
 	}
 
 	/* Setting EA's to zero length deletes them. Test this */
-	printf("Now deleting all EA's - case indepenent....\n");
+	printf("Now deleting all EA's - case independent....\n");
 
 #if 1
 	cli_set_ea_path(cli, fname, "", "", 0);
@@ -10176,7 +10176,7 @@ static bool run_dirtest1(int dummy)
 		correct = False;
 
 	/* Ensure if we have the "must have" bits we only see the
-	 * relevent entries.
+	 * relevant entries.
 	 */
 	num_seen = 0;
 	cli_list_old(cli, "\\LISTDIR\\*", (FILE_ATTRIBUTE_DIRECTORY<<8)|FILE_ATTRIBUTE_DIRECTORY, list_fn, &num_seen);
@@ -14999,6 +14999,42 @@ static bool run_smb1_negotiate_exit(int dummy)
 	return true;
 }
 
+static bool run_smb1_negotiate_tcon(int dummy)
+{
+	struct cli_state *cli = NULL;
+	uint16_t cnum = 0;
+	uint16_t max_xmit = 0;
+	NTSTATUS status;
+
+	printf("Starting send SMB1 negotiate+tcon.\n");
+	cli = open_nbt_connection();
+	if (cli == NULL) {
+		d_fprintf(stderr, "open_nbt_connection failed!\n");
+		return false;
+	}
+	smbXcli_conn_set_sockopt(cli->conn, sockops);
+
+	status = smbXcli_negprot(cli->conn, 0, PROTOCOL_NT1, PROTOCOL_NT1);
+	if (!NT_STATUS_IS_OK(status)) {
+		d_fprintf(stderr, "smbXcli_negprot failed %s!\n",
+			nt_errstr(status));
+		return false;
+	}
+        status = cli_raw_tcon(cli,
+			      share,
+			      "",
+			      "?????",
+			      &max_xmit,
+			      &cnum);
+	if (!NT_STATUS_EQUAL(status, NT_STATUS_ACCESS_DENIED)) {
+		d_fprintf(stderr, "cli_raw_tcon failed - got %s "
+			"(should get NT_STATUS_ACCESS_DENIED)!\n",
+			nt_errstr(status));
+		return false;
+	}
+	return true;
+}
+
 static bool run_ign_bad_negprot(int dummy)
 {
 	struct tevent_context *ev;
@@ -15736,6 +15772,10 @@ static struct {
 		.fn    = run_smb1_negotiate_exit,
 	},
 	{
+		.name  = "SMB1-NEGOTIATE-TCON",
+		.fn    = run_smb1_negotiate_tcon,
+	},
+	{
 		.name  = "SMB1-DFS-PATHS",
 		.fn    = run_smb1_dfs_paths,
 	},
@@ -15746,6 +15786,10 @@ static struct {
 	{
 		.name  = "SMB1-DFS-OPERATIONS",
 		.fn    = run_smb1_dfs_operations,
+	},
+	{
+		.name  = "SMB1-DFS-BADPATH",
+		.fn    = run_smb1_dfs_check_badpath,
 	},
 	{
 		.name  = "CLEANUP1",
@@ -15996,6 +16040,10 @@ static struct {
 	{
 		.name  = "rpc-scale",
 		.fn    = run_rpc_scale,
+	},
+	{
+		.name  = "LOCAL-TDB-VALIDATE",
+		.fn    = run_tdb_validate,
 	},
 	{
 		.name = NULL,

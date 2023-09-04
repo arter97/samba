@@ -3069,7 +3069,7 @@ retry:
 }
 
 /****************************************************************************
-Open a LSA connection to a DC, suiteable for LSA lookup calls.
+Open a LSA connection to a DC, suitable for LSA lookup calls.
 ****************************************************************************/
 
 NTSTATUS cm_connect_lsat(struct winbindd_domain *domain,
@@ -3225,7 +3225,7 @@ static NTSTATUS cm_connect_netlogon_transport(struct winbindd_domain *domain,
 }
 
 /****************************************************************************
-Open a NETLOGON connection to a DC, suiteable for SamLogon calls.
+Open a NETLOGON connection to a DC, suitable for SamLogon calls.
 ****************************************************************************/
 
 NTSTATUS cm_connect_netlogon(struct winbindd_domain *domain,
