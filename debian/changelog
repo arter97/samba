@@ -1,8 +1,37 @@
-samba (2:4.19.0+dfsg-1) UNRELEASED; urgency=medium
+samba (2:4.19.0+dfsg-1) unstable; urgency=medium
 
-  * new upstream release
+  * new upstream release. Some highlights:
+   o changed command-line interface of smbget utility
+   o improved winbindd logging
+   o AD database prepared to FL 2016 standards for new domains
+   o initial, partial implementation of AD FL 2012, 2012R2 and 2016
+   o samba-tool support for silos, claims, sites and subnets
+   o updated Heimdal import
+   o other improvements and changes, see WHATSNEW.txt file for details.
+  * d/patches: remove patches applied upstream, refresh patches
+  * d/control: update talloc/tevent/tdb build-deps
+  * d/smbclient.install: remove smbgetrc.5
+  * d/patches: add ldb 2.7.1 & 2.7.2 ABI files
+  * d/libldb2.symbols: add new symbols (ldb_val_as_*) and new version (2.8.0)
+  * d/python3-ldb.symbols: remove unused versions, add new version
+  * d/control: fix description of samba-common-bin (samba-client)
+  * d/samba-common-bin.install: install samba-log-parser (for winbindd for now)
+  * d/samba-libs.install: 2 new libs
+  * d/samba-libs.install, d/samba-testsuite.install: move libshares-samba4.so.0
+    from samba-libs to samba-testsuite
+  * d/samba-libs.install, d/samba-vfs-modules.install: move
+    libdfs-server-ad-samba4.so.0 from samba-libs to samba-vfs-modules
+  * d/samba-libs.install, d/samba-common-bin.install: move
+    libnet-keytab-samba4.so.0 from samba-libs to samba-common-bin (used by net)
+  * d/samba-libs.install, d/samba-common-bin.install: move
+    libRPC-WORKER-samba4.so.0 from samba-libs to samba-common-bin
+    (used by usr/libexec/samba/rpcd_*)
+  * samba-libs: add libndr 3.0.1 symbols
+  * d/source/lintian-overrides: remove unused source-is-missing override
+  * d/samba-vfs-modules.lintian-overrides: remove unused
+    spelling-error-in-binary override
 
- -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 04 Sep 2023 22:41:25 +0300
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 04 Sep 2023 22:57:48 +0300
 
 samba (2:4.18.6+dfsg-1) unstable; urgency=medium
 
