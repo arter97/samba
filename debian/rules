@@ -32,14 +32,6 @@ LDB_DEB_VERSION = ${LDB_EPOCH}${LDB_VERSION}+samba${DEB_VERSION_UPSTREAM_REVISIO
 LDB_DEPENDS = libldb2 (= ${LDB_DEB_VERSION})
 LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 
-# #1021371: we only need the single "version" symbol LDB_2.4.4 in the library
-# should be removed for bookworm+. Also LDB_2.4.4 in d/libldb2.symbols
-# 2.6.2 is bookworm-only symbol (but keep an eye on bookworm-backports)
-EXTRA_ABI_VERSION_FILES = \
-	lib/ldb/ABI/ldb-2.4.4.sigs \
-	lib/ldb/ABI/ldb-2.6.2.sigs \
-	lib/ldb/ABI/ldb-2.7.1.sigs \
-
 omit-pkgs =
 with-glusterfs =
 with-ceph =
@@ -167,8 +159,6 @@ bin/configured.stamp:
 	PYTHON=python3 PYTHON_CONFIG=${DEB_HOST_MULTIARCH}-python3-config \
 	    ${WAF} -j1 -C configure ${config-args} || \
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
-# #1021371: we only need the single "version" symbol LDB_2.4.4 in the library
-	touch ${EXTRA_ABI_VERSION_FILES}
 # #1013205: https://lists.samba.org/archive/samba-technical/2022-November/137788.html
 	rm -f third_party/heimdal/lib/gssapi/gssapi.h
 ifneq (,${with_mitkrb5}) # ensure we do not use embedded heimdal in any way
@@ -409,7 +399,6 @@ endif
 clean:
 	# see also debian/clean
 	dh_clean bin/ testbuild/
-	rm -f ${EXTRA_ABI_VERSION_FILES}
 	[ ! -f VERSION.orig ] || mv -f VERSION.orig VERSION
 ifneq (,${with_mitkrb5})
 	[ ! -d third_party/heimdal-build-with-mitkrb5 ] || \
