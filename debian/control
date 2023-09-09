@@ -130,7 +130,11 @@ Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Architecture: any
 Section: libs
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends},
+# since libldb ABI is incorrectly versioned resulting in breakage like #1021371,
+# just require libldb version of the same build
+# https://lists.samba.org/archive/samba-technical/2023-September/138422.html
+ ${ldb:Depends},
 Replaces:
 # libsamba-util.so &deps moved from libwbclient0 to samba-libs in 4.16.1+dfsg-7
  libwbclient0 (<< 2:4.16.1+dfsg-7~),
@@ -542,7 +546,7 @@ Depends: ${misc:Depends},
 Breaks: ldb-tools (<<1.1.30~),
         samba (<<2:4.7.0~),
         samba-dsdb-modules (<< 2:4.7.0~),
-        samba-libs (<< 2:4.7.0~),
+        samba-libs (<< 2:4.19.0~),
         samba-testsuite (<< 2:4.7.0~)
 Description: LDAP-like embedded database - shared library
  ldb is a LDAP-like embedded database built on top of TDB.
