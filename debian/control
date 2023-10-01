@@ -47,7 +47,7 @@ Build-Depends-Arch:
 	libjansson-dev,
 	libjson-perl,
 	libkeyutils-dev,
-	libkrb5-dev (>= 1.19.0~) <pkg.samba.mitkrb5>,
+	libkrb5-dev (>= 1.20.0~) <pkg.samba.mitkrb5>,
 	libldap2-dev,
 	liblmdb-dev,
 	libpam0g-dev,
