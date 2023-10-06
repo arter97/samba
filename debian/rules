@@ -299,7 +299,6 @@ endif
 	install -Dp -m0755 debian/panic-action  -t debian/samba-common/usr/share/samba/
 	install -Dp -m0755 debian/is-configured -t debian/samba-common/usr/share/samba/
 	install -Dp -m0644 debian/gdbcommands -t debian/samba-common/etc/samba/
-	install -Dp -m0755 debian/samba-common.dhcp debian/samba-common/etc/dhcp/dhclient-enter-hooks.d/samba
 	# we wrongly have pam file in samba-common instead of samba
 	install -Dp -m0644 debian/samba.pam debian/samba-common/etc/pam.d/samba
 
