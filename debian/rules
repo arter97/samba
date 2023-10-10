@@ -76,7 +76,7 @@ config-args = \
 
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
 with-glusterfs = $(if $(filter amd64 arm64 ppc64el ppc64 riscv64 mips64el s390x ia64 sparc64,${DEB_HOST_ARCH}),yes)
-with-ceph = $(if $(filter amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x, ${DEB_HOST_ARCH}),yes)
+with-ceph = $(if $(filter amd64 arm64 mips64el ppc64el riscv64 s390x, ${DEB_HOST_ARCH}),yes)
 with-snapper = yes
 
 config-args += \
