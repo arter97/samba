@@ -35,6 +35,7 @@ Build-Depends-Arch:
 	libblkid-dev,
 	libbsd-dev,
 	libcap-dev [linux-any],
+# the same [arch list] is in rules (with-ceph) and ctdb.install
 	libcephfs-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
 	librados-dev  [amd64 arm64 mips64el ppc64el riscv64 s390x],
 	libcmocka-dev (>= 1.1.3),
