@@ -1,3 +1,31 @@
+samba (2:4.19.2+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15423
+     Use-after-free in aio_del_req_from_fsp during smbd shutdown
+     after failed IPC FSCTL_PIPE_TRANSCEIVE
+   - https://bugzilla.samba.org/show_bug.cgi?id=15426
+     clidfs.c do_connect() missing a "return" after a cli_shutdown() call
+   - https://bugzilla.samba.org/show_bug.cgi?id=15463
+     macOS mdfind returns only 50 results
+   - https://bugzilla.samba.org/show_bug.cgi?id=15481
+     GETREALFILENAME_CACHE can modify incoming new filename
+     with previous cache entry value
+   - https://bugzilla.samba.org/show_bug.cgi?id=15464
+     libnss_winbind causes memory corruption since samba-4.18,
+     impacts sendmail, zabbix, potentially more
+   - https://bugzilla.samba.org/show_bug.cgi?id=15479
+     ctdbd: setproctitle not initialized messages flooding logs
+   - https://bugzilla.samba.org/show_bug.cgi?id=15491
+     CVE-2023-5568 Heap buffer overflow with freshness tokens
+     in the Heimdal KDC in Samba 4.19
+   - https://bugzilla.samba.org/show_bug.cgi?id=15477
+     The heimdal KDC doesn't detect s4u2self correctly when fast is in use
+  * d/samba-common.maintscript: remove obsolete conffile
+    /etc/dhcp/dhclient-enter-hooks.d/samba conffile (Closes: #1053780)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 16 Oct 2023 18:26:31 +0300
+
 samba (2:4.19.1+dfsg-4) unstable; urgency=medium
 
   * d/samba-common.postinst: restore installing of smb.conf using ucf
