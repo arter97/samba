@@ -22,7 +22,7 @@ samba (2:4.19.2+dfsg-1) unstable; urgency=medium
    - https://bugzilla.samba.org/show_bug.cgi?id=15477
      The heimdal KDC doesn't detect s4u2self correctly when fast is in use
   * d/samba-common.maintscript: remove obsolete conffile
-    /etc/dhcp/dhclient-enter-hooks.d/samba conffile (Closes: #1053780)
+    /etc/dhcp/dhclient-enter-hooks.d/samba (Closes: #1053780)
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 16 Oct 2023 18:26:31 +0300
 
@@ -41,7 +41,7 @@ samba (2:4.19.1+dfsg-3) unstable; urgency=medium
 
 samba (2:4.19.1+dfsg-2) unstable; urgency=medium
 
-  * d/rules: sync with-ceph arch list from d/control 
+  * d/rules: sync with-ceph arch list from d/control
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 10 Oct 2023 19:03:42 +0300
 
