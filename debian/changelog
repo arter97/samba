@@ -1,3 +1,35 @@
+samba (2:4.19.3+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=13595
+     CVE-2018-14628 [SECURITY] Deleted Object tombstones visible in AD LDAP
+     to normal users (Closes: #1034803).  Please see WHATSNEW.txt file for
+     more information about this issue: actual fix requires extra steps to
+     be performed against samba-based AD-DC
+   - https://bugzilla.samba.org/show_bug.cgi?id=15093
+     Files without "read attributes" NFS4 ACL permission are not listed
+     in directories
+   - https://bugzilla.samba.org/show_bug.cgi?id=15487
+     smbd crashes if asked to return full information on close of
+     a stream handle with delete on close disposition set
+   - https://bugzilla.samba.org/show_bug.cgi?id=15492
+     Kerberos TGS-REQ with User2User does not work for normal accounts
+   - https://bugzilla.samba.org/show_bug.cgi?id=15499
+     Improve logging for failover scenarios
+   - https://bugzilla.samba.org/show_bug.cgi?id=15507
+     vfs_gpfs stat calls fail due to file system permissions
+   - https://bugzilla.samba.org/show_bug.cgi?id=15513
+     Samba doesn't build with Python 3.12
+   - https://bugzilla.samba.org/show_bug.cgi?id=15520
+     sid_strings test broken by unix epoch > 1700000000
+   - https://bugzilla.samba.org/show_bug.cgi?id=15521
+     smbd: fix close order of base_fsp and stream_fsp
+     in smb_fname_fsp_destructor()
+  * d/samba-common.maintscript: fix version number for dhcp hook removal
+    (Closes: #1053780)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 27 Nov 2023 22:22:54 +0300
+
 samba (2:4.19.2+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
