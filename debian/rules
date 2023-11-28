@@ -111,6 +111,14 @@ ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
 LDFLAGS += -latomic
 endif
 
+ifneq (,$(filter m68k ,${DEB_HOST_ARCH}))
+# without this, build fails with multiple messages like:
+# foo.s:NNN: Error: Adjusted signed .word (0xb64a) overflows: `switch'-statement too large.
+# when building third_party/heimdal/lib/asn1/asn1_rfc2459_asn1.c (generated)
+# It would be best to enable this switch for a single file only (where it is needed)
+CFLAGS += -mlong-jump-table-offsets
+endif
+
 config-args += $(if ${with-ceph},\
 	  --enable-cephfs --enable-ceph-reclock,\
 	  --disable-cephfs)
