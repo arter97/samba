@@ -108,7 +108,7 @@ ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
 #     #define heim_base_atomic_load(x)        atomic_load((x))
 # include a workaround for now
 # (-latomic and <stdatomic.h> comes from gcc, --as-needed is already in use)
-LDFLAGS := ${LDFLAGS} -latomic
+LDFLAGS += -latomic
 endif
 
 config-args += $(if ${with-ceph},\
