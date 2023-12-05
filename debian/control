@@ -196,7 +196,7 @@ Package: samba-ad-dc
 Architecture: all
 Multi-Arch: foreign
 Pre-Depends: ${misc:Pre-Depends}
-Depends: samba (>= ${binary:Version}), samba-dsdb-modules, samba-vfs-modules,
+Depends: samba (>= ${source:Version}~), samba-dsdb-modules, samba-vfs-modules,
 	winbind,
 	krb5-kdc (>> 1.19.0) <pkg.samba.mitkrb5>,
 	${misc:Depends}
