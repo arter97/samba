@@ -119,6 +119,9 @@ ifneq (,$(filter m68k ,${DEB_HOST_ARCH}))
 CFLAGS += -mlong-jump-table-offsets
 endif
 
+# build is done in bin/default/ subdir
+CFLAGS += -ffile-prefix-map=../../=
+
 config-args += $(if ${with-ceph},\
 	  --enable-cephfs --enable-ceph-reclock,\
 	  --disable-cephfs)
