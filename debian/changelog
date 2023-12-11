@@ -1,3 +1,13 @@
+samba (2:4.19.3+dfsg-2) unstable; urgency=medium
+
+  * d/rules: simplify LDFLAGS assignment
+  * d/rules: add -mlong-jump-table-offsets to CFLAGS on m68k (fix FTBFS there)
+  * d/rules: CFLAGS += -ffile-prefix-map=../../=
+  * d/control: fix versioned dependency on samba for samba-ad-dc
+  * +python-fix-invalid-escape-sequences.patch from upstream (Closes: #1057668)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 11 Dec 2023 13:19:18 +0300
+
 samba (2:4.19.3+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
