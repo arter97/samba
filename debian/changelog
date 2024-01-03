@@ -1,3 +1,21 @@
+samba (2:4.19.3+dfsg-3) UNRELEASED; urgency=medium
+
+  * d/control: drop pkg.samba.nouring build profile: was needed
+    for focal which we do not support anymore
+  * remove /etc/cron.daily/samba: there's no reason to keep backing it up,
+    most stuff is in ldb/tdb files these days.
+  * d/samba.maintscript, d/winbind.maintscript:
+    remove old rm_connfiles (pre-buster versions)
+  * d/rules, d/*.service: provide .service files directly instead of renaming
+    and patching upstream templates, and use dh_installsystemd to install them
+    (partially Closes: #1059187)
+  * d/rules: run dh_movetousr for libpam-winbind & libnss-winbind, if exists.
+    This fixes remaining files in /lib (hopefully). In a search for better
+    way to detect where to put system libs (/lib vs /usr/lib) as a configure
+    option.  Closes: #1059187
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 03 Jan 2024 16:56:14 +0300
+
 samba (2:4.19.3+dfsg-2) unstable; urgency=medium
 
   * d/rules: simplify LDFLAGS assignment
