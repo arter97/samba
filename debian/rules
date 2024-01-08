@@ -381,6 +381,8 @@ ifneq (,$(filter ${build-pkgs}, ${mitkrb5-dep-pkgs}))
 	dh_gencontrol $(addprefix -p, $(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})) -- -v${mitkrb5-samba-ver} -Vldb:Depends="${LDB_DEPENDS}"
 endif
 	dh_gencontrol --remaining-packages -- -Vldb:Depends="${LDB_DEPENDS}"
+# move files from / to /usr if needed (#1059187):
+	if command -v dh_movetousr >/dev/null; then dh_movetousr -plibpam-winbind -plibnss-winbind; fi
 
 clean:
 	# see also debian/clean
