@@ -96,7 +96,6 @@ Depends: passwd,
          ${python3:Depends},
          ${shlibs:Depends}
 Recommends: attr,
-            logrotate,
             python3-markdown,
             samba-dsdb-modules,
             samba-vfs-modules,
@@ -508,7 +507,7 @@ Depends: iproute2 [linux-any],
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: ethtool [linux-any], python3:any, python3-etcd, ${rados:Depends}
-Suggests: logrotate, lsof
+Suggests: lsof
 Description: clustered database to store temporary data
  CTDB is a cluster implementation of the TDB database used by Samba and other
  projects to store temporary data. If an application is already using TDB for
