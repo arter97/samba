@@ -23,11 +23,11 @@ Build-Depends-Arch:
 	po-debconf,
 	rpcsvc-proto  <!pkg.samba.before-trixie>,
 # libraries which we embed but use system versions of:
-	libtalloc-dev (>= 2.4.1~),
-	python3-talloc-dev (>= 2.4.1~),
-	libtevent-dev (>= 0.15.0~),
-	libtdb-dev (>= 1.4.9~),
-	python3-tdb (>= 1.4.9~),
+	libtalloc-dev (>= 2.4.2~),
+	python3-talloc-dev (>= 2.4.2~),
+	libtevent-dev (>= 0.16.1~),
+	libtdb-dev (>= 1.4.10~),
+	python3-tdb (>= 1.4.10~),
 # system libraries:
 	pkgconf,
 	libacl1-dev,
