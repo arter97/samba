@@ -69,7 +69,7 @@ usr/lib/*/samba/libdb-glue-private-samba.so.0
 usr/lib/*/samba/libdbwrap-private-samba.so.0
 usr/lib/*/samba/libdcerpc-pkt-auth-private-samba.so.0
 usr/lib/*/samba/libdcerpc-samba-private-samba.so.0
-usr/lib/*/samba/libdcerpc-private-samba.so.0
+usr/lib/*/samba/libdcerpc-samba4-private-samba.so.0
 usr/lib/*/samba/libdnsserver-common-private-samba.so.0
 usr/lib/*/samba/libdsdb-garbage-collect-tombstones-private-samba.so.0
 usr/lib/*/samba/libdsdb-module-private-samba.so.0
@@ -93,7 +93,7 @@ usr/lib/*/samba/libmessages-util-private-samba.so.0
 usr/lib/*/samba/libmsghdr-private-samba.so.0
 usr/lib/*/samba/libmsrpc3-private-samba.so.0
 usr/lib/*/samba/libndr-samba-private-samba.so.0
-usr/lib/*/samba/libndr-private-samba.so.0
+usr/lib/*/samba/libndr-samba4-private-samba.so.0
 usr/lib/*/samba/libnetif-private-samba.so.0
 usr/lib/*/samba/libnpa-tstream-private-samba.so.0
 usr/lib/*/samba/libpac-private-samba.so.0
