@@ -35,6 +35,8 @@ libndr.so.4 libndr4 #MINVER#
  NDR_2.0.0@NDR_2.0.0 2:4.17.2
  NDR_3.0.0@NDR_3.0.0 2:4.17.2
  NDR_3.0.1@NDR_3.0.1 2:4.19.0~rc4
+ NDR_3.0.2@NDR_3.0.2 2:4.20.0~rc1
+ NDR_4.0.0@NDR_4.0.0 2:4.20.0~rc1
  _ndr_pull_error@NDR_1.0.0 2:4.17.2
  _ndr_push_error@NDR_1.0.0 2:4.17.2
  ndr_align_size@NDR_0.0.1 2:4.17.2
@@ -83,6 +85,7 @@ libndr.so.4 libndr4 #MINVER#
  ndr_print_int8@NDR_0.0.1 2:4.17.2
  ndr_print_ipv4address@NDR_0.0.1 2:4.17.2
  ndr_print_ipv6address@NDR_0.0.1 2:4.17.2
+ ndr_print_libndr_flags@NDR_4.0.0 2:4.20.0~rc1
  ndr_print_ndr_syntax_id@NDR_0.0.1 2:4.17.2
  ndr_print_netr_SamDatabaseID@NDR_0.0.1 2:4.17.2
  ndr_print_netr_SchannelType@NDR_0.0.1 2:4.17.2
@@ -103,6 +106,7 @@ libndr.so.4 libndr4 #MINVER#
  ndr_print_time_t@NDR_0.0.1 2:4.17.2
  ndr_print_timespec@NDR_0.0.1 2:4.17.2
  ndr_print_timeval@NDR_0.0.1 2:4.17.2
+ ndr_print_u16string@NDR_4.0.0 2:4.20.0~rc1
  ndr_print_udlong@NDR_0.0.1 2:4.17.2
  ndr_print_udlongr@NDR_0.0.1 2:4.17.2
  ndr_print_uid_t@NDR_0.0.1 2:4.17.2
@@ -171,6 +175,7 @@ libndr.so.4 libndr4 #MINVER#
  ndr_pull_struct_blob@NDR_0.0.1 2:4.17.2
  ndr_pull_struct_blob_all@NDR_0.0.1 2:4.17.2
  ndr_pull_struct_blob_all_noalloc@NDR_0.0.7 2:4.17.2
+ ndr_pull_struct_blob_noalloc@NDR_3.0.2 2:4.20.0~rc1
  ndr_pull_subcontext_end@NDR_0.0.1 2:4.17.2
  ndr_pull_subcontext_start@NDR_0.0.1 2:4.17.2
  ndr_pull_svcctl_ServerType@NDR_0.0.1 2:4.17.2
@@ -178,6 +183,7 @@ libndr.so.4 libndr4 #MINVER#
  ndr_pull_timespec@NDR_0.0.1 2:4.17.2
  ndr_pull_timeval@NDR_0.0.1 2:4.17.2
  ndr_pull_trailer_align@NDR_0.0.1 2:4.17.2
+ ndr_pull_u16string@NDR_4.0.0 2:4.20.0~rc1
  ndr_pull_udlong@NDR_0.0.1 2:4.17.2
  ndr_pull_udlongr@NDR_0.0.1 2:4.17.2
  ndr_pull_uid_t@NDR_0.0.1 2:4.17.2
@@ -253,6 +259,7 @@ libndr.so.4 libndr4 #MINVER#
  ndr_push_timespec@NDR_0.0.1 2:4.17.2
  ndr_push_timeval@NDR_0.0.1 2:4.17.2
  ndr_push_trailer_align@NDR_0.0.1 2:4.17.2
+ ndr_push_u16string@NDR_4.0.0 2:4.20.0~rc1
  ndr_push_udlong@NDR_0.0.1 2:4.17.2
  ndr_push_udlongr@NDR_0.0.1 2:4.17.2
  ndr_push_uid_t@NDR_0.0.1 2:4.17.2
