@@ -50,7 +50,7 @@ Build-Depends-Arch:
 	libjansson-dev,
 	libjson-perl,
 	libkeyutils-dev,
-	libkrb5-dev (>= 1.20.0~) <pkg.samba.mitkrb5>,
+	libkrb5-dev (>= 1.21.0~) <pkg.samba.mitkrb5>,
 	libldap2-dev,
 	liblmdb-dev,
 	libpam0g-dev,
@@ -204,7 +204,7 @@ Multi-Arch: foreign
 Pre-Depends: ${misc:Pre-Depends}
 Depends: samba (>= ${source:Version}~), samba-dsdb-modules, samba-vfs-modules,
 	winbind,
-	krb5-kdc (>> 1.19.0) <pkg.samba.mitkrb5>,
+	krb5-kdc (>= 1.21.0~) <pkg.samba.mitkrb5>,
 	${misc:Depends}
 Recommends: libnss-winbind, libpam-winbind,
 # samba-ad-provision is needed for setup only
