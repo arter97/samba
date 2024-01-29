@@ -13,6 +13,7 @@ libsmbclient.so.0 #PACKAGE# #MINVER#
  SMBCLIENT_0.5.0@SMBCLIENT_0.5.0 2:4.10.0+dfsg
  SMBCLIENT_0.6.0@SMBCLIENT_0.6.0 2:4.12.0+dfsg
  SMBCLIENT_0.7.0@SMBCLIENT_0.7.0 2:4.16.0+dfsg
+ SMBCLIENT_0.8.0@SMBCLIENT_0.8.0 2:4.20.0~rc1
  smbc_chmod@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_close@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_closedir@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
@@ -79,6 +80,7 @@ libsmbclient.so.0 #PACKAGE# #MINVER#
  smbc_getOptionNoAutoAnonymousLogin@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_getOptionOneSharePerServer@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_getOptionOpenShareMode@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
+ smbc_getOptionPosixExtensions@SMBCLIENT_0.8.0 2:4.20.0~rc1
  smbc_getOptionSmbEncryptionLevel@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_getOptionUrlEncodeReaddirEntries@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_getOptionUseCCache@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
@@ -174,6 +176,7 @@ libsmbclient.so.0 #PACKAGE# #MINVER#
  smbc_setOptionNoAutoAnonymousLogin@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_setOptionOneSharePerServer@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_setOptionOpenShareMode@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
+ smbc_setOptionPosixExtensions@SMBCLIENT_0.8.0 2:4.20.0~rc1
  smbc_setOptionProtocols@SMBCLIENT_0.5.0 2:4.10.0+dfsg
  smbc_setOptionSmbEncryptionLevel@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_setOptionUrlEncodeReaddirEntries@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
