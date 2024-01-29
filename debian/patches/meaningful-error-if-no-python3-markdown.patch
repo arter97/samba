@@ -12,7 +12,7 @@ index 1d67ab58c15..858802635a2 100644
 @@ -229,6 +229,6 @@ class cmd_domain_schema_upgrade(Command):
              from samba.ms_schema_markdown import read_ms_markdown
          except ImportError as e:
--            self.outf.write("Exception in importing markdown: %s" % e)
+-            self.outf.write("Exception in importing markdown: %s\n" % e)
 -            raise CommandError('Failed to import module markdown')
 +            self.outf.write("Exception in importing markdown: %s\n" % e)
 +            raise CommandError('Failed to import module markdown, please install python3-markdown package')
