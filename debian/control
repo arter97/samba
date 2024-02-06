@@ -75,7 +75,7 @@ Build-Depends-Arch:
 #	python3-iso8601 <!nocheck>,
 #	python3-pyasn1 <!nocheck>,
 #	tdb-tools <!nocheck>,
-Rules-Requires-Root: binary-targets
+Rules-Requires-Root: no
 Vcs-Browser: https://salsa.debian.org/samba-team/samba
 Vcs-Git: https://salsa.debian.org/samba-team/samba.git
 
