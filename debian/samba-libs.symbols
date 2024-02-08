@@ -1,3 +1,4 @@
+# libndrN is a virtual package provided by samba-libs
 libndr.so.3 libndr3 #MINVER#
 * Build-Depends-Package: samba-dev
  GUID_all_zero@NDR_0.0.1 2:4.17.2
