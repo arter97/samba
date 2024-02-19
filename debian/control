@@ -27,7 +27,7 @@ Build-Depends-Arch:
 	libtdb-dev (>= 1.4.9~),
 	python3-tdb (>= 1.4.9~),
 # system libraries:
-	pkg-config,
+	pkgconf,
 	libacl1-dev,
 	libarchive-dev,
 	libavahi-client-dev,
@@ -583,7 +583,6 @@ Depends: libc6-dev,
          libtalloc-dev,
          libtevent-dev,
          libtdb-dev,
-         pkg-config,
          ${misc:Depends}
 Description: LDAP-like embedded database - development files
  ldb is a LDAP-like embedded database built on top of TDB.
@@ -613,7 +612,6 @@ Section: libdevel
 Architecture: any
 Depends: libc6-dev,
          libldb-dev,
-         pkg-config,
          python3-ldb (= ${binary:Version}),
          ${misc:Depends}
 Description: LDB Python 3 bindings - development files
