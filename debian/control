@@ -144,6 +144,9 @@ Replaces:
 Breaks:
  libwbclient0 (<< 2:4.16.1+dfsg-7~),
  samba (<< 2:4.17.0+dfsg-2~),
+ sssd-ad (<< 2.9.4-1+b1),
+ sssd-ad-common (<< 2.9.4-1+b1),
+ sssd-ipa (<< 2.9.4-1+b1),
 Description: Samba core libraries
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
@@ -190,7 +193,7 @@ Description: Samba common files used by both the server and the client
  .
  This package contains the common files that are used by both the server
  (provided in the samba package) and the client (provided in the smbclient
- libsmbclient packages).
+ libsmbclient0 packages).
 
 Package: samba-ad-dc
 Architecture: all
@@ -370,7 +373,11 @@ Description: Samba Virtual FileSystem plugins
  Note: The runtime dependencies of vfs_ceph, vfs_glusterfs and vfs_snapper are
  moved to Recommends.
 
-Package: libsmbclient
+Package: libsmbclient0
+Provides: ${t64:Provides}
+X-Time64-Compat: libsmbclient
+Replaces: libsmbclient
+Breaks: libsmbclient (<< ${source:Version})
 Section: libs
 Architecture: any
 Multi-Arch: same
@@ -385,8 +392,8 @@ Package: libsmbclient-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: libsmbclient (= ${binary:Version}), ${misc:Depends}
-Description: development files for libsmbclient
+Depends: libsmbclient0 (= ${binary:Version}), ${misc:Depends}
+Description: development files for libsmbclient0
  This package provides the development files (static library and headers)
  required for building applications against libsmbclient, a library that
  enables client applications to talk to Microsoft Windows and Samba servers
