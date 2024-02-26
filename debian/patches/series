@@ -24,3 +24,4 @@ meaningful-error-if-no-python3-markdown.patch
 ctdb-use-run-instead-of-var-run.patch
 silence-can-not-convert-group-sid.diff
 edns0.patch
+passchange-error-message.patch
