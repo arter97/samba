@@ -25,3 +25,4 @@ ctdb-use-run-instead-of-var-run.patch
 silence-can-not-convert-group-sid.diff
 edns0.patch
 passchange-error-message.patch
+lower-dns-lookup-mismatch-messages.patch
