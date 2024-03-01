@@ -237,6 +237,8 @@ override_dh_auto_install-arch:
 	# Included in python-tevent?
 	rm debian/tmp/usr/lib/python*/*-packages/_tevent.*
 	rm debian/tmp/usr/lib/python*/*-packages/tevent.py
+	# selftests: either not needed or should go to -testsuite
+	rm -rf debian/tmp/usr/lib/python3/dist-packages/samba/tests/
 	# pam stuff
 	install -Dp -m0644 debian/winbind.pam-config debian/tmp/usr/share/pam-configs/winbind
 	mv debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/libnss_* debian/tmp/lib/$(DEB_HOST_MULTIARCH)/
