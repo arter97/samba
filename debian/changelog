@@ -1,3 +1,13 @@
+samba (2:4.19.5+dfsg-4) unstable; urgency=medium
+
+  * stop shipping python3/dist-packages/samba/tests
+    (Closes: #1064512, #1063149)
+  * add Debian-Specific tag to debian-specific patches
+  * d/genshlibs: run dh_makeshlibs on libsmbclient0
+    (Closes: #1065349)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 03 Mar 2024 15:37:16 +0300
+
 samba (2:4.19.5+dfsg-3) unstable; urgency=medium
 
   * d/control: add versioned depends on dpkg-dev to avoid accidental
