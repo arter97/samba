@@ -761,7 +761,7 @@ void create_seekat_getrows_request(TALLOC_CTX * ctx,
 
 static bool extract_rowbuf_variable_type(TALLOC_CTX *ctx,
 		uint16_t type,
-		uint32_t offset,
+		uint64_t offset,
 		DATA_BLOB *rows_buf, uint32_t len,
 		struct wsp_cbasestoragevariant  *val)
 {
@@ -770,7 +770,7 @@ static bool extract_rowbuf_variable_type(TALLOC_CTX *ctx,
 	ndr_flags_type ndr_flags = NDR_SCALARS | NDR_BUFFERS;
 	DATA_BLOB variant_blob = data_blob_null;
 	if (offset >= rows_buf->length) {
-		DBG_ERR("offset %d outside buffer range (buf len - %zu)",
+		DBG_ERR("offset %"PRIu64" outside buffer range (buf len - %zu)",
 			offset,
 			rows_buf->length);
 		return false;
@@ -894,7 +894,7 @@ static bool convert_variant_array_to_vector(TALLOC_CTX *ctx,
  * an array of n elements for a vector or array of 1 element
  * if non-vector item.
  *
- * addresses stored in pvec_address are adjusted by offset
+ * addresses stored in pvec_address
  *
  */
 static enum ndr_err_code extract_variant_addresses(TALLOC_CTX *ctx,
@@ -902,11 +902,10 @@ static enum ndr_err_code extract_variant_addresses(TALLOC_CTX *ctx,
 			       bool is_64bit,
 			       struct ndr_pull *ndr_pull,
 			       ndr_flags_type flags,
-			       uint32_t offset,
+			       uint64_t baseaddress,
 			       DATA_BLOB *rows_buf,
 			       uint64_t *pcount,
-			       uint64_t **pvec_address/*,
-			       struct wsp_cbasestoragevariant ***variant_array*/)
+			       uint64_t **pvec_address)
 {
 	bool is_vector = tablevar->vtype & VT_VECTOR;
 	uint64_t count;
@@ -939,6 +938,15 @@ static enum ndr_err_code extract_variant_addresses(TALLOC_CTX *ctx,
 		count = 1;
 	}
 
+	/* ensure count is at least within buffer range */
+	if (count >= MAX_ROW_BUFF_SIZE || count >= rows_buf->length) {
+		DBG_ERR("count %"PRIu64" either exceeds max buffer size "
+			"or buffer size (%zu)",
+			count,  rows_buf->length);
+		err = NDR_ERR_VALIDATE;
+		goto out;
+	}
+
 	/* read address */
 	if (is_64bit) {
 		err = ndr_pull_udlong(ndr_pull,
@@ -958,12 +966,10 @@ static enum ndr_err_code extract_variant_addresses(TALLOC_CTX *ctx,
 		addr = addr_32;
 	}
 
-	addr = addr - offset;
-
-	if (addr >= rows_buf->length) {
+	if ((addr - baseaddress) >= rows_buf->length) {
 		DBG_ERR("offset %"PRIu64" outside buffer range "
 			"(buf len - %zu)\n",
-			addr,
+			addr - baseaddress,
 			rows_buf->length);
 		err = NDR_ERR_VALIDATE;
 		goto out;
@@ -977,25 +983,64 @@ static enum ndr_err_code extract_variant_addresses(TALLOC_CTX *ctx,
 		goto out;
 	}
 
+	/*
+	 * non vector case addr points to value
+	 * otherwise addr points to list of addresses
+	 * for the values in vector
+	 */
 	if (is_vector == false) {
 		vec_address[0] = addr;
 	} else {
-		uint64_t array_addr = addr;
+		uint64_t array_offset = addr - baseaddress;
 		uint64_t i;
+		uint32_t intsize;
+
+		if (is_64bit) {
+			intsize = 8;
+		} else {
+			intsize = 4;
+		}
+
+		if (array_offset >= MAX_ROW_BUFF_SIZE
+		    || array_offset >= rows_buf->length) {
+			DBG_ERR("offset %"PRIu64" either exceeds max buf size "
+				"or buffer size (%zu)",
+				array_offset,  rows_buf->length);
+			err = NDR_ERR_VALIDATE;
+			goto out;
+		}
+
+		/* addr points to a list of int32 or int64 addresses */
 		for (i = 0; i < count; i++) {
+			/*
+			 * read the addresses of the vector elements
+			 * note: we can safely convert the uint64_t
+			 *       values here to uint32_t values as
+			 *       we are sure they are within range
+			 *       due to previous checks above.
+			 */
+			if (smb_buffer_oob((uint32_t)rows_buf->length,
+					   (uint32_t)array_offset,
+					   intsize)) {
+				DBG_ERR("offset %"PRIu64" will be outside "
+					"buffer range (buf len - %zu) after "
+					"reading %s address\n",
+					array_offset,
+					rows_buf->length,
+					is_64bit ? "64 bit" : "32 bit");
+				err = NDR_ERR_VALIDATE;
+				goto out;
+			}
 			if (is_64bit) {
 				vec_address[i] =
 					PULL_LE_I64(rows_buf->data,
-						array_addr);
-				array_addr = array_addr + 8;
+						array_offset);
 			} else {
 				vec_address[i] =
 					(uint32_t)PULL_LE_I32(rows_buf->data,
-							array_addr);
-				array_addr = array_addr + 4;
+							array_offset);
 			}
-			/* adjust address */
-			vec_address[i] -= offset;
+			array_offset += intsize;
 		}
 	}
 	err  = NDR_ERR_SUCCESS;
@@ -1010,7 +1055,7 @@ static enum ndr_err_code extract_crowvariant_variable(TALLOC_CTX *ctx,
 	bool is_64bit,
 	struct ndr_pull *ndr_pull,
 	ndr_flags_type flags,
-	uint32_t offset,
+	uint64_t baseaddress,
 	DATA_BLOB *rows_buf,
 	uint32_t len,
 	struct wsp_cbasestoragevariant *val)
@@ -1029,7 +1074,7 @@ static enum ndr_err_code extract_crowvariant_variable(TALLOC_CTX *ctx,
 			is_64bit,
 			ndr_pull,
 			flags,
-			offset,
+			baseaddress,
 			rows_buf,
 			&count,
 			&vec_address);
@@ -1063,12 +1108,12 @@ static enum ndr_err_code extract_crowvariant_variable(TALLOC_CTX *ctx,
 
 	for (i = 0; i < count; i++) {
 		uint32_t tmplen = len;
-		uint64_t addr;
-		addr = vec_address[i];
-		if (addr >= rows_buf->length) {
+		uint64_t buf_offset;
+		buf_offset = vec_address[i] - baseaddress;
+		if (buf_offset >= rows_buf->length) {
 			DBG_ERR("offset %"PRIu64" outside buffer range "
 				"(buf len - %zu)\n",
-				addr,
+				buf_offset,
 				rows_buf->length);
 			err = NDR_ERR_VALIDATE;
 			goto out;
@@ -1084,11 +1129,11 @@ static enum ndr_err_code extract_crowvariant_variable(TALLOC_CTX *ctx,
 			 * from the point the value is stored at
 			 * till the end of the buffer
 			 */
-			tmplen = rows_buf->length - addr;
+			tmplen = rows_buf->length - buf_offset;
 		}
 		if (!extract_rowbuf_variable_type(ctx,
 					tablevar->vtype & ~VT_VECTOR,
-					addr,
+					buf_offset,
 					rows_buf,
 					tmplen,
 					variant_array[i])) {
@@ -1116,7 +1161,7 @@ static enum ndr_err_code extract_crowvariant(TALLOC_CTX *ctx,
 			       bool is_64bit,
 			       struct ndr_pull *ndr_pull,
 			       ndr_flags_type flags,
-			       uint32_t offset,
+			       uint64_t baseaddress,
 			       DATA_BLOB *rows_buf, uint32_t len,
 			       struct wsp_cbasestoragevariant *val)
 {
@@ -1136,7 +1181,7 @@ static enum ndr_err_code extract_crowvariant(TALLOC_CTX *ctx,
 				is_64bit,
 				ndr_pull,
 				flags,
-				offset,
+				baseaddress,
 				rows_buf,
 				len,
 				val);
@@ -1159,7 +1204,6 @@ out:
 
 static enum ndr_err_code process_columns(TALLOC_CTX *ctx,
 					 bool is_64bit,
-					 uint32_t cbreserved,
 					 uint64_t baseaddress,
 					 struct wsp_cpmsetbindingsin *bindingin,
 					 DATA_BLOB *rows_buf,
@@ -1225,7 +1269,6 @@ static enum ndr_err_code process_columns(TALLOC_CTX *ctx,
 					val_offset));
 		}
 		if (tab_col->valueused) {
-			uint64_t offset = baseaddress + cbreserved;
 			uint32_t len = 0;
 			val_offset = nrow_offset + tab_col->valueoffset.value;
 			if (val_offset >=  rows_buf->length) {
@@ -1285,7 +1328,7 @@ static enum ndr_err_code process_columns(TALLOC_CTX *ctx,
 					is_64bit,
 					ndr_pull,
 					ndr_flags,
-					offset,
+					baseaddress,
 					rows_buf,
 					len,
 					&cols[i]);
@@ -1311,19 +1354,39 @@ enum ndr_err_code extract_rowsarray(
 {
 	uint32_t i;
 	enum ndr_err_code err  = NDR_ERR_SUCCESS;
+	/*
+	 * limit check the size of rows_buf
+	 * see MS-WSP 2.2.3.11 which describes the size
+	 * of the rows buffer MUST not exceed 0x0004000 bytes.
+	 * This limit will ensure we can safely check
+	 * limits based on uint32_t offsets
+	 */
+
+	if (rows_buf->length > MAX_ROW_BUFF_SIZE) {
+		DBG_ERR("Buffer size 0x%zx exceeds 0x%x max buffer size\n",
+			rows_buf->length, MAX_ROW_BUFF_SIZE);
+		return NDR_ERR_BUFSIZE;
+	}
 
 	for (i = 0; i < rows; i++ ) {
 		struct wsp_cbasestoragevariant *cols =
 				talloc_zero_array(ctx,
 					  struct wsp_cbasestoragevariant,
 					  bindingsin->ccolumns);
+		uint64_t adjusted_address;
 		if (cols == NULL) {
 			return NDR_ERR_ALLOC;
 		}
+
+		/*
+		 * cater for paddingrows (see MS-WSP 2.2.3.12)
+		 * Rows buffer starts cbreserved bytes into messages
+		 */
+		adjusted_address = baseaddress + cbreserved;
+
 		err = process_columns(ctx,
 				      is_64bit,
-				      cbreserved,
-				      baseaddress,
+				      adjusted_address,
 				      bindingsin,
 				      rows_buf,
 				      i,
