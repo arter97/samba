@@ -10,7 +10,7 @@ Uploaders: Steve Langasek <vorlon@debian.org>,
 Homepage: https://www.samba.org
 Standards-Version: 4.6.2
 Build-Depends:
-	dpkg-dev (>= 1.22.5),
+	dpkg-dev (>= 1.22.5) <!pkg.samba.before-trixie>,
 	debhelper-compat (= 13),
 	dh-exec,
 Build-Depends-Arch:
@@ -21,7 +21,7 @@ Build-Depends-Arch:
 	flex,
 	perl:any,
 	po-debconf,
-	rpcsvc-proto,
+	rpcsvc-proto  <!pkg.samba.before-trixie>,
 # libraries which we embed but use system versions of:
 	libtalloc-dev (>= 2.4.1~),
 	python3-talloc-dev (>= 2.4.1~),
@@ -196,7 +196,7 @@ Description: Samba common files used by both the server and the client
  .
  This package contains the common files that are used by both the server
  (provided in the samba package) and the client (provided in the smbclient
- libsmbclient0 packages).
+ package).
 
 Package: samba-ad-dc
 Architecture: all
@@ -381,6 +381,20 @@ Provides: ${t64:Provides}
 X-Time64-Compat: libsmbclient
 Replaces: libsmbclient
 Breaks: libsmbclient (<< ${source:Version})
+Build-Profiles: <!pkg.samba.before-trixie>
+Section: libs
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: samba-libs (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Description: shared library for communication with SMB/CIFS servers
+ This package provides a shared library that enables client applications
+ to talk to Microsoft Windows and Samba servers using the SMB/CIFS
+ protocol.
+
+Package: libsmbclient
+# exactly the same as libsmbclient but for older systems before t64 transition
+Build-Profiles: <pkg.samba.before-trixie>
 Section: libs
 Architecture: any
 Multi-Arch: same
@@ -395,8 +409,11 @@ Package: libsmbclient-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: libsmbclient0 (= ${binary:Version}), ${misc:Depends}
-Description: development files for libsmbclient0
+Depends: ${misc:Depends},
+ libsmbclient0 (= ${binary:Version}) <!pkg.samba.before-trixie>,
+ libsmbclient  (= ${binary:Version}) < pkg.samba.before-trixie>,
+# the library name is libsmbclient0 on trixie and up
+Description: development files for libsmbclient
  This package provides the development files (static library and headers)
  required for building applications against libsmbclient, a library that
  enables client applications to talk to Microsoft Windows and Samba servers

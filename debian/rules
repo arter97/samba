@@ -119,6 +119,13 @@ config-args += $(if ${with-ceph},\
 	  --enable-cephfs --enable-ceph-reclock,\
 	  --disable-cephfs)
 
+# we had t64 transition (libsmbclient => libsmbclient0) before trixie
+ifneq (,$(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES}))
+libsmbclient := libsmbclient
+else
+libsmbclient := libsmbclient0
+endif
+
 with_mitkrb5 = $(filter pkg.samba.mitkrb5, ${DEB_BUILD_PROFILES})
 ifneq (,${with_mitkrb5})
 config-args += \
@@ -130,7 +137,7 @@ mitkrb5-samba-ver = ${DEB_VERSION}mitkrb5
 mitkrb5-dep-pkgs = samba-libs samba-dev
 mitkrb5-dep-pkgs += samba samba-common-bin python3-samba
 mitkrb5-dep-pkgs += samba-dsdb-modules samba-vfs-modules
-mitkrb5-dep-pkgs += libsmbclient0 smbclient
+mitkrb5-dep-pkgs += ${libsmbclient} smbclient
 mitkrb5-dep-pkgs += libnss-winbind libpam-winbind
 mitkrb5-dep-pkgs += winbind libwbclient0
 mitkrb5-dep-pkgs += samba-testsuite
@@ -375,7 +382,7 @@ endif
 	$(call depcheck, libldb2, samba|samba-libs|winbind|libwbclient0) # use-bzero-instead-of-memset_s.diff
 	$(call depcheck, python3-samba, samba|winbind|ctdb)
 	$(call depcheck, libwbclient0, samba|samba-libs|winbind|smbclient|ctdb)
-	$(call depcheck, libsmbclient0, samba|winbind|smbclient|ctdb)
+	$(call depcheck, ${libsmbclient}, samba|winbind|smbclient|ctdb)
 
 override_dh_gencontrol:
 	dh_gencontrol $(addprefix -p, ${LDB_PACKAGES}) -- -v${LDB_DEB_VERSION}
