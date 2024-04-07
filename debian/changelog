@@ -1,3 +1,13 @@
+samba (2:4.19.5+dfsg-5) unstable; urgency=medium
+
+  * implement pkg.samba.before-trixie build profile
+    (undo t64 changhes and drop build-dep)
+  * d/rules: remove Debian/Ubuntu "branding", no need in that
+  * d/control: samba-dsdb-modules: drop hardcoded dependency on libgpgme11
+    (Closes: #1068526)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 07 Apr 2024 16:04:30 +0300
+
 samba (2:4.19.5+dfsg-4) unstable; urgency=medium
 
   * stop shipping python3/dist-packages/samba/tests
