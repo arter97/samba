@@ -1,3 +1,19 @@
+samba (2:4.19.6+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15527 fd_handle_destructor()
+     panics within an smbd_smb2_close() if vfs_stat_fsp() fails in fd_close()
+   - https://bugzilla.samba.org/show_bug.cgi?id=15580
+     Packet marshalling push support missing for
+     CTDB_CONTROL_TCP_CLIENT_DISCONNECTED and CTDB_CONTROL_TCP_CLIENT_PASSED
+   - https://bugzilla.samba.org/show_bug.cgi?id=15588
+     samba-gpupdate: Correctly implement site support
+   - https://bugzilla.samba.org/show_bug.cgi?id=15599
+     libgpo: Segfault in python bindings
+  * revert d/rules: remove Debian/Ubuntu "branding"
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 08 Apr 2024 11:18:38 +0300
+
 samba (2:4.19.5+dfsg-5) unstable; urgency=medium
 
   * implement pkg.samba.before-trixie build profile
