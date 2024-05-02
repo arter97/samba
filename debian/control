@@ -223,7 +223,8 @@ Package: samba-ad-provision
 Architecture: all
 Multi-Arch: foreign
 Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}
+Depends: ${misc:Depends},
+ python3-markdown,
 Replaces: samba (<< 2:4.17.3+dfsg-4~)
 Breaks:   samba (<< 2:4.17.3+dfsg-4~)
 Description: Samba files needed for AD domain provision
