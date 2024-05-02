@@ -27,7 +27,7 @@ index 0a0d2111a72..a5ef6ec7279 100644
  import re
  import os
 -import markdown
-+try
++try:
 +    import markdown
 +except ImportError as e:
 +    e.add_note('Please install python3-markdown package')
