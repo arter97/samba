@@ -44,7 +44,7 @@ index 8a9ad78b870..9af9406081b 100644
  import re
  import os
 -import markdown
-+try
++try:
 +    import markdown
 +except ImportError e:
 +    e.add_note('Please install python3-markdown package')
