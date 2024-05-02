@@ -1,3 +1,21 @@
+samba (2:4.19.6+dfsg-2) unstable; urgency=medium
+
+  [ Michael Tokarev ]
+  * meaningful-error-if-no-python3-markdown.patch:
+    update to include 2 other places where markdown gets improted
+  * d/winbind.service:
+    - order it before nss-user-lookup.target (Closes: #1068649)
+    - fix typo
+    - nmb.service is nmbd.service in debian
+  * move include/samba/core/*.h from samba-libs to libwbclient-dev
+    (Closes: #1064544)
+
+  [ Alex Murray ]
+  * fix smbd apparmor breakage since change to local systemd services
+    (Cloes: #1069661)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 02 May 2024 14:08:31 +0300
+
 samba (2:4.19.6+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
