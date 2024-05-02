@@ -6,7 +6,7 @@ Before=nss-user-lookup.target
 
 [Service]
 Type=notify
-PIDFile=/ruin/samba/winbindd.pid
+PIDFile=/run/samba/winbindd.pid
 EnvironmentFile=-/etc/default/samba
 ExecStart=/usr/sbin/winbindd --foreground --no-process-group $WINBINDOPTIONS
 ExecReload=/bin/kill -HUP $MAINPID
