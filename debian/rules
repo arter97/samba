@@ -119,7 +119,7 @@ config-args += $(if ${with-ceph},\
 	  --enable-cephfs --enable-ceph-reclock,\
 	  --disable-cephfs)
 
-# we had t64 transition (libsmbclient => libsmbclient0) before trixie
+# we had t64 transition (libsmbclient => libsmbclient0) for trixie
 ifneq (,$(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES}))
 libsmbclient := libsmbclient
 else
