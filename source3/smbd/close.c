@@ -34,6 +34,7 @@
 #include "messages.h"
 #include "../librpc/gen_ndr/open_files.h"
 #include "lib/util/tevent_ntstatus.h"
+#include "source3/smbd/dir.h"
 
 /****************************************************************************
  Run a file if it is a magic script.
@@ -241,8 +242,7 @@ static bool has_other_nonposix_opens_fn(
 	if (e->name_hash != fsp->name_hash) {
 		return false;
 	}
-	if ((fsp->posix_flags & FSP_POSIX_FLAGS_OPEN) &&
-	    (e->flags & SHARE_MODE_FLAG_POSIX_OPEN)) {
+	if (e->flags & SHARE_MODE_FLAG_POSIX_OPEN) {
 		return false;
 	}
 	if (e->share_file_id == fh_get_gen_id(fsp->fh)) {
@@ -1464,9 +1464,9 @@ static NTSTATUS rmdir_internals(TALLOC_CTX *ctx, struct files_struct *fsp)
 }
 
 /****************************************************************************
- Close a directory opened by an NT SMB call. 
+ Close a directory opened by an NT SMB call.
 ****************************************************************************/
-  
+
 static NTSTATUS close_directory(struct smb_request *req, files_struct *fsp,
 				enum file_close_type close_type)
 {
@@ -1612,7 +1612,7 @@ done:
 /****************************************************************************
  Rundown all SMB-related dependencies of a files struct
 ****************************************************************************/
-  
+
 NTSTATUS close_file_smb(struct smb_request *req,
 			struct files_struct *fsp,
 			enum file_close_type close_type)
