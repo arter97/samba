@@ -249,12 +249,8 @@ override_dh_auto_install-arch:
 	# pam stuff
 	install -Dp -m0644 debian/winbind.pam-config debian/tmp/usr/share/pam-configs/winbind
 	mv debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/libnss_* debian/tmp/lib/$(DEB_HOST_MULTIARCH)/
-	# Debian goodies to set global option in smb.conf and add a share
-	install -p -m0755 debian/setoption.py -t debian/tmp/usr/share/samba/
-	install -p -m0755 debian/addshare.py -t debian/tmp/usr/share/samba/
 	install -p -m755 debian/update-apparmor-samba-profile -t debian/tmp/usr/share/samba/
 	install -Dp -m0644 debian/samba.ufw.profile debian/tmp/etc/ufw/applications.d/samba
-	install -Dp -m0644 debian/source_samba.py -t debian/tmp/usr/share/apport/package-hooks/
 	# install-and-rename docs for ctdb (also arch-specific)
 	mkdir -p debian/tmp/ctdb
 	install -p ctdb/config/events/README debian/tmp/ctdb/README.notification
