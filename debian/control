@@ -93,7 +93,6 @@ Depends: passwd,
          python3-samba (= ${binary:Version}),
          samba-common (= ${source:Version}),
          samba-common-bin (=${binary:Version}),
-         tdb-tools,
          ${misc:Depends},
          ${python3:Depends},
          ${shlibs:Depends}
@@ -321,7 +320,8 @@ Depends: python3-ldb,
 Replaces:
 # libsamba-policy & helpers and dckeytab python libs moved to python3-samba
  samba-libs (<< 2:4.16.0+dfsg-1~), samba (<< 2:4.16.0+dfsg-1~)
-Recommends: python3-gpg
+Recommends: python3-gpg,
+            tdb-tools,
 Description: Python 3 bindings for Samba
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
