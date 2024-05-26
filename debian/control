@@ -48,7 +48,7 @@ Build-Depends-Arch:
 	libgpgme11-dev,
 	libicu-dev,
 	libjansson-dev,
-	libkeyutils-dev,
+	libkeyutils-dev [linux-any],
 	libkrb5-dev (>= 1.21.0~) <pkg.samba.mitkrb5>,
 	libldap2-dev,
 	liblmdb-dev,
