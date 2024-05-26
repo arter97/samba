@@ -1,3 +1,36 @@
+samba (2:4.20.1+dfsg-2) UNRELEASED; urgency=medium
+
+  * move many files from samba package to samba-ad-dc package.
+    From now on, samba-ad-dc isn't just a meta-package, it is actually
+    needed for AD-DC functionality.  If you run AD-DC, please ensure
+    that samba-ad-dc package is installed (it is not recommended by samba)
+    Closes: #1051770
+  * move samba-tool and samba-gpupdate from samba-common-bin and samba
+    packages to python3-samba.  This is an active-directory stuff, not
+    neede for a stand-alone server or a client, but might be needed for
+    auth-only (neither file-server of file-client) active directory
+    installs (Closes: #1068360)
+  * remove addshare.py, setoption.py and source_samba.py python scripts
+    These aren't used by samba packages and are hardly useful generally, esp.
+    having in mind their unusual locations.  The apport hook (source_samba.py)
+    is mostly obsolete, it hasn't been updated for a very long time.
+  * +make-python-optional.diff, so that python3 can be made optional for
+    samba-common-bin
+  * remove python3-samba and python from Depends of samba and samba-common-bin
+    packages, moving it to Recommends.  This lets the user to install a stand-
+    alone samba file server without any Active Directory bits and even without
+    python interpreter
+  * d/samba.install: do not install samba_downgradedb (to old pre-4.8 version)
+  * move smbcontrol binary from samba to samba-common-bin,
+    since it can also be used to control winbindd
+  * d/control: tdb-tools (tdbbackup) are run from python modules,
+    move from samba:Depends to python3-samba:Recommends
+  * d/control: samba: no need to depend on libpam-runtime or libpam-modules
+  * d/control: samba: no need to recommend samba-ad-provision
+  * debian/TODO: update a bit, remove many obsolete entries
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 26 May 2024 15:52:24 +0300
+
 samba (2:4.20.1+dfsg-1) unstable; urgency=medium
 
   * new upstream major release
