@@ -18,7 +18,6 @@ usr/libexec/samba/samba-bgqd
 usr/lib/*/samba/service/*.so
 usr/sbin/eventlogadm
 usr/sbin/nmbd
-usr/sbin/samba-gpupdate
 usr/sbin/smbd
 usr/share/man/man1/log2pcap.1
 usr/share/man/man1/mvxattr.1
@@ -31,7 +30,6 @@ usr/share/man/man8/eventlogadm.8
 usr/share/man/man8/nmbd.8
 usr/share/man/man8/pdbedit.8
 usr/share/man/man8/samba-bgqd.8
-usr/share/man/man8/samba-gpupdate.8
 usr/share/man/man8/smbd.8
 usr/share/samba/admx/
 usr/share/samba/mdssvc/elasticsearch_mappings.json

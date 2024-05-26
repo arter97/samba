@@ -324,12 +324,12 @@ Depends: python3-ldb,
          ${python3:Depends},
          ${shlibs:Depends}
 Breaks:
-# samba-tool moved from samba-common-bin in 4.20.1-2:
-          samba-common-bin (<< 2:4.20.1+dfsg-2~),
+# samba-tool & samba-gpupdate moved from samba-common-bin & samba in 4.20.1-2:
+          samba-common-bin (<< 2:4.20.1+dfsg-2~), samba (<< 2:4.20.1+dfsg-2~),
 Replaces:
-	  samba-common-bin (<< 2:4.20.1+dfsg-2~),
+	  samba-common-bin (<< 2:4.20.1+dfsg-2~), samba (<< 2:4.20.1+dfsg-2~),
 # libsamba-policy & helpers and dckeytab python libs moved to python3-samba
- samba-libs (<< 2:4.16.0+dfsg-1~), samba (<< 2:4.16.0+dfsg-1~)
+ samba-libs (<< 2:4.16.0+dfsg-1~),
 Recommends: python3-gpg,
             tdb-tools,
 Description: Python 3 bindings for Samba
