@@ -1,3 +1,12 @@
+samba (2:4.20.1+dfsg-3) unstable; urgency=medium
+
+  * d/rules: move samba-common install to d/samba-common.install
+  * d/rules: install samba-ad-dc init files for the right package
+  * d/samba.postinst: remove nmbd_error_handler for the initscript
+    (it is not used in systemd case)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 26 May 2024 18:48:17 +0300
+
 samba (2:4.20.1+dfsg-2) unstable; urgency=medium
 
   * move many files from samba package to samba-ad-dc package.
