@@ -284,9 +284,6 @@ override_dh_auto_install-indep:
 ifeq (${DEB_VENDOR}, Ubuntu)
 	patch debian/samba-common/usr/share/samba/smb.conf debian/smb.conf.ubuntu.diff
 endif
-	install -Dp -m0755 debian/panic-action  -t debian/samba-common/usr/share/samba/
-	install -Dp -m0755 debian/is-configured -t debian/samba-common/usr/share/samba/
-	install -Dp -m0644 debian/gdbcommands -t debian/samba-common/etc/samba/
 	# we wrongly have pam file in samba-common instead of samba
 	install -Dp -m0644 debian/samba.pam debian/samba-common/etc/pam.d/samba
 
