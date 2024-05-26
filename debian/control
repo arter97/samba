@@ -93,7 +93,6 @@ Depends: passwd,
          ${shlibs:Depends}
 Recommends: attr,
             samba-vfs-modules,
-            samba-ad-provision,
             python3-samba,
 Suggests: ctdb,
           ufw,
