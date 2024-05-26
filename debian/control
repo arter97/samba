@@ -88,18 +88,15 @@ Depends: passwd,
          libpam-modules,
          libpam-runtime (>= 1.0.1-11),
          procps,
-         python3,
-         python3-dnspython,
-         python3-samba (= ${binary:Version}),
          samba-common (= ${source:Version}),
          samba-common-bin (=${binary:Version}),
          ${misc:Depends},
          ${python3:Depends},
          ${shlibs:Depends}
 Recommends: attr,
-            python3-markdown,
             samba-vfs-modules,
             samba-ad-provision,
+            python3-samba,
 Suggests: ctdb,
           ufw,
           winbind
@@ -165,16 +162,12 @@ Description: common files used by both the Samba server and client
 
 Package: samba-common-bin
 Architecture: any
-Depends: python3,
-         python3-samba,
-         samba-common (=${source:Version}),
-         samba-libs (= ${binary:Version}),
+Depends: samba-common (= ${source:Version}),
          ${misc:Depends},
          ${python3:Depends},
          ${shlibs:Depends}
+Recommends: python3-samba,
 Suggests: heimdal-clients,
-          python3-markdown,
-          python3-dnspython
 # moved samba-dcerpcd samba=>samba-common-bin in in 4.16.2+dfsg-1
 # moved libnet-keytab-samba4.so.0 & libRPC-WORKER-samba4.so.0 samba-libs=>samba-common-bin in 4.19.0~r1
 Replaces: samba (<< 2:4.16.2+dfsg-1~), samba-libs (<< 2:4.19.0~)
@@ -195,6 +188,7 @@ Multi-Arch: foreign
 Pre-Depends: ${misc:Pre-Depends}
 Depends: samba (= ${binary:Version}),
 	 python3-samba (= ${binary:Version}),
+	 python3-dnspython,
 	 samba-dsdb-modules (= ${binary:Version}),
 	 samba-vfs-modules (= ${binary:Version}),
 	 winbind (= ${binary:Version}),
