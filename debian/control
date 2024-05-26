@@ -211,9 +211,9 @@ Suggests: bind9 (>= 1:9.5.1),
 	  ntp | chrony (>= 3.0-1),
 Enhances: bind9, ntp
 Breaks:   samba-ad-provision (<< ${source:Upstream-Version}),
-# files moved from samba in 4.20.1-2:
-	  samba (<< 2:4.20.1+dfsg-2~),
-Replaces: samba (<< 2:4.20.1+dfsg-2~),
+# files moved from samba & samba-common-bin in 4.20.1-2:
+	  samba (<< 2:4.20.1+dfsg-2~), samba-common-bin (<< 2:4.20.1+dfsg-2~),
+Replaces: samba (<< 2:4.20.1+dfsg-2~), samba-common-bin (<< 2:4.20.1+dfsg-2~),
 Description: Samba control files to run AD Domain Controller
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file and printer sharing with
