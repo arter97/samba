@@ -168,10 +168,10 @@ Depends: samba-common (= ${source:Version}),
          ${shlibs:Depends}
 Recommends: python3-samba,
 Suggests: heimdal-clients,
-# moved samba-dcerpcd samba=>samba-common-bin in in 4.16.2+dfsg-1
 # moved libnet-keytab-samba4.so.0 & libRPC-WORKER-samba4.so.0 samba-libs=>samba-common-bin in 4.19.0~r1
-Replaces: samba (<< 2:4.16.2+dfsg-1~), samba-libs (<< 2:4.19.0~)
-Breaks:   samba (<< 2:4.16.2+dfsg-1~), samba-libs (<< 2:4.19.0~)
+# moved smbcontrol samba=>samba-common-bin in 4.20.0-2
+Replaces: samba (<< 2:4.20.1+dfsg-2~), samba-libs (<< 2:4.19.0~)
+Breaks:   samba (<< 2:4.20.1+dfsg-2~), samba-libs (<< 2:4.19.0~)
 Description: Samba common files used by both the server and the client
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
