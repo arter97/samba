@@ -1,3 +1,15 @@
+samba (2:4.20.1+dfsg-4) unstable; urgency=medium
+
+  [ Helmut Grohne ]
+  * Mitigate ineffective replaces due to /usr-move (DEP17 P1)
+    (Closes: #1072102)
+
+  [ Michael Tokarev ]
+  * d/control: mark libkeyutils-dev as linux-only [linux-any]
+  * d/control: drop old versions of versioned dependencies
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 29 May 2024 20:31:41 +0300
+
 samba (2:4.20.1+dfsg-3) unstable; urgency=medium
 
   * d/rules: move samba-common install to d/samba-common.install
