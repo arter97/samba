@@ -38,6 +38,7 @@ with-ceph =
 with-snapper =
 
 config-args = \
+	--vendor-name=${DEB_VENDOR}-${DEB_VERSION_UPSTREAM_REVISION} \
 	--prefix=/usr \
 	--enable-fhs \
 	--sysconfdir=/etc \
@@ -159,12 +160,6 @@ install install-arch install-indep: %:
 configure: bin/configured.stamp
 .PHONY: configure
 bin/configured.stamp:
-# branding
-	if [ ! -f VERSION.orig ]; then \
-	  mv VERSION VERSION.orig; \
-	  sed -r -e 's/^(SAMBA_VERSION_VENDOR_SUFFIX).*/\1=${DEB_VENDOR}/' \
-		VERSION.orig > VERSION; \
-	fi
 	CC="${CC}" CPP="${CPP}" LD="${LD}" PKGCONFIG="${PKG_CONFIG}" \
 	CPPFLAGS="${CPPFLAGS}" CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" \
 	PYTHON=python3 PYTHON_CONFIG=${DEB_HOST_MULTIARCH}-python3-config \
@@ -389,7 +384,6 @@ endif
 clean:
 	# see also debian/clean
 	dh_clean bin/ testbuild/
-	[ ! -f VERSION.orig ] || mv -f VERSION.orig VERSION
 ifneq (,${with_mitkrb5})
 	[ ! -d third_party/heimdal-build-with-mitkrb5 ] || \
 		mv third_party/heimdal-build-with-mitkrb5 third_party/heimdal
