@@ -88,7 +88,7 @@ endif
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages and modules
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
-omit-pkgs += ctdb libpam-winbind samba samba-testsuite samba-vfs-modules
+omit-pkgs += ctdb libpam-winbind samba samba-ad-dc samba-testsuite samba-vfs-modules
 endif
 
 ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
