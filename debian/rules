@@ -33,7 +33,6 @@ LDB_DEPENDS = libldb2 (= ${LDB_DEB_VERSION})
 LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 
 omit-pkgs =
-with-ceph =
 with-snapper =
 
 config-args = \
@@ -75,7 +74,6 @@ config-args = \
 	--with-logdir=/var/log/ctdb \
 
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
-with-ceph = $(if $(filter amd64 arm64 mips64el ppc64el riscv64 s390x, ${DEB_HOST_ARCH}),yes)
 with-snapper = yes
 
 config-args += \
@@ -86,7 +84,7 @@ endif
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages and modules
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
-omit-pkgs += ctdb libpam-winbind samba samba-ad-dc samba-testsuite samba-vfs-modules samba-vfs-glusterfs
+omit-pkgs += ctdb libpam-winbind samba samba-ad-dc samba-testsuite samba-vfs-modules samba-vfs-ceph samba-vfs-glusterfs
 endif
 
 ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
@@ -114,10 +112,6 @@ endif
 # build is done in bin/default/ subdir
 CFLAGS += -ffile-prefix-map=../../=
 
-config-args += $(if ${with-ceph},\
-	  --enable-cephfs --enable-ceph-reclock,\
-	  --disable-cephfs)
-
 # we had t64 transition (libsmbclient => libsmbclient0) for trixie
 ifneq (,$(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES}))
 libsmbclient := libsmbclient
@@ -135,7 +129,7 @@ config-args += \
 mitkrb5-samba-ver = ${DEB_VERSION}mitkrb5
 mitkrb5-dep-pkgs = samba-libs samba-dev
 mitkrb5-dep-pkgs += samba samba-common-bin python3-samba
-mitkrb5-dep-pkgs += samba-vfs-glusterfs
+mitkrb5-dep-pkgs += samba-vfs-ceph samba-vfs-glusterfs
 mitkrb5-dep-pkgs += samba-dsdb-modules samba-vfs-modules
 mitkrb5-dep-pkgs += ${libsmbclient} smbclient
 mitkrb5-dep-pkgs += libnss-winbind libpam-winbind
@@ -151,6 +145,11 @@ export DH_OPTIONS += $(addprefix -N, ${omit-pkgs})
 endif
 # ${build-pkgs} will honour arch/indep and the above list in ${DH_OPTIONS}
 build-pkgs := $(shell dh_listpackages)
+
+with-ceph := $(filter samba-vfs-ceph,${build-pkgs})
+config-args += $(if ${with-ceph},\
+	  --enable-cephfs --enable-ceph-reclock,\
+	  --disable-cephfs)
 
 binary binary-arch binary-indep \
 install install-arch install-indep: %:
@@ -272,7 +271,9 @@ execute_after_dh_install:
 # explicit list of other modules in d/samba-vfs-modules.install
 	rm -f \
 	    debian/samba-vfs-modules/usr/lib/${DEB_HOST_MULTIARCH}/samba/vfs/glusterfs*.so \
-	    debian/samba-vfs-modules/usr/share/man/man8/vfs_glusterfs*.8
+	    debian/samba-vfs-modules/usr/share/man/man8/vfs_glusterfs*.8 \
+	    debian/samba-vfs-modules/usr/lib/${DEB_HOST_MULTIARCH}/samba/vfs/ceph*.so \
+	    debian/samba-vfs-modules/usr/share/man/man8/vfs_ceph*.8
 
 provision-dest := debian/samba-ad-provision/usr/share/samba/setup
 
@@ -352,7 +353,7 @@ override_dh_shlibdeps:
 # for specific executables/modules, put dependencies in separate variables
 # to change Depends to Recommends for them in d/control
 	dh_shlibdeps -l/usr/lib/${DEB_HOST_MULTIARCH}/samba \
-	    -Xceph.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
+	    -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
 ifneq (,$(filter ctdb, ${build-pkgs}))
 	echo "rados:Depends=" >> debian/ctdb.substvars
 ifneq (${with-ceph},)
@@ -362,10 +363,9 @@ endif
 endif
 ifneq (,$(filter samba-vfs-modules,${build-pkgs}))
 	echo "vfsmods:Depends=" >> debian/samba-vfs-modules.substvars
-ifneq (${with-snapper}${with-ceph},)
+ifneq (${with-snapper},)
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
-	    $(if ${with-snapper}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so) \
-	    $(if ${with-ceph}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so)
+	    $(if ${with-snapper}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so)
 endif
 endif
 # after shlibdeps run, check that we don't have wrong depdendencies
