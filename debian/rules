@@ -33,7 +33,6 @@ LDB_DEPENDS = libldb2 (= ${LDB_DEB_VERSION})
 LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 
 omit-pkgs =
-with-snapper =
 
 config-args = \
 	--vendor-name=${DEB_VENDOR}-${DEB_VERSION_UPSTREAM_REVISION} \
@@ -74,7 +73,6 @@ config-args = \
 	--with-logdir=/var/log/ctdb \
 
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
-with-snapper = yes
 
 config-args += \
 	--with-quota \
@@ -353,19 +351,12 @@ override_dh_shlibdeps:
 # for specific executables/modules, put dependencies in separate variables
 # to change Depends to Recommends for them in d/control
 	dh_shlibdeps -l/usr/lib/${DEB_HOST_MULTIARCH}/samba \
-	    -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
+	    -Xctdb_mutex_ceph_rados_helper
 ifneq (,$(filter ctdb, ${build-pkgs}))
 	echo "rados:Depends=" >> debian/ctdb.substvars
 ifneq (${with-ceph},)
 	dpkg-shlibdeps -Tdebian/ctdb.substvars -prados \
 	    debian/ctdb/usr/libexec/ctdb/ctdb_mutex_ceph_rados_helper
-endif
-endif
-ifneq (,$(filter samba-vfs-modules,${build-pkgs}))
-	echo "vfsmods:Depends=" >> debian/samba-vfs-modules.substvars
-ifneq (${with-snapper},)
-	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
-	    $(if ${with-snapper}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so)
 endif
 endif
 # after shlibdeps run, check that we don't have wrong depdendencies

@@ -355,7 +355,6 @@ Package: samba-vfs-modules
 Architecture: any
 Multi-Arch: same
 Depends: samba-libs (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
-Recommends: ${vfsmods:Depends}
 Suggests: samba-vfs-ceph, samba-vfs-glusterfs,
 # move libdfs-server-ad-samba4.so.0 samba-libs=>samba-vfs-modules in 4.19.0~rc1
 Replaces: samba-libs (<< 2:4.19.0~)
@@ -375,8 +374,6 @@ Description: Samba Virtual FileSystem plugins
   * vfs_recycle: Give the same effect as the Recycle Bin on Windows computers
   * vfs_shadow_copy2: Expose snapshots to Windows clients as shadow copies
   * vfs_worm: Disallow writes for older file
- .
- Note: The runtime dependencies of vfs_snapper are moved to Recommends.
 
 Package: samba-vfs-ceph
 Architecture: amd64 arm64 mips64el ppc64el riscv64 s390x
