@@ -1,7 +1,8 @@
 usr/bin/dbwrap_tool
 usr/bin/net
 usr/bin/nmblookup
-usr/bin/samba-log-parser
+debian/samba-log-parser usr/bin
+usr/bin/samba-log-parser usr/libexec/samba
 usr/bin/samba-regedit
 usr/bin/smbcontrol
 usr/bin/smbpasswd
