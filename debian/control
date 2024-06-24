@@ -43,7 +43,7 @@ Build-Depends-Arch:
 	libcmocka-dev,
 	libcups2-dev,
 	libdbus-1-dev,
-	libglusterfs-dev [amd64 arm64 ppc64el ppc64 riscv64 mips64el s390x ia64 sparc64],
+	libglusterfs-dev [amd64 arm64 loong64 mips64el ppc64 ppc64el riscv64 s390x sparc64],
 	libgnutls28-dev,
 	libgpgme11-dev,
 	libicu-dev,
@@ -356,6 +356,7 @@ Architecture: any
 Multi-Arch: same
 Depends: samba-libs (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
 Recommends: ${vfsmods:Depends}
+Suggests: samba-vfs-glusterfs
 # move libdfs-server-ad-samba4.so.0 samba-libs=>samba-vfs-modules in 4.19.0~rc1
 Replaces: samba-libs (<< 2:4.19.0~)
 Breaks:   samba-libs (<< 2:4.19.0~)
@@ -375,8 +376,26 @@ Description: Samba Virtual FileSystem plugins
   * vfs_shadow_copy2: Expose snapshots to Windows clients as shadow copies
   * vfs_worm: Disallow writes for older file
  .
- Note: The runtime dependencies of vfs_ceph, vfs_glusterfs and vfs_snapper are
+ Note: The runtime dependencies of vfs_ceph and vfs_snapper are
  moved to Recommends.
+
+Package: samba-vfs-glusterfs
+Architecture: amd64 arm64 loong64 mips64el ppc64 ppc64el riscv64 s390x sparc64
+Depends: samba (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+# glusterfs modules moved from samba-vfs-modules in 4.20.2+dfsg-3 (4.19.4+dfsg-2ubuntu1)
+# in ubuntu, glusterfs was in samba-vfs-modules-extra temporarily
+Replaces: samba-vfs-modules (<< 4.20.2+dfsg-3~), samba-vfs-modules-extra (<< 4.20.2+dfsg-3~)
+Breaks:   samba-vfs-modules (<< 4.20.2+dfsg-3~), samba-vfs-modules-extra (<< 4.20.2+dfsg-3~)
+Enhances: samba
+Description: Samba Virtual FileSystem glusterfs modules
+ Samba is an implementation of the SMB/CIFS protocol for Unix systems,
+ providing support for cross-platform file sharing with Microsoft Windows, OS X,
+ and other Unix systems.  Samba can also function as a domain controller
+ or member server in Active Directory or NT4-style domains.
+ .
+ Virtual FileSystem modules are stacked shared libraries extending the
+ functionality of Samba. This package provides vfs_glusterfs and
+ vfs_glusterfs_fuse modules.
 
 Package: libsmbclient0
 Provides: ${t64:Provides}

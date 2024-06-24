@@ -33,7 +33,6 @@ LDB_DEPENDS = libldb2 (= ${LDB_DEB_VERSION})
 LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
 
 omit-pkgs =
-with-glusterfs =
 with-ceph =
 with-snapper =
 
@@ -76,7 +75,6 @@ config-args = \
 	--with-logdir=/var/log/ctdb \
 
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
-with-glusterfs = $(if $(filter amd64 arm64 ppc64el ppc64 riscv64 mips64el s390x ia64 sparc64,${DEB_HOST_ARCH}),yes)
 with-ceph = $(if $(filter amd64 arm64 mips64el ppc64el riscv64 s390x, ${DEB_HOST_ARCH}),yes)
 with-snapper = yes
 
@@ -88,7 +86,7 @@ endif
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages and modules
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
-omit-pkgs += ctdb libpam-winbind samba samba-ad-dc samba-testsuite samba-vfs-modules
+omit-pkgs += ctdb libpam-winbind samba samba-ad-dc samba-testsuite samba-vfs-modules samba-vfs-glusterfs
 endif
 
 ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
@@ -137,6 +135,7 @@ config-args += \
 mitkrb5-samba-ver = ${DEB_VERSION}mitkrb5
 mitkrb5-dep-pkgs = samba-libs samba-dev
 mitkrb5-dep-pkgs += samba samba-common-bin python3-samba
+mitkrb5-dep-pkgs += samba-vfs-glusterfs
 mitkrb5-dep-pkgs += samba-dsdb-modules samba-vfs-modules
 mitkrb5-dep-pkgs += ${libsmbclient} smbclient
 mitkrb5-dep-pkgs += libnss-winbind libpam-winbind
@@ -268,6 +267,13 @@ endif
 	dh_link -plibldb2 /usr/lib/${DEB_HOST_MULTIARCH}/ldb/modules/ldb \
 	                  /usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/compat
 
+execute_after_dh_install:
+# some vfs modules are in separate packages.  Removing them here avoids having
+# explicit list of other modules in d/samba-vfs-modules.install
+	rm -f \
+	    debian/samba-vfs-modules/usr/lib/${DEB_HOST_MULTIARCH}/samba/vfs/glusterfs*.so \
+	    debian/samba-vfs-modules/usr/share/man/man8/vfs_glusterfs*.8
+
 provision-dest := debian/samba-ad-provision/usr/share/samba/setup
 
 override_dh_auto_install-indep:
@@ -346,7 +352,7 @@ override_dh_shlibdeps:
 # for specific executables/modules, put dependencies in separate variables
 # to change Depends to Recommends for them in d/control
 	dh_shlibdeps -l/usr/lib/${DEB_HOST_MULTIARCH}/samba \
-	    -Xceph.so -Xglusterfs.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
+	    -Xceph.so -Xsnapper.so -Xctdb_mutex_ceph_rados_helper
 ifneq (,$(filter ctdb, ${build-pkgs}))
 	echo "rados:Depends=" >> debian/ctdb.substvars
 ifneq (${with-ceph},)
@@ -356,11 +362,10 @@ endif
 endif
 ifneq (,$(filter samba-vfs-modules,${build-pkgs}))
 	echo "vfsmods:Depends=" >> debian/samba-vfs-modules.substvars
-ifneq (${with-snapper}${with-ceph}${with-glusterfs},)
+ifneq (${with-snapper}${with-ceph},)
 	dpkg-shlibdeps -Tdebian/samba-vfs-modules.substvars -pvfsmods \
 	    $(if ${with-snapper}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/snapper.so) \
-	    $(if ${with-ceph}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so) \
-	    $(if ${with-glusterfs}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/glusterfs.so)
+	    $(if ${with-ceph}, debian/samba-vfs-modules/usr/lib/*/samba/vfs/ceph.so)
 endif
 endif
 # after shlibdeps run, check that we don't have wrong depdendencies
