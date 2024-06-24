@@ -92,12 +92,18 @@ Depends: passwd,
          ${python3:Depends},
          ${shlibs:Depends}
 Recommends: attr,
-            samba-vfs-modules,
             python3-samba,
 Suggests: ctdb,
           ufw,
-          winbind
-Breaks: samba-ad-provision (<< ${source:Upstream-Version})
+          winbind,
+          samba-vfs-ceph, samba-vfs-glusterfs,
+# move libdfs-server-ad-samba4.so.0 samba-libs=>samba-vfs-modules in 4.19.0~rc1
+# swallow samba-vfs-modules by samba in 4.20.2-dfsg-3
+Replaces: samba-libs (<< 2:4.19.0~),
+          samba-vfs-modules (<< 2:4.20.2+dfsg-3~),
+Breaks:   samba-ad-provision (<< ${source:Upstream-Version}),
+          samba-libs (<< 2:4.19.0~),
+          samba-vfs-modules (<< 2:4.20.2+dfsg-3~),
 Description: SMB/CIFS file, print, and login server for Unix
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file and printer sharing with
@@ -187,7 +193,6 @@ Depends: samba (= ${binary:Version}),
 	 python3-samba (= ${binary:Version}),
 	 python3-dnspython,
 	 samba-dsdb-modules (= ${binary:Version}),
-	 samba-vfs-modules (= ${binary:Version}),
 	 winbind (= ${binary:Version}),
 	 krb5-kdc (>= 1.21.0~) <pkg.samba.mitkrb5>,
 	 ${python3:Depends},
@@ -352,28 +357,23 @@ Description: Samba Directory Services Database
  Directory features to the LDB library.
 
 Package: samba-vfs-modules
+# Remove this package for trixie+1
 Architecture: any
-Multi-Arch: same
-Depends: samba-libs (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
-Suggests: samba-vfs-ceph, samba-vfs-glusterfs,
-# move libdfs-server-ad-samba4.so.0 samba-libs=>samba-vfs-modules in 4.19.0~rc1
-Replaces: samba-libs (<< 2:4.19.0~)
-Breaks:   samba-libs (<< 2:4.19.0~)
-Enhances: samba
-Description: Samba Virtual FileSystem plugins
+Section: oldlibs
+Depends: ${misc:Depends}
+Description: Samba Virtual FileSystem plugins (transitional package)
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
  and other Unix systems.  Samba can also function as a domain controller
  or member server in Active Directory or NT4-style domains.
  .
  Virtual FileSystem modules are stacked shared libraries extending the
- functionality of Samba. Some examples are:
-  * vfs_acl_xattr: Save NTFS-ACLs in Extended Attributes
-  * vfs_audit: record selected Samba VFS operations in the system log
-  * vfs_readonly: Make a Samba share read only for a specified time period
-  * vfs_recycle: Give the same effect as the Recycle Bin on Windows computers
-  * vfs_shadow_copy2: Expose snapshots to Windows clients as shadow copies
-  * vfs_worm: Disallow writes for older file
+ functionality of Samba.  This package used to provide VFS modules for
+ samba, but since version 4.20.2+dfsg-3, most of the modules were merged
+ into main samba package, or into their own separate packages -
+ samba-vfs-ceph and samba-vfs-glusterfs.
+ .
+ This package can safely be removed.
 
 Package: samba-vfs-ceph
 Architecture: amd64 arm64 mips64el ppc64el riscv64 s390x

@@ -32,3 +32,8 @@ usr/share/man/man8/smbd.8
 usr/share/samba/admx/
 usr/share/samba/mdssvc/elasticsearch_mappings.json
 usr/share/samba/update-apparmor-samba-profile
+
+# vfs modules
+usr/lib/*/samba/vfs/*.so
+usr/share/man/man8/vfs_*.8
+usr/lib/*/samba/libdfs-server-ad-private-samba.so.0

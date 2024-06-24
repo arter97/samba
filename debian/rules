@@ -128,7 +128,7 @@ mitkrb5-samba-ver = ${DEB_VERSION}mitkrb5
 mitkrb5-dep-pkgs = samba-libs samba-dev
 mitkrb5-dep-pkgs += samba samba-common-bin python3-samba
 mitkrb5-dep-pkgs += samba-vfs-ceph samba-vfs-glusterfs
-mitkrb5-dep-pkgs += samba-dsdb-modules samba-vfs-modules
+mitkrb5-dep-pkgs += samba-dsdb-modules
 mitkrb5-dep-pkgs += ${libsmbclient} smbclient
 mitkrb5-dep-pkgs += libnss-winbind libpam-winbind
 mitkrb5-dep-pkgs += winbind libwbclient0
@@ -266,12 +266,12 @@ endif
 
 execute_after_dh_install:
 # some vfs modules are in separate packages.  Removing them here avoids having
-# explicit list of other modules in d/samba-vfs-modules.install
+# explicit list of other modules in d/samba.install
 	rm -f \
-	    debian/samba-vfs-modules/usr/lib/${DEB_HOST_MULTIARCH}/samba/vfs/glusterfs*.so \
-	    debian/samba-vfs-modules/usr/share/man/man8/vfs_glusterfs*.8 \
-	    debian/samba-vfs-modules/usr/lib/${DEB_HOST_MULTIARCH}/samba/vfs/ceph*.so \
-	    debian/samba-vfs-modules/usr/share/man/man8/vfs_ceph*.8
+	    debian/samba/usr/lib/${DEB_HOST_MULTIARCH}/samba/vfs/glusterfs*.so \
+	    debian/samba/usr/share/man/man8/vfs_glusterfs*.8 \
+	    debian/samba/usr/lib/${DEB_HOST_MULTIARCH}/samba/vfs/ceph*.so \
+	    debian/samba/usr/share/man/man8/vfs_ceph*.8
 
 provision-dest := debian/samba-ad-provision/usr/share/samba/setup
 
