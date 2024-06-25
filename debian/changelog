@@ -1,3 +1,22 @@
+samba (2:4.20.2+dfsg-3) unstable; urgency=medium
+
+  * split out samba-vfs-glusterfs from samba-vfs-modules
+    (pick up and rework ubuntu changes)
+  * split out samba-vfs-ceph from samba-vfs-modules
+  * merge samba-vfs-modules (remaining) into main samba package
+  * the only remaining extra vfs module, snapper, does not need extra handling
+  * d/samba-ad-dc.lintian-overrides: add conflicts-with-version override
+    for /usr-move
+  * samba-common-bin: use trivial separate shell wrapper for the python script
+  * d/rules: use before-trixie build profile to control dh_movetousr run too
+  * d/*.service: provide empty value for referenced environment vars
+    (Closes: #1073969)
+  * d/dirs: remove leftover file
+  * d/samba-common-bin.dirs: stop creating /etc/samba/tls/
+  * d/samba.dirs: stop creating bin & sbin
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 25 Jun 2024 07:58:16 +0300
+
 samba (2:4.20.2+dfsg-2) unstable; urgency=medium
 
   * tilde-in-version.diff - allow tilde in version string
