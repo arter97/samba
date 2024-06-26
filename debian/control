@@ -379,8 +379,8 @@ Package: samba-vfs-ceph
 Architecture: amd64 arm64 mips64el ppc64el riscv64 s390x
 Depends: samba (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
 # ceph modules moved from samba-vfs-modules in 4.20.2+dfsg-3
-Replaces: samba-vfs-modules (<< 4.20.2+dfsg-3~)
-Breaks:   samba-vfs-modules (<< 4.20.2+dfsg-3~)
+Replaces: samba-vfs-modules (<< 2:4.20.2+dfsg-3~)
+Breaks:   samba-vfs-modules (<< 2:4.20.2+dfsg-3~)
 Enhances: samba
 Description: Samba Virtual FileSystem ceph modules
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
@@ -397,8 +397,8 @@ Architecture: amd64 arm64 loong64 mips64el ppc64 ppc64el riscv64 s390x sparc64
 Depends: samba (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
 # glusterfs modules moved from samba-vfs-modules in 4.20.2+dfsg-3 (4.19.4+dfsg-2ubuntu1)
 # in ubuntu, glusterfs was in samba-vfs-modules-extra temporarily
-Replaces: samba-vfs-modules (<< 4.20.2+dfsg-3~), samba-vfs-modules-extra (<< 4.20.2+dfsg-3~)
-Breaks:   samba-vfs-modules (<< 4.20.2+dfsg-3~), samba-vfs-modules-extra (<< 4.20.2+dfsg-3~)
+Replaces: samba-vfs-modules (<< 2:4.20.2+dfsg-3~), samba-vfs-modules-extra (<< 2:4.20.2+dfsg-3~)
+Breaks:   samba-vfs-modules (<< 2:4.20.2+dfsg-3~), samba-vfs-modules-extra (<< 2:4.20.2+dfsg-3~)
 Enhances: samba
 Description: Samba Virtual FileSystem glusterfs modules
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
