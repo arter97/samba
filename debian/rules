@@ -30,7 +30,7 @@ LDB_EPOCH = 2:
 LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
 LDB_DEB_VERSION = ${LDB_EPOCH}${LDB_VERSION}+samba${DEB_VERSION_UPSTREAM_REVISION}
 LDB_DEPENDS = libldb2 (= ${LDB_DEB_VERSION})
-LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb python3-ldb-dev
+LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb
 
 before-trixie := $(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES})
 
@@ -323,23 +323,11 @@ execute_after_dh_fixperms-arch:
 	$(call ifpkg, smbclient, chmod 0700 debian/smbclient/usr/libexec/samba/smbspool_krb5_wrapper)
 
 override_dh_makeshlibs:
-	# generate symbols file with correct cpython suffix in there
-	{ \
-	    suff=$$(${DEB_HOST_MULTIARCH}-python3-config --extension-suffix | tr _ -); \
-	    SUFF=$$(echo "$${suff%.so}" | tr a-z- A-Z_); \
-	    echo "libpyldb-util$${suff}.2 #PACKAGE# #MINVER#"; \
-	    echo "* Build-Depends-Package: python3-ldb-dev" ; \
-	    echo " PYLDB_UTIL$${SUFF}_${LDB_VERSION}@PYLDB_UTIL$${SUFF}_${LDB_VERSION} ${LDB_EPOCH}${LDB_VERSION}"; \
-	    cat debian/python3-ldb.symbols.in; \
-	} > debian/python3-ldb.symbols
-
 	# create symbols and shlibs files in separate wrapper script
 	# to deal with private libraries
 	debian/genshlibs \
 		$(addsuffix =${LDB_DEB_VERSION},${LDB_PACKAGES}) \
 		$(addsuffix =${mitkrb5-samba-ver}, ${mitkrb5-dep-pkgs})
-
-	rm -f debian/python3-ldb.symbols
 
 # depcheck package, dep1|dep2... -- dependencies which should NOT be there
 depcheck = if egrep '^shlibs.Depends=.* ($(strip $2)) ' debian/$(strip $1).substvars; \

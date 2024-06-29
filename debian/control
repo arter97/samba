@@ -667,21 +667,14 @@ Depends: libldb2 (= ${binary:Version}),
 Description: Python 3 bindings for LDB
  ldb is a LDAP-like embedded database built on top of TDB.
  .
- This package contains the Python 3 bindings.
+ This package contains the Python 3 bindings for ldb.
 
 Package: python3-ldb-dev
-Section: libdevel
+# Remove this package for trixie+1
+Section: oldlibs
 Architecture: any
-Depends: libc6-dev,
-         libldb-dev,
-         python3-ldb (= ${binary:Version}),
-         ${misc:Depends}
-Description: LDB Python 3 bindings - development files
- ldb is a LDAP-like embedded database built on top of TDB.
- .
- It is a fast database with an LDAP-like API designed
- to be used within an application. In some ways it can be seen as a
- intermediate solution between key-value pair databases and a real LDAP
- database.
- .
- This package contains the development files for the Python 3 bindings.
+Depends: ${misc:Depends}
+Description: LDB Python 3 bindings development files - transitional empty package
+ This package previously contained development files for python3-ldb.
+ These files are not needed outside of samba build system.
+ It is safe to remove this package.
