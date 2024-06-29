@@ -530,7 +530,6 @@ Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Breaks: samba-libs (<< 2:4.11.0+dfsg-1~)
 Description: Samba winbind client library
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file and printer sharing with
@@ -606,11 +605,7 @@ Architecture: any
 Section: libs
 Depends: ${misc:Depends},
          ${shlibs:Depends}
-Breaks: ldb-tools (<<1.1.30~),
-        samba (<<2:4.7.0~),
-        samba-dsdb-modules (<< 2:4.7.0~),
-        samba-libs (<< 2:4.19.0~),
-        samba-testsuite (<< 2:4.7.0~)
+Breaks: samba-libs (<< 2:4.19.0~),
 Description: LDAP-like embedded database - shared library
  ldb is a LDAP-like embedded database built on top of TDB.
  .
