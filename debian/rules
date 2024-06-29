@@ -64,13 +64,21 @@ config-args = \
 	--enable-spotlight \
 	--with-profiling-data \
 	--disable-rpath --disable-rpath-install \
-	--with-shared-modules=idmap_rid,idmap_ad,idmap_adex,idmap_hash,idmap_ldap,idmap_tdb2,vfs_dfs_samba4,auth_samba4,vfs_nfs4acl_xattr \
 	--bundled-libraries=NONE,pytevent,ldb \
 	\
 	--with-cluster-support \
 	--enable-etcd-reclock \
 	--with-socketpath=/run/ctdb/ctdbd.socket \
 	--with-logdir=/var/log/ctdb \
+
+# some modules are linked statically by default (see default_static_module in wscript*),
+# but they're often linked into other libraries, which might result in cyclic deps.
+# Eg, vfs_dfs_samba4 is statically linked to libsmbd-base-private, which is part of
+# samba-libs (not samba), because it is used by python3-samba too (smbd.cpython).
+# Might consider using --with-shared-modules=ALL
+# Other modules (vfs_nfs4acl_xattr) are not enabled by default (#930540).
+config-args += \
+	--with-shared-modules=vfs_dfs_samba4,vfs_nfs4acl_xattr,auth_samba4
 
 ifeq (${DEB_HOST_ARCH_OS}, linux) # extra linux-specific features
 
