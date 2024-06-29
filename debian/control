@@ -315,9 +315,9 @@ Package: python3-samba
 Pre-Depends: ${misc:Pre-Depends}
 Architecture: any
 Section: python
-Depends: python3-ldb,
-         python3-tdb,
+Depends: python3-ldb (= ${ldb:Version}),
          samba-libs (= ${binary:Version}),
+         python3-tdb,
          ${misc:Depends},
          ${python3:Depends},
          ${shlibs:Depends}
