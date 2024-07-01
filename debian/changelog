@@ -1,3 +1,15 @@
+samba (2:4.20.2+dfsg-5) unstable; urgency=medium
+
+  * replace internal-to-samba-build python3-ldb-dev package
+    with a transitional empty package (to be removed in trixie+1)
+  * d/control: ensure python3-samba depends on exact version of python3-ldb,
+    the same way as samba-libs depends on exact version of libldb2
+  * d/rules: ensure python3-ldb does not depend on samba-libs|python3-samba
+  * d/rules: refine and explain --with-shared-modules
+  * d/control: d/control: drop old (buster and before) Breaks
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 01 Jul 2024 10:41:04 +0300
+
 samba (2:4.20.2+dfsg-4) unstable; urgency=medium
 
   * d/control: add the forgotten epoch for Breaks/Replaces
