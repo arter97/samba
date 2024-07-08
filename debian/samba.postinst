@@ -48,6 +48,45 @@ then
     fi
 fi
 
+# in 2:4.20.1+dfsg-2 ad-dc functionality has been moved from samba to its own package.
+# warn about this only if ad-dc is configured but samba-ad-dc.service
+# (which is part of samba-ad-dc package) is not present
+if   [ configure = "$1" ] \
+  && dpkg --compare-versions "$2" lt-nl 2:4.20.1+dfsg-2~ \
+  && /usr/share/samba/is-configured samba-ad-dc \
+  && [ ! -f /lib/systemd/system/samba-ad-dc.service ] \
+  && [ ! -f /var/lib/dpkg/info/samba-ad-dc.list ]
+then
+    # here, the user might had requested to install samba-ad-dc *too*,
+    # in the same `apt-get` run, but it's not installed yet.  So this
+    # warning will be useless, but at least it will help in other cases.
+
+# this doesn't work:
+#    . /usr/share/debconf/confmodule
+#    db_title SAMBA || :
+#    db_input high samba/no-samba-ad-dc || :
+#    db_go || :
+# because:
+#  debconf does not display this note anywhwere when DEBIAN_FRONTEND=noninteractive
+#  lintian errors out about this note being non-translatable etc
+# so it requires too much efforts.  Let's keep the user uninformed.
+
+    cat <<'EOF' >&2
+WARNING: =====================================================================
+WARNING: Your samba appears to be configured as an Active Directory Domain
+WARNING: Controller (AD-DC).  AD-DC functionality has been moved out of main
+WARNING: samba package to a separate samba-ad-dc package.
+WARNING:
+WARNING: Please install samba-ad-dc package for the Domain Controller to work.
+WARNING:
+WARNING: Please seee /usr/share/doc/samba/NEWS.Debian.gz for more information.
+WARNING: =====================================================================
+
+EOF
+    # use systemctl directly since the service file is gone
+    systemctl stop samba-ad-dc >/dev/null 2>&1 || :
+fi
+
 #DEBHELPER#
 
 # remove msg.sock/ directory (moved to /run/samba/)
