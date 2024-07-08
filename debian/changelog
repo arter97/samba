@@ -1,3 +1,13 @@
+samba (2:4.20.2+dfsg-6) unstable; urgency=medium
+
+  * make-python-optional.diff: remove the forgotten unneeded patch
+  * d/samba.NEWS: re-wrap it a little bit
+  * d/samba.postinst: notify the user about probably-missing samba-ad-dc
+    package on upgrade (debconf template samba/no-samba-ad-dc)
+  * d/samba-common.postinst: remove (clean up) old debconf entries
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 08 Jul 2024 16:40:49 +0300
+
 samba (2:4.20.2+dfsg-5) unstable; urgency=medium
 
   * replace internal-to-samba-build python3-ldb-dev package
