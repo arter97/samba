@@ -26,6 +26,8 @@ endif
 
 DESTDIR = ${CURDIR}/debian/tmp
 
+dpkg_late_eval ?= $(or $(value DPKG_CACHE_$(1)),$(eval DPKG_CACHE_$(1) := $(shell $(2)))$(value DPKG_CACHE_$(1)))
+
 LDB_VERSION = $(call dpkg_late_eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
 LDB_DEB_VERSION = 2:${LDB_VERSION}+samba${DEB_VERSION_UPSTREAM_REVISION}
 LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb
