@@ -1,3 +1,12 @@
+samba (2:4.20.2+dfsg-8) unstable; urgency=medium
+
+  * d/samba-common-bin.lintian-override: fix the typo in the last fix
+  * d/samba-log-parser: python3-minimal is enough
+  * d/rules: define dpkg_late_eval macro since dpkg 1.22.8 does not define
+    it anymore (Closes: #1076920)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 24 Jul 2024 16:54:54 +0300
+
 samba (2:4.20.2+dfsg-7) unstable; urgency=medium
 
   * d/samba-common-bin.lintian-override: update samba-log-parser override
