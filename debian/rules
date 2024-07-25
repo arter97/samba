@@ -1,11 +1,38 @@
 #!/usr/bin/make -f
 SHELL = /bin/sh -e
 
-export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 # Fast version of dpkg/architecture.mk defining all vars in one go
 ifeq (${DEB_HOST_MULTIARCH},)
    $(foreach d, $(shell dpkg-architecture | sed 's/=/?=/'), $(eval export $d))
 endif
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+# build is done in bin/default/ subdir
+DEB_CFLAGS_MAINT_APPEND = -ffile-prefix-map=../../=
+
+ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81358
+# on these platforms gcc does not link with -latomic, resulting in
+#   third_party/heimdal/lib/krb5/krcache.c.55.o: in function `krcc_get_principal':
+#   third_party/heimdal/lib/krb5/krcache.c:1395: undefined reference to `__atomic_load_8'
+#     ids.krcu_cache_and_princ_id = heim_base_atomic_load(&data->krc_cache_and_principal_id);
+#   third_party/heimdal/lib/base/heimbase-atomics.h:
+#     #include <stdatomic.h>
+#     #define heim_base_atomic_load(x)        atomic_load((x))
+# include a workaround for now
+# (-latomic and <stdatomic.h> comes from gcc, --as-needed is already in use)
+DEB_LDFLAGS_MAINT_APPEND += -latomic
+endif
+
+ifneq (,$(filter m68k ,${DEB_HOST_ARCH}))
+# without this, build fails with multiple messages like:
+# foo.s:NNN: Error: Adjusted signed .word (0xb64a) overflows: `switch'-statement too large.
+# when building third_party/heimdal/lib/asn1/asn1_rfc2459_asn1.c (generated)
+# It would be best to enable this switch for a single file only (where it is needed)
+DEB_CFLAGS_MAINT_APPEND += -mlong-jump-table-offsets
+endif
+
 include /usr/share/dpkg/buildtools.mk
 include /usr/share/dpkg/buildflags.mk
 include /usr/share/dpkg/pkg-info.mk
@@ -95,31 +122,6 @@ endif
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
 omit-pkgs += ctdb libpam-winbind samba samba-ad-dc samba-testsuite samba-vfs-modules samba-vfs-ceph samba-vfs-glusterfs
 endif
-
-ifneq (,$(filter armel mipsel m68k powerpc sh4,${DEB_HOST_ARCH}))
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81358
-# on these platforms gcc does not link with -latomic, resulting in
-#   third_party/heimdal/lib/krb5/krcache.c.55.o: in function `krcc_get_principal':
-#   third_party/heimdal/lib/krb5/krcache.c:1395: undefined reference to `__atomic_load_8'
-#     ids.krcu_cache_and_princ_id = heim_base_atomic_load(&data->krc_cache_and_principal_id);
-#   third_party/heimdal/lib/base/heimbase-atomics.h:
-#     #include <stdatomic.h>
-#     #define heim_base_atomic_load(x)        atomic_load((x))
-# include a workaround for now
-# (-latomic and <stdatomic.h> comes from gcc, --as-needed is already in use)
-LDFLAGS += -latomic
-endif
-
-ifneq (,$(filter m68k ,${DEB_HOST_ARCH}))
-# without this, build fails with multiple messages like:
-# foo.s:NNN: Error: Adjusted signed .word (0xb64a) overflows: `switch'-statement too large.
-# when building third_party/heimdal/lib/asn1/asn1_rfc2459_asn1.c (generated)
-# It would be best to enable this switch for a single file only (where it is needed)
-CFLAGS += -mlong-jump-table-offsets
-endif
-
-# build is done in bin/default/ subdir
-CFLAGS += -ffile-prefix-map=../../=
 
 # we had t64 transition (libsmbclient => libsmbclient0) for trixie
 libsmbclient := $(if ${before-trixie},libsmbclient,libsmbclient0)
