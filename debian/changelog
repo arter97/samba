@@ -1,3 +1,14 @@
+samba (2:4.20.2+dfsg-10) unstable; urgency=medium
+
+  * d/rules: shorten dpkg_late_eval
+  * d/rules: stop renaming heimdal dir for mitkrb5 profile
+  * d/rules: remove the only usage of ${with_mitkrb5}
+  * d/rules: rearrange CFLAGS/LDFLAGS settings to use
+    DEB_*_MAINT_APPEND due to dpkg #1077005
+  * skip -9 release because of test upload to experimental
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 25 Jul 2024 11:35:21 +0300
+
 samba (2:4.20.2+dfsg-8) unstable; urgency=medium
 
   * d/samba-common-bin.lintian-override: fix the typo in the last fix
