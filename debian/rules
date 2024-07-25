@@ -170,10 +170,6 @@ bin/configured.stamp:
 	  { $(if ${V},echo "==== contents of config.log:"; cat bin/config.log;) false; }
 # #1013205: https://lists.samba.org/archive/samba-technical/2022-November/137788.html
 	rm -f third_party/heimdal/lib/gssapi/gssapi.h
-ifneq (,${with_mitkrb5}) # ensure we do not use embedded heimdal in any way
-	[ -d third_party/heimdal-build-with-mitkrb5 ] || \
-		mv third_party/heimdal third_party/heimdal-build-with-mitkrb5
-endif
 	touch $@
 
 build-arch: bin/built.stamp
@@ -378,7 +374,3 @@ endif
 clean:
 	# see also debian/clean
 	dh_clean bin/ testbuild/
-ifneq (,${with_mitkrb5})
-	[ ! -d third_party/heimdal-build-with-mitkrb5 ] || \
-		mv third_party/heimdal-build-with-mitkrb5 third_party/heimdal
-endif
