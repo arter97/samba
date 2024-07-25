@@ -124,15 +124,15 @@ CFLAGS += -ffile-prefix-map=../../=
 # we had t64 transition (libsmbclient => libsmbclient0) for trixie
 libsmbclient := $(if ${before-trixie},libsmbclient,libsmbclient0)
 
-with_mitkrb5 = $(filter pkg.samba.mitkrb5, ${DEB_BUILD_PROFILES})
-ifneq (,${with_mitkrb5})
+mitkrb5-dep-pkgs :=
+ifneq (,$(filter pkg.samba.mitkrb5, ${DEB_BUILD_PROFILES}))
 config-args += \
 	--with-system-mitkrb5 \
 	--with-experimental-mit-ad-dc \
 	--with-system-mitkdc=/usr/sbin/krb5kdc
 # samba packages will have its own version suffix
 mitkrb5-samba-ver = ${DEB_VERSION}mitkrb5
-mitkrb5-dep-pkgs = samba-libs samba-dev
+mitkrb5-dep-pkgs += samba-libs samba-dev
 mitkrb5-dep-pkgs += samba samba-common-bin python3-samba
 mitkrb5-dep-pkgs += samba-vfs-ceph samba-vfs-glusterfs
 mitkrb5-dep-pkgs += samba-dsdb-modules
@@ -141,8 +141,6 @@ mitkrb5-dep-pkgs += libnss-winbind libpam-winbind
 mitkrb5-dep-pkgs += winbind libwbclient0
 mitkrb5-dep-pkgs += samba-testsuite
 mitkrb5-dep-pkgs += ctdb
-else
-mitkrb5-dep-pkgs =
 endif
 
 ifneq (,${omit-pkgs})
