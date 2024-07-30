@@ -18,6 +18,7 @@ usr/lib/*/libsamba-credentials.so.1*
 usr/lib/*/libsamba-errors.so.1*
 usr/lib/*/libsamba-hostconfig.so.0*
 usr/lib/*/libsamba-passdb.so.0*
+usr/lib/*/libsamba-policy.so.0*
 usr/lib/*/libsamba-util.so.0*
 usr/lib/*/libsamdb.so.0*
 usr/lib/*/libsmbconf.so.0*
