@@ -94,7 +94,8 @@ config-args = \
 	--enable-spotlight \
 	--with-profiling-data \
 	--disable-rpath --disable-rpath-install \
-	--bundled-libraries=NONE,pytevent,ldb \
+	--bundled-libraries=NONE,pytevent \
+	--private-libraries=!ldb \
 	\
 	--with-cluster-support \
 	--enable-etcd-reclock \
