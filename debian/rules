@@ -56,7 +56,7 @@ DESTDIR = ${CURDIR}/debian/tmp
 # used to be dpkg_late_eval
 late-eval = $(or $(value cache-$1),$(eval cache-$1 := $(shell $2))$(value cache-$1))
 
-LDB_VERSION = $(call late-eval,LDB_VERSION,grep ^VERSION lib/ldb/wscript | cut -d\' -f2)
+LDB_VERSION = $(call late-eval,LDB_VERSION,grep ^LDB_VERSION lib/ldb/wscript | cut -d\' -f2)
 LDB_DEB_VERSION = 2:${LDB_VERSION}+samba${DEB_VERSION_UPSTREAM_REVISION}
 LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb
 
