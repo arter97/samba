@@ -106,6 +106,7 @@ usr/lib/*/samba/libreplace-private-samba.so.0
 usr/lib/*/samba/libsamba-cluster-support-private-samba.so.0
 usr/lib/*/samba/libsamba-debug-private-samba.so.0
 usr/lib/*/samba/libsamba-modules-private-samba.so.0
+usr/lib/*/samba/libsamba-net-private-samba.so.0
 usr/lib/*/samba/libsamba-security-private-samba.so.0
 usr/lib/*/samba/libsamba-sockets-private-samba.so.0
 usr/lib/*/samba/libsamba3-util-private-samba.so.0
