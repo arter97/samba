@@ -1,7 +1,5 @@
 usr/lib/python3*/*-packages/samba
-# https://gitlab.com/samba-team/samba/-/merge_requests/3642 for 4.21
-usr/lib/*/libsamba-policy.cpython-*.so.*
-usr/lib/*/samba/libsamba-net.cpython-*.so.*
+usr/lib/*/samba/libsamba-net-join.cpython-*.so.*
 usr/lib/*/samba/libsamba-python.cpython-*.so.0
 
 usr/bin/samba-tool
