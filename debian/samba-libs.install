@@ -12,7 +12,7 @@ usr/lib/*/libdcerpc.so.0*
 usr/lib/*/libndr-krb5pac.so.0*
 usr/lib/*/libndr-nbt.so.0*
 usr/lib/*/libndr-standard.so.0*
-usr/lib/*/libndr.so.4*
+usr/lib/*/libndr.so.5*
 usr/lib/*/libnetapi.so.1*
 usr/lib/*/libsamba-credentials.so.1*
 usr/lib/*/libsamba-errors.so.1*

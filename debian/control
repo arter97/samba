@@ -125,7 +125,7 @@ Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Architecture: any
 Section: libs
-Provides: libndr4 (= ${binary:Version}), libsmbldap2 (= ${binary:Version})
+Provides: libndr5 (= ${binary:Version}), libsmbldap2 (= ${binary:Version})
 Depends: ${misc:Depends}, ${shlibs:Depends},
 # since libldb ABI is incorrectly versioned resulting in breakage like #1021371,
 # just require libldb version of the same build
