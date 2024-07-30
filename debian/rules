@@ -65,7 +65,7 @@ before-trixie := $(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES})
 omit-pkgs =
 
 config-args = \
-	--vendor-name=${DEB_VENDOR}-${DEB_VERSION_UPSTREAM_REVISION} \
+	--vendor-suffix=${DEB_VENDOR}-${DEB_VERSION_UPSTREAM_REVISION} \
 	--prefix=/usr \
 	--enable-fhs \
 	--sysconfdir=/etc \
