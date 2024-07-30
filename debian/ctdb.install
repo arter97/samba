@@ -3,7 +3,6 @@ ctdb/config/ctdb.conf etc/ctdb
 ctdb/config/ctdb.tunables etc/ctdb
 ctdb/config/script.options etc/ctdb
 etc/ctdb
-etc/sudoers.d
 usr/bin/ctdb
 usr/bin/ctdb_diagnostics
 usr/bin/ltdbtool
