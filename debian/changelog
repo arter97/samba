@@ -1,3 +1,12 @@
+samba (3:4.20.2+dfsg-12) unstable; urgency=medium
+
+  * bump the epoch to work around mistakenly uploaded 4.21.0-rc1
+    to unstable instead of experimental and a mess resulting from that.
+    Use the same epoch number for libldb.
+    Closes: #1077749
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 02 Aug 2024 12:13:59 +0300
+
 samba (2:4.20.2+dfsg-11) unstable; urgency=medium
 
   * d/control: remove Andrew Bartlett email from Uploaders per his request
