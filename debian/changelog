@@ -1,3 +1,13 @@
+samba (2:4.20.3+dfsg-1) unstable; urgency=medium
+
+  * update to the new upstream stable/bugfix release (4.20.3).
+    See WHATSNEW.txt for details.
+  * tilde-in-version.diff: remove, an equivalent is applied upstream
+  * d/rules: s/vendor-name/vendor-suffix/ as per new upstream option
+  * d/samba-ad-dc.lintian-overrides: add systemd-diversion override too
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 02 Aug 2024 18:33:51 +0300
+
 samba (2:4.20.2+dfsg-11) unstable; urgency=medium
 
   * d/control: remove Andrew Bartlett email from Uploaders per his request
