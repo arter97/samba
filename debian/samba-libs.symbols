@@ -37,6 +37,7 @@ libndr.so.4 libndr4 #MINVER#
  NDR_3.0.1@NDR_3.0.1 2:4.19.0~rc4
  NDR_3.0.2@NDR_3.0.2 2:4.20.0~rc1
  NDR_4.0.0@NDR_4.0.0 2:4.20.0~rc1
+ NDR_4_0_0@NDR_4_0_0 2:4.20.3
  _ndr_pull_error@NDR_1.0.0 2:4.20.0~rc1
  _ndr_push_error@NDR_1.0.0 2:4.20.0~rc1
  ndr_align_size@NDR_0.0.1 2:4.17.2
@@ -308,6 +309,7 @@ libsmbldap.so.2 libsmbldap2 #MINVER#
  SMBLDAP_0@SMBLDAP_0 2:4.16.6
  SMBLDAP_1@SMBLDAP_1 2:4.16.6
  SMBLDAP_2.1.0@SMBLDAP_2.1.0 2:4.16.6
+ SMBLDAP_2_1_0@SMBLDAP_2_1_0 2:4.20.3
  SMBLDAP_2@SMBLDAP_2 2:4.16.6
  smbldap_add@SMBLDAP_0 2:4.16.6
  smbldap_delete@SMBLDAP_0 2:4.16.6
