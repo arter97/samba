@@ -5,6 +5,7 @@ samba (2:4.20.3+dfsg-1) unstable; urgency=medium
   * tilde-in-version.diff: remove, an equivalent is applied upstream
   * d/rules: s/vendor-name/vendor-suffix/ as per new upstream option
   * d/samba-ad-dc.lintian-overrides: add systemd-diversion override too
+  * d/*.symbols: add new variant of version marks (with underscore)
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 02 Aug 2024 18:33:51 +0300
 
