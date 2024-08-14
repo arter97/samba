@@ -138,6 +138,13 @@ def check_symbols(sofile, expected_symbols=""):
     return "objdump --dynamic-syms " + sofile + " | " + \
            "awk \'$0 !~ /" + expected_symbols + "/ {if ($2 == \"g\" && $3 ~ /D(F|O)/ && $4 ~ /(.bss|.text)/ && $7 !~ /(__gcov_|mangle_path)/) exit 1}\'"
 
+def check_versioned_symbol(sofile, symvol, version):
+    return "objdump --dynamic-syms " + sofile + " | " + \
+           "awk \'$7 == \"" + symvol + "\" { " + \
+                "if ($2 == \"g\" && $3 ~ /D(F|O)/ && $4 ~ /(.bss|.text)/ && " + \
+                     "$6 == \"" + version + "\") print $0 }\'" + \
+                "| wc -l | grep -q \'^1$\'"
+
 if args:
     # If we are only running specific test,
     # do not sleep randomly to wait for it to start
@@ -877,14 +884,56 @@ tasks = {
             ("talloc-configure", "cd lib/talloc && " + samba_libs_configure_libs),
             ("talloc-make", "cd lib/talloc && make"),
             ("talloc-install", "cd lib/talloc && make install"),
+            ("talloc-abi-check1",
+                check_versioned_symbol(
+                    "./lib/talloc/bin/shared/libtalloc.so.2",
+                    "talloc_named",
+                    "TALLOC_2.0.2"
+                )
+            ),
+            ("talloc-abi-check2",
+                check_versioned_symbol(
+                    "./lib/talloc/bin/shared/libtalloc.so.2",
+                    "talloc_asprintf_addbuf",
+                    "TALLOC_2.3.5"
+                )
+            ),
 
             ("tdb-configure", "cd lib/tdb && " + samba_libs_configure_libs),
             ("tdb-make", "cd lib/tdb && make"),
             ("tdb-install", "cd lib/tdb && make install"),
+            ("tdb-abi-check1",
+                check_versioned_symbol(
+                    "./lib/tdb/bin/shared/libtdb.so.1",
+                    "tdb_errorstr",
+                    "TDB_1.2.1"
+                )
+            ),
+            ("tdb-abi-check2",
+                check_versioned_symbol(
+                    "./lib/tdb/bin/shared/libtdb.so.1",
+                    "tdb_traverse_chain",
+                    "TDB_1.3.17"
+                )
+            ),
 
             ("tevent-configure", "cd lib/tevent && " + samba_libs_configure_libs),
             ("tevent-make", "cd lib/tevent && make"),
             ("tevent-install", "cd lib/tevent && make install"),
+            ("tevent-abi-check1",
+                check_versioned_symbol(
+                    "./lib/tevent/bin/shared/libtevent.so.0",
+                    "_tevent_loop_once",
+                    "TEVENT_0.9.9"
+                )
+            ),
+            ("tevent-abi-check2",
+                check_versioned_symbol(
+                    "./lib/tevent/bin/shared/libtevent.so.0",
+                    "__tevent_req_create",
+                    "TEVENT_0.15.0"
+                )
+            ),
 
             ("nondevel-configure", samba_libs_envvars + " ./configure --private-libraries='!ldb' --vendor-suffix=TEST-STRING~5.1.2 ${PREFIX}"),
             ("nondevel-make", "make -j"),
@@ -903,12 +952,16 @@ tasks = {
                 check_symbols("./bin/plugins/libnss_wins.so.2", "_nss_wins_")),
             ("nondevel-no-public-libwbclient",
                 check_symbols("./bin/shared/libwbclient.so.0", "wbc")),
+            ("nondevel-libwbclient-wbcCtxPingDc2@WBCLIENT_0.12",
+                check_versioned_symbol("./bin/shared/libwbclient.so.0", "wbcCtxPingDc2", "WBCLIENT_0.12")),
             ("nondevel-no-public-pam_winbind",
                 check_symbols("./bin/plugins/pam_winbind.so", "pam_sm_")),
             ("nondevel-no-public-winbind_krb5_locator",
                 check_symbols("./bin/plugins/winbind_krb5_locator.so", "service_locator")),
             ("nondevel-no-public-async_dns_krb5_locator",
                 check_symbols("./bin/plugins/async_dns_krb5_locator.so", "service_locator")),
+            ("nondevel-libndr-krb5pac-ndr_pull_PAC_DATA@NDR_KRB5PAC_0.0.1",
+                check_versioned_symbol("./bin/shared/libndr-krb5pac.so.0", "ndr_pull_PAC_DATA", "NDR_KRB5PAC_0.0.1")),
             ("nondevel-install", "make -j install"),
             ("nondevel-dist", "make dist"),
 
@@ -1029,6 +1082,15 @@ tasks = {
             ("nonshared-lcov", LCOV_CMD),
             ("nonshared-check-clean-tree", CLEAN_SOURCE_TREE_CMD),
             ("nonshared-clean", "make clean"),
+
+        # retry without winbindd
+            ("nonwinbind-distclean", "make distclean"),
+            ("nonwinbind-configure", "./configure.developer " + samba_configure_params + " --bundled-libraries=ALL --with-static-modules=ALL --without-winbind"),
+            ("nonwinbind-make", "make -j"),
+            ("nonwinbind-test", make_test(TESTS="samba3.smb2.*.simpleserver")),
+            ("nonwinbind-lcov", LCOV_CMD),
+            ("nonwinbind-check-clean-tree", CLEAN_SOURCE_TREE_CMD),
+            ("nonwinbind-clean", "make clean"),
         ],
     },
 
