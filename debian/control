@@ -25,8 +25,8 @@ Build-Depends-Arch:
 	libtalloc-dev (>= 2.4.2~),
 	python3-talloc-dev (>= 2.4.2~),
 	libtevent-dev (>= 0.16.1~),
-	libtdb-dev (>= 1.4.10~),
-	python3-tdb (>= 1.4.10~),
+	libtdb-dev (>= 1.4.12~),
+	python3-tdb (>= 1.4.12~),
 # system libraries:
 	pkgconf,
 	libacl1-dev,
