@@ -64,14 +64,20 @@ static void dos_mode_debug_print(const char *func, uint32_t mode)
 	if (mode & FILE_ATTRIBUTE_COMPRESSED) {
 		fstrcat(modestr, "[compressed]");
 	}
+	if (mode & FILE_ATTRIBUTE_REPARSE_POINT) {
+		fstrcat(modestr, "[reparse_point]");
+	}
 
-	DBG_INFO("%s returning (0x%x): \"%s\"\n", func, (unsigned)mode,
+	DBG_INFO("%s returning (0x%" PRIx32 "): \"%s\"\n",
+		 func,
+		 mode,
 		 modestr);
 }
 
-static uint32_t filter_mode_by_protocol(uint32_t mode)
+static uint32_t filter_mode_by_protocol(enum protocol_types protocol,
+					uint32_t mode)
 {
-	if (get_Protocol() <= PROTOCOL_LANMAN2) {
+	if (protocol <= PROTOCOL_LANMAN2) {
 		DEBUG(10,("filter_mode_by_protocol: "
 			"filtering result 0x%x to 0x%x\n",
 			(unsigned int)mode,
@@ -214,13 +220,14 @@ static uint32_t dos_mode_from_sbuf(connection_struct *conn,
 		if ((st->st_ex_mode & S_IWUSR) == 0) {
 			result |= FILE_ATTRIBUTE_READONLY;
 		}
-	} else if (ro_opts == MAP_READONLY_PERMISSIONS) {
+	}
+	if (ro_opts == MAP_READONLY_PERMISSIONS) {
 		/* smb_fname->fsp can be NULL for an MS-DFS link. */
 		/* Check actual permissions for read-only. */
 		if ((fsp != NULL) && !can_write_to_fsp(fsp)) {
 			result |= FILE_ATTRIBUTE_READONLY;
 		}
-	} /* Else never set the readonly bit. */
+	}
 
 	if (MAP_ARCHIVE(conn) && ((st->st_ex_mode & S_IXUSR) != 0)) {
 		result |= FILE_ATTRIBUTE_ARCHIVE;
@@ -354,8 +361,16 @@ NTSTATUS parse_dos_attribute_blob(struct smb_filename *smb_fname,
 		dosattr |= FILE_ATTRIBUTE_DIRECTORY;
 	}
 
-	/* FILE_ATTRIBUTE_SPARSE is valid on get but not on set. */
-	*pattr |= (uint32_t)(dosattr & (SAMBA_ATTRIBUTES_MASK|FILE_ATTRIBUTE_SPARSE));
+	/*
+	 * _SPARSE and _REPARSE_POINT are valid on get but not on
+	 * set. Both are created via special fcntls.
+	 */
+
+	dosattr &= (SAMBA_ATTRIBUTES_MASK|
+		    FILE_ATTRIBUTE_SPARSE|
+		    FILE_ATTRIBUTE_REPARSE_POINT);
+
+	*pattr |= dosattr;
 
 	dos_mode_debug_print(__func__, *pattr);
 
@@ -448,10 +463,11 @@ NTSTATUS set_ea_dos_attribute(connection_struct *conn,
 	dosattrib.info.info5.create_time = full_timespec_to_nt_time(
 		&smb_fname->st.st_ex_btime);
 
-	DEBUG(10,("set_ea_dos_attributes: set attribute 0x%x, btime = %s on file %s\n",
-		(unsigned int)dosmode,
-		time_to_asc(convert_timespec_to_time_t(smb_fname->st.st_ex_btime)),
-		smb_fname_str_dbg(smb_fname) ));
+	DBG_DEBUG("set attribute 0x%" PRIx32 ", btime = %s on file %s\n",
+		  dosmode,
+		  time_to_asc(convert_timespec_to_time_t(
+			  smb_fname->st.st_ex_btime)),
+		  smb_fname_str_dbg(smb_fname));
 
 	ndr_err = ndr_push_struct_blob(
 			&blob, talloc_tos(), &dosattrib,
@@ -530,9 +546,9 @@ NTSTATUS set_ea_dos_attribute(connection_struct *conn,
 	btime = nt_time_to_full_timespec(dosattrib.info.info5.create_time);
 	update_stat_ex_create_time(&smb_fname->st, btime);
 
-	DEBUG(10,("set_ea_dos_attribute: set EA 0x%x on file %s\n",
-		(unsigned int)dosmode,
-		smb_fname_str_dbg(smb_fname)));
+	DBG_DEBUG("set EA 0x%" PRIx32 " on file %s\n",
+		  dosmode,
+		  smb_fname_str_dbg(smb_fname));
 	return NT_STATUS_OK;
 }
 
@@ -588,7 +604,7 @@ uint32_t dos_mode_msdfs(connection_struct *conn,
 		result = FILE_ATTRIBUTE_NORMAL;
 	}
 
-	result = filter_mode_by_protocol(result);
+	result = filter_mode_by_protocol(conn_protocol(conn->sconn), result);
 
 	/*
 	 * Add in that it is a reparse point
@@ -669,7 +685,8 @@ static uint32_t dos_mode_post(uint32_t dosmode,
 		dosmode = FILE_ATTRIBUTE_NORMAL;
 	}
 
-	dosmode = filter_mode_by_protocol(dosmode);
+	dosmode = filter_mode_by_protocol(conn_protocol(fsp->conn->sconn),
+					  dosmode);
 
 	dos_mode_debug_print(func, dosmode);
 	return dosmode;
@@ -696,8 +713,18 @@ uint32_t fdos_mode(struct files_struct *fsp)
 		return 0;
 	}
 
-	if (S_ISLNK(fsp->fsp_name->st.st_ex_mode)) {
+	switch (fsp->fsp_name->st.st_ex_mode & S_IFMT) {
+	case S_IFLNK:
 		return FILE_ATTRIBUTE_NORMAL;
+		break;
+	case S_IFIFO:
+	case S_IFSOCK:
+	case S_IFBLK:
+	case S_IFCHR:
+		return FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_REPARSE_POINT;
+		break;
+	default:
+		break;
 	}
 
 	if (fsp->fsp_name->st.cached_dos_attributes != FILE_ATTRIBUTE_INVALID) {
@@ -708,15 +735,11 @@ uint32_t fdos_mode(struct files_struct *fsp)
 	status = SMB_VFS_FGET_DOS_ATTRIBUTES(fsp->conn,
 					     metadata_fsp(fsp),
 					     &result);
-	if (!NT_STATUS_IS_OK(status)) {
-		/*
-		 * Only fall back to using UNIX modes if we get NOT_IMPLEMENTED.
-		 */
-		if (NT_STATUS_EQUAL(status, NT_STATUS_NOT_IMPLEMENTED)) {
-			result |= dos_mode_from_sbuf(fsp->conn,
-						     &fsp->fsp_name->st,
-						     fsp);
-		}
+
+	if (NT_STATUS_EQUAL(status, NT_STATUS_NOT_IMPLEMENTED)) {
+		result |= dos_mode_from_sbuf(fsp->conn,
+					     &fsp->fsp_name->st,
+					     fsp);
 	}
 
 	fsp->fsp_name->st.cached_dos_attributes = dos_mode_post(result, fsp, __func__);
@@ -917,7 +940,7 @@ int file_set_dosmode(connection_struct *conn,
 		return -1;
 	}
 
-	if (smb_fname->fsp->posix_flags & FSP_POSIX_FLAGS_OPEN &&
+	if ((smb_fname->fsp->posix_flags & FSP_POSIX_FLAGS_OPEN) &&
 	    !lp_store_dos_attributes(SNUM(conn)))
 	{
 		return 0;
@@ -1187,7 +1210,8 @@ int file_ntimes(connection_struct *conn,
 	}
 
 	if (SMB_VFS_FNTIMES(fsp, ft) == 0) {
-		return 0;
+		ret = 0;
+		goto done;
 	}
 
 	if((errno != EPERM) && (errno != EACCES)) {
@@ -1210,6 +1234,11 @@ int file_ntimes(connection_struct *conn,
 		become_root();
 		ret = SMB_VFS_FNTIMES(fsp, ft);
 		unbecome_root();
+	}
+
+done:
+	if (ret == 0) {
+		copy_stat_ex_timestamps(&fsp->fsp_name->st, ft);
 	}
 
 	return ret;
