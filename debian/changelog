@@ -1,3 +1,29 @@
+samba (2:4.21.0+dfsg-1) unstable; urgency=medium
+
+  * switch to 4.21 branch
+  * update to 4.21.0 (new upstream)
+  * fix-nfs-service-name-to-nfs-kernel-server.patch: refresh
+  * Force-LDB-as-standalone.patch: remove (ldb is always internal now)
+  * d/rules: ldb lib is now private by default, expose it as public
+  * d/rules: ldb uses LDB_VERSION variable now, not VERSION
+  * tilde-in-version.diff: remove (applied upstream)
+  * heimdal-spelling.patch: disable for now
+  * d/rules: s/vendor-name/vendor-suffix/
+  * d/ctdb.install: no more sudoers file
+  * d/samba-libs.symbols, d/control, d/samba-libs.install: libndr4=>libndr5
+    This requires sssd to be rebuilt
+  * samba-{libs,dev}.install, python3-{samba,ldb).install: refresh libs
+    (with lintian-overrides)
+  * samba-libs.install, samba-dev.install: new (semi-public) library:
+    libsamba-policy.so (used by the python stuff only, for now)
+  * samba-libs.install: new private library: libsamba-net-private-samba.so.0
+  * libldb2.symbols: add new symbols & 2.10.0 version
+    (and remove 2.9.1 minor version)
+  * d/control: bump libtdb version dependency to 1.4.12
+  * d/ctdb.install: install winbind_ctdb_updatekeytab.sh file
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 02 Sep 2024 17:48:34 +0300
+
 samba (2:4.20.4+dfsg-1) unstable; urgency=medium
 
   * new upstream (minor/bugfix) release fixing the ABI symbol generation
