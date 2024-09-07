@@ -2,6 +2,7 @@ samba (2:4.21.0+dfsg-1) unstable; urgency=medium
 
   * switch to 4.21 branch
   * update to 4.21.0 (new upstream)
+    (Closes: #835404)
   * fix-nfs-service-name-to-nfs-kernel-server.patch: refresh
   * Force-LDB-as-standalone.patch: remove (ldb is always internal now)
   * d/rules: ldb lib is now private by default, expose it as public
