@@ -93,6 +93,9 @@ Depends: passwd,
          ${shlibs:Depends}
 Recommends: attr,
             python3-samba,
+# samba-ad-dc has been split out of samba in 4.20.1+dfsg-2.  Keep it
+# in Recommends for one release cycle to avoid breaking existing installs
+            samba-ad-dc,
 Suggests: ctdb,
           ufw,
           winbind,
