@@ -1,3 +1,14 @@
+samba (2:4.21.1+dfsg-2) unstable; urgency=medium
+
+  * d/control: add Recommends: samba-ad-dc for samba for now
+    to avoid breaking existing installs
+  * d/samba.postrm: stop unmasking of samba-ad-dc
+    (it is already done in postinst)
+  * d/samba.postinst,d/samba.maintscripts: remove samba-ad-dc
+    startup files and stop the service (Closes: #1085617)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 25 Oct 2024 12:30:52 +0300
+
 samba (2:4.21.1+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release
