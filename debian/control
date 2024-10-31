@@ -322,6 +322,7 @@ Section: python
 Depends: python3-ldb (= ${ldb:Version}),
          samba-libs (= ${binary:Version}),
          python3-tdb,
+         python3-cryptography,
          ${misc:Depends},
          ${python3:Depends},
          ${shlibs:Depends}
