@@ -54,7 +54,7 @@ Build-Depends-Arch:
 	liblmdb-dev,
 	libpam0g-dev,
 	libparse-yapp-perl,
-	libpcap-dev [hurd-i386 kfreebsd-any],
+	libpcap-dev [hurd-any],
 	libpopt-dev,
 	libreadline-dev,
 	libtirpc-dev,
