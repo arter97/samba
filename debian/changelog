@@ -1,3 +1,44 @@
+samba (2:4.21.2+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=14356
+     protocol error - Unclear debug message "pad length mismatch"
+     for invalid bind packet
+   - https://bugzilla.samba.org/show_bug.cgi?id=15320
+     Update CTDB to track all TCP connections to public IP addresses
+   - https://bugzilla.samba.org/show_bug.cgi?id=15425
+     NetrGetLogonCapabilities QueryLevel 2 needs to be implemented
+   - https://bugzilla.samba.org/show_bug.cgi?id=15732
+     smbd fails to correctly check sharemode against OVERWRITE dispositions
+   - https://bugzilla.samba.org/show_bug.cgi?id=15740
+     gss_accept_sec_context() from Heimdal does not imply GSS_C_MUTUAL_FLAG
+     with GSS_C_DCE_STYLE
+   - https://bugzilla.samba.org/show_bug.cgi?id=15749
+     winbindd should call process_set_title() for locator child
+   - https://bugzilla.samba.org/show_bug.cgi?id=15752
+     winexe no longer works with samba 4.21
+   - https://bugzilla.samba.org/show_bug.cgi?id=15754
+     Panic in close_directory
+  * d/control: add python3-cryptography to python3-samba Depends
+    (Closes: #1086768)
+  * d/control: move python3-gpg recommends from python3-samba to samba-ad-dc
+  * d/control: extend libpcap-dev from hurd-i386 to hurd-any (Closes: #1087409)
+  * ship winexe binary (Closes: #1081269).
+    New Build-Depends: gcc-mingw-w64-i686-win32 gcc-mingw-w64-x86-64-win32
+  * d/control: provide Breaks/Replaces for winexe in kali linux (#1081269)
+  * swallow python3-ldb by python3-samba (and remove python3-ldb-dev)
+  * d/rules: drop mis-using --bundled-libraries configure option
+  * d/samba.postinst: replace test for /usr/bin/deb-systemd-helper file
+    with "command -v" (lintian)
+  * d/libldb2.lintian-overrides: remove overrides which were needed for compat
+    symlink (compat for older ldb in separate source)
+  * d/samba.install: stop shipping log2pcap.1 (the tool is not installed)
+  * d/rules: rename LDB_* vars to ldb-, and use common var for -Vldb:Version
+  * move-msg.sock-from-var-lib-samba-to-run-samba.patch: update
+    to cover failing tests too
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 25 Nov 2024 19:21:52 +0300
+
 samba (2:4.21.1+dfsg-2) unstable; urgency=medium
 
   * d/control: add Recommends: samba-ad-dc for samba for now
