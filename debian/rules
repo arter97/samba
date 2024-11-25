@@ -58,7 +58,7 @@ late-eval = $(or $(value cache-$1),$(eval cache-$1 := $(shell $2))$(value cache-
 
 LDB_VERSION = $(call late-eval,LDB_VERSION,grep ^LDB_VERSION lib/ldb/wscript | cut -d\' -f2)
 LDB_DEB_VERSION = 2:${LDB_VERSION}+samba${DEB_VERSION_UPSTREAM_REVISION}
-LDB_PACKAGES = libldb2 libldb-dev ldb-tools python3-ldb
+LDB_PACKAGES = libldb2 libldb-dev ldb-tools
 
 before-trixie := $(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES})
 

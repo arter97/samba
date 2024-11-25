@@ -325,8 +325,8 @@ Package: python3-samba
 Pre-Depends: ${misc:Pre-Depends}
 Architecture: any
 Section: python
-Depends: python3-ldb (= ${ldb:Version}),
-         samba-libs (= ${binary:Version}),
+Depends: samba-libs (= ${binary:Version}),
+         libldb2 (= ${ldb:Version}),
          python3-tdb,
          python3-cryptography,
          ${misc:Depends},
@@ -335,10 +335,13 @@ Depends: python3-ldb (= ${ldb:Version}),
 Breaks:
 # samba-tool & samba-gpupdate moved from samba-common-bin & samba in 4.20.1-2:
           samba-common-bin (<< 2:4.20.1+dfsg-2~), samba (<< 2:4.20.1+dfsg-2~),
+# python3-samba swallowed python3-ldb in 4.21.2-1
+          python3-ldb, python3-ldb-dev,
 Replaces:
-	  samba-common-bin (<< 2:4.20.1+dfsg-2~), samba (<< 2:4.20.1+dfsg-2~),
+          samba-common-bin (<< 2:4.20.1+dfsg-2~), samba (<< 2:4.20.1+dfsg-2~),
+          python3-ldb, python3-ldb-dev,
 # libsamba-policy & helpers and dckeytab python libs moved to python3-samba
- samba-libs (<< 2:4.16.0+dfsg-1~),
+          samba-libs (<< 2:4.16.0+dfsg-1~),
 Recommends: tdb-tools,
 Description: Python 3 bindings for Samba
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
@@ -662,26 +665,3 @@ Description: LDAP-like embedded database - development files
  database.
  .
  This package contains the development files.
-
-Package: python3-ldb
-Pre-Depends: ${misc:Pre-Depends}
-Section: python
-Architecture: any
-Depends: libldb2 (= ${binary:Version}),
-         ${misc:Depends},
-         ${python3:Depends},
-         ${shlibs:Depends}
-Description: Python 3 bindings for LDB
- ldb is a LDAP-like embedded database built on top of TDB.
- .
- This package contains the Python 3 bindings for ldb.
-
-Package: python3-ldb-dev
-# Remove this package for trixie+1
-Section: oldlibs
-Architecture: any
-Depends: ${misc:Depends}
-Description: LDB Python 3 bindings development files - transitional empty package
- This package previously contained development files for python3-ldb.
- These files are not needed outside of samba build system.
- It is safe to remove this package.
