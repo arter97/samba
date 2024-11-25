@@ -53,14 +53,18 @@ endif
 
 DESTDIR = ${CURDIR}/debian/tmp
 
+before-trixie := $(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES})
+
 # used to be dpkg_late_eval
 late-eval = $(or $(value cache-$1),$(eval cache-$1 := $(shell $2))$(value cache-$1))
 
-LDB_VERSION = $(call late-eval,LDB_VERSION,grep ^LDB_VERSION lib/ldb/wscript | cut -d\' -f2)
-LDB_DEB_VERSION = 2:${LDB_VERSION}+samba${DEB_VERSION_UPSTREAM_REVISION}
-LDB_PACKAGES = libldb2 libldb-dev ldb-tools
+ldb-upstream-version = $(call late-eval,LDB_VERSION,grep ^LDB_VERSION lib/ldb/wscript | cut -d\' -f2)
+ldb-upstream-checked = 2.10.0
+ldb-version = 2:${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
+ldb-packages = libldb2 libldb-dev ldb-tools
 
-before-trixie := $(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES})
+extra-version-vars = \
+	-Vldb:Version=${ldb-version} \
 
 omit-pkgs =
 
@@ -320,7 +324,7 @@ override_dh_makeshlibs:
 	# create symbols and shlibs files in separate wrapper script
 	# to deal with private libraries
 	debian/genshlibs \
-		$(addsuffix =${LDB_DEB_VERSION},${LDB_PACKAGES}) \
+		$(addsuffix =${ldb-version},${ldb-packages}) \
 		$(addsuffix =${mitkrb5-samba-ver}, ${mitkrb5-dep-pkgs})
 
 # depcheck package, dep1|dep2... -- dependencies which should NOT be there
@@ -350,11 +354,11 @@ endif
 	$(call depcheck, ${libsmbclient}, samba|winbind|smbclient|ctdb)
 
 override_dh_gencontrol:
-	dh_gencontrol $(addprefix -p, ${LDB_PACKAGES}) -- -v${LDB_DEB_VERSION}
+	dh_gencontrol $(addprefix -p, ${ldb-packages}) -- -v${ldb-version}
 ifneq (,$(filter ${build-pkgs}, ${mitkrb5-dep-pkgs}))
-	dh_gencontrol $(addprefix -p, $(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})) -- -v${mitkrb5-samba-ver} -Vldb:Version=${LDB_DEB_VERSION}
+	dh_gencontrol $(addprefix -p, $(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})) -- -v${mitkrb5-samba-ver} ${extra-version-vars}
 endif
-	dh_gencontrol --remaining-packages -- -Vldb:Version=${LDB_DEB_VERSION}
+	dh_gencontrol --remaining-packages -- ${extra-version-vars}
 ifeq (,${before-trixie})
 # run dh_movetousr only on trixie and up, not before
 	dh_movetousr -plibpam-winbind -plibnss-winbind
