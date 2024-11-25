@@ -58,7 +58,7 @@ then
     # samba-ad-dc package isn't installed
     then
         update-rc.d samba-ad-dc remove >/dev/null
-        if command -v deb-systemd-helper >/dev/null then
+        if command -v deb-systemd-helper >/dev/null; then
             deb-systemd-helper purge samba-ad-dc.service >/dev/null || :
         fi
     fi
