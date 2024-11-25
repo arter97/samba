@@ -22,8 +22,8 @@ Build-Depends-Arch:
 	perl:any,
 	po-debconf,
 	rpcsvc-proto  <!pkg.samba.before-trixie>,
-# for winexe:
-        gcc-mingw-w64,
+# for winexe. gcc-mingw-w64 brings 4 toolchains, we need only 2
+        gcc-mingw-w64-i686-win32, gcc-mingw-w64-x86-64-win32,
 # libraries which we embed but use system versions of:
 	libtalloc-dev (>= 2.4.2~),
 	python3-talloc-dev (>= 2.4.2~),
