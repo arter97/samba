@@ -259,7 +259,7 @@ ifeq ($(DEB_HOST_ARCH_OS), kfreebsd)
 	install -p debian/ctdb.README.kfreebsd debian/tmp/ctdb/README.kfreebsd
 endif
 
-execute_after_dh_install:
+execute_after_dh_install-arch:
 # some vfs modules are in separate packages.  Removing them here avoids having
 # explicit list of other modules in d/samba.install
 	rm -f \
