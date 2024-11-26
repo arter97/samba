@@ -62,6 +62,10 @@ ldb-upstream-version = $(call late-eval,LDB_VERSION,grep ^LDB_VERSION lib/ldb/ws
 ldb-version = 2:${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
 ldb-packages = libldb2 libldb-dev ldb-tools python3-ldb
 
+tdb-upstream-version = $(call late-eval,VERSION,grep ^VERSION lib/tdb/wscript | cut -d\' -f2)
+tdb-version = ${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
+tdb-packages = libtdb1 tdb-tools libtdb-dev python3-tdb
+
 extra-version-vars = \
 	-Vldb:Version=${ldb-version} \
 
@@ -98,6 +102,7 @@ config-args = \
 	--with-profiling-data \
 	--disable-rpath --disable-rpath-install \
 	--private-libraries=!ldb \
+	--bundled-libraries=tdb \
 	\
 	--with-cluster-support \
 	--enable-etcd-reclock \
@@ -264,6 +269,22 @@ ifeq ($(DEB_HOST_ARCH_OS), kfreebsd)
 	install -p debian/ctdb.README.kfreebsd debian/tmp/ctdb/README.kfreebsd
 endif
 
+####### bundled libs
+	mv ${DESTDIR}/usr/bin/tdbbackup \
+		${DESTDIR}/usr/bin/tdbbackup.tdbtools
+	mv ${DESTDIR}/usr/share/man/man8/tdbbackup.8 \
+		${DESTDIR}/usr/share/man/man8/tdbbackup.tdbtools.8
+# fixup paths
+	mv -t ${DESTDIR}/usr/include/ \
+		${DESTDIR}/usr/include/samba-4.0/tdb.h
+	sed -ri 's|(/include)/samba-4.0$$|\1|' \
+		${DESTDIR}/usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/tdb.pc
+	#HACK alert: fix up wrong markers in the common include file
+	sed -i 's/^_PUBLIC_ //' \
+		${DESTDIR}/usr/include/tdb.h
+	# ..and remove the #define itself
+	patch --batch -i debian/header-remove-_PUBLIC_-define.patch ${DESTDIR}/usr/include/tdb.h
+
 execute_after_dh_install-arch:
 # some vfs modules are in separate packages.  Removing them here avoids having
 # explicit list of other modules in d/samba.install
@@ -329,6 +350,7 @@ override_dh_makeshlibs:
 	# to deal with private libraries
 	debian/genshlibs \
 		$(addsuffix =${ldb-version},${ldb-packages}) \
+		$(addsuffix =${tdb-version},${tdb-packages}) \
 		$(addsuffix =${mitkrb5-samba-ver}, ${mitkrb5-dep-pkgs})
 
 # depcheck package, dep1|dep2... -- dependencies which should NOT be there
@@ -356,9 +378,11 @@ endif
 	$(call depcheck, python3-samba, samba|winbind|ctdb)
 	$(call depcheck, libwbclient0, samba|samba-libs|winbind|smbclient|ctdb)
 	$(call depcheck, ${libsmbclient}, samba|winbind|smbclient|ctdb)
+	$(call depcheck, libtdb1, samba|samba-libs|${libsmbclient}|libwbclient0)
 
 override_dh_gencontrol:
 	dh_gencontrol $(addprefix -p, ${ldb-packages}) -- -v${ldb-version}
+	dh_gencontrol $(addprefix -p, ${tdb-packages}) -- -v${tdb-version}
 ifneq (,$(filter ${build-pkgs}, ${mitkrb5-dep-pkgs}))
 	dh_gencontrol $(addprefix -p, $(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})) -- -v${mitkrb5-samba-ver} ${extra-version-vars}
 endif

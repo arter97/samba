@@ -1,4 +1,6 @@
 libsmbclient-ensure-lfs-221618.patch
+tdb-standalone.diff
+tdb_logging_func.diff
 hurd-compat.patch
 README_nosmbldap-tools.patch
 smbclient-pager.patch

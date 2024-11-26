@@ -28,8 +28,6 @@ Build-Depends-Arch:
 	libtalloc-dev (>= 2.4.2~),
 	python3-talloc-dev (>= 2.4.2~),
 	libtevent-dev (>= 0.16.1~),
-	libtdb-dev (>= 1.4.12~),
-	python3-tdb (>= 1.4.12~),
 # system libraries:
 	pkgconf,
 	libacl1-dev,
@@ -677,3 +675,52 @@ Description: Python 3 bindings for LDB
  ldb is a LDAP-like embedded database built on top of TDB.
  .
  This package contains the Python 3 bindings for ldb.
+
+###################### tdb packages
+Package: libtdb1
+Pre-Depends: ${misc:Pre-Depends}
+Multi-Arch: same
+Architecture: any
+Section: libs
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Trivial Database - shared library
+ This is a simple database API. It is modelled after the structure
+ of GDBM. TDB features, unlike GDBM, multiple writers support with
+ appropriate locking and transactions.
+ .
+ This package contains the shared library file.
+
+Package: tdb-tools
+Section: utils
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Trivial Database - bundled binaries
+ This is a simple database API. It is modelled after the structure
+ of GDBM. TDB features, unlike GDBM, multiple writers support with
+ appropriate locking and transactions.
+ .
+ This package contains bundled test and utility binaries
+
+Package: libtdb-dev
+Multi-Arch: same
+Provides: tdb-dev
+Section: libdevel
+Architecture: any
+Depends: libc6-dev, libtdb1 (= ${binary:Version}), ${misc:Depends}
+Description: Trivial Database - development files
+ This is a simple database API. It is modelled after the structure
+ of GDBM. TDB features, unlike GDBM, multiple writers support with
+ appropriate locking and transactions.
+ .
+ This package contains the development files.
+
+Package: python3-tdb
+Section: python
+Architecture: any
+Depends: ${misc:Depends}, ${python3:Depends}, ${shlibs:Depends}
+Description: Python3 bindings for TDB
+ This is a simple database API. It is modelled after the structure
+ of GDBM. TDB features, unlike GDBM, multiple writers support with
+ appropriate locking and transactions.
+ .
+ This package contains the Python3 bindings.
