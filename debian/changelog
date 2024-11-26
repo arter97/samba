@@ -1,3 +1,14 @@
+samba (2:4.21.2+dfsg-2) unstable; urgency=medium
+
+  * resurrect python3-ldb (removed in previous release)
+    The removal of python3-ldb were unwarranted, as long as libldb
+    itself is stand-alone, lets keep its python bindings stand-alone
+    too.
+  * d/rules: s/execute_after_dh_install/execute_after_dh_install-arch/
+    since it is arch-specific
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 26 Nov 2024 18:56:17 +0300
+
 samba (2:4.21.2+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
