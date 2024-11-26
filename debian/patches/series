@@ -1,4 +1,5 @@
 libsmbclient-ensure-lfs-221618.patch
+tevent-standalone.diff
 tdb-standalone.diff
 tdb_logging_func.diff
 hurd-compat.patch

@@ -27,7 +27,6 @@ Build-Depends-Arch:
 # libraries which we embed but use system versions of:
 	libtalloc-dev (>= 2.4.2~),
 	python3-talloc-dev (>= 2.4.2~),
-	libtevent-dev (>= 0.16.1~),
 # system libraries:
 	pkgconf,
 	libacl1-dev,
@@ -675,6 +674,64 @@ Description: Python 3 bindings for LDB
  ldb is a LDAP-like embedded database built on top of TDB.
  .
  This package contains the Python 3 bindings for ldb.
+
+###################### tevent packages
+Package: libtevent0t64
+Build-Profiles: <!pkg.tevent.before-trixie>
+Provides: ${t64:Provides}
+Replaces: libtevent0
+Breaks: libtevent0 (<< ${source:Version})
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Section: libs
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: talloc-based event loop library - shared library
+ tevent is a simple library that can handle the main event loop for an
+ application. It supports three kinds of events: timed events, file
+ descriptors becoming readable or writable and signals.
+ .
+ Talloc is used for memory management, both internally and for private
+ data provided by users of the library.
+ .
+ This package provides the shared library file.
+
+Package: libtevent0
+# the same as libtevent0t64
+Build-Profiles: <pkg.tevent.before-trixie>
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Section: libs
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: talloc-based event loop library - shared library
+ tevent is a simple library that can handle the main event loop for an
+ application. It supports three kinds of events: timed events, file
+ descriptors becoming readable or writable and signals.
+ .
+ Talloc is used for memory management, both internally and for private
+ data provided by users of the library.
+ .
+ This package provides the shared library file.
+
+Package: libtevent-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libc6-dev,
+         libtalloc-dev,
+         libtevent0t64 (= ${binary:Version}) <!pkg.tevent.before-trixie>,
+         libtevent0    (= ${binary:Version}) < pkg.tevent.before-trixie>,
+         ${misc:Depends}
+Description: talloc-based event loop library - development files
+ tevent is a simple library that can handle the main event loop for an
+ application. It supports three kinds of events: timed events, file
+ descriptors becoming readable or writable and signals.
+ .
+ Talloc is used for memory management, both internally and for private
+ data provided by users of the library.
+ .
+ This package provides the development files.
 
 ###################### tdb packages
 Package: libtdb1
