@@ -60,7 +60,7 @@ late-eval = $(or $(value cache-$1),$(eval cache-$1 := $(shell $2))$(value cache-
 
 ldb-upstream-version = $(call late-eval,LDB_VERSION,grep ^LDB_VERSION lib/ldb/wscript | cut -d\' -f2)
 ldb-version = 2:${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
-ldb-packages = libldb2 libldb-dev ldb-tools
+ldb-packages = libldb2 libldb-dev ldb-tools python3-ldb
 
 extra-version-vars = \
 	-Vldb:Version=${ldb-version} \

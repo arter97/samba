@@ -325,8 +325,8 @@ Package: python3-samba
 Pre-Depends: ${misc:Pre-Depends}
 Architecture: any
 Section: python
-Depends: samba-libs (= ${binary:Version}),
-         libldb2 (= ${ldb:Version}),
+Depends: python3-ldb (= ${ldb:Version}),
+         samba-libs (= ${binary:Version}),
          python3-tdb,
          python3-cryptography,
          ${misc:Depends},
@@ -335,11 +335,8 @@ Depends: samba-libs (= ${binary:Version}),
 Breaks:
 # samba-tool & samba-gpupdate moved from samba-common-bin & samba in 4.20.1-2:
           samba-common-bin (<< 2:4.20.1+dfsg-2~), samba (<< 2:4.20.1+dfsg-2~),
-# python3-samba swallowed python3-ldb in 4.21.2-1
-          python3-ldb, python3-ldb-dev,
 Replaces:
           samba-common-bin (<< 2:4.20.1+dfsg-2~), samba (<< 2:4.20.1+dfsg-2~),
-          python3-ldb, python3-ldb-dev,
 # libsamba-policy & helpers and dckeytab python libs moved to python3-samba
           samba-libs (<< 2:4.16.0+dfsg-1~),
 Recommends: tdb-tools,
@@ -665,3 +662,18 @@ Description: LDAP-like embedded database - development files
  database.
  .
  This package contains the development files.
+
+Package: python3-ldb
+Pre-Depends: ${misc:Pre-Depends}
+Section: python
+Architecture: any
+Depends: libldb2 (= ${binary:Version}),
+         ${misc:Depends},
+         ${python3:Depends},
+         ${shlibs:Depends}
+Replaces: python3-samba (=2:4.21.2+dfsg-1), python3-ldb-dev
+Breaks: python3-ldb-dev
+Description: Python 3 bindings for LDB
+ ldb is a LDAP-like embedded database built on top of TDB.
+ .
+ This package contains the Python 3 bindings for ldb.
