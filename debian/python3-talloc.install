@@ -1,0 +1,6 @@
+usr/lib/${DEB_HOST_MULTIARCH}/libpytalloc-util.cpython-*.so.*
+usr/lib/python3/dist-packages/talloc.cpython-*.so
+# development files for the python library
+usr/include/pytalloc.h
+usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/pytalloc-util.cpython-*.pc
+usr/lib/${DEB_HOST_MULTIARCH}/libpytalloc-util.cpython-*.so
