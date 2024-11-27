@@ -699,10 +699,10 @@ Multi-Arch: same
 Section: python
 Architecture: any
 Depends: ${misc:Depends}, ${python3:Depends}, ${shlibs:Depends}
-# Swallow python3-talloc-dev package in talloc 2.4.2-2
-Provides: python3-talloc-dev (= ${binary:Version})
-Replaces: python3-talloc-dev (<<2.4.2-2~)
-Breaks:   python3-talloc-dev (<<2.4.2-2~)
+# swallow python3-talloc-dev package in talloc 2.4.2-2,
+# drop files in samba 4.21.2-3
+Replaces: python3-talloc-dev
+Breaks:   python3-talloc-dev
 Description: hierarchical pool based memory allocator - Python3 bindings
  A hierarchical pool based memory allocator with destructors. It uses
  reference counting to determine when memory should be freed.
