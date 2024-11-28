@@ -1,3 +1,17 @@
+samba (2:4.21.2+dfsg-3) unstable; urgency=medium
+
+  * Revert "d/rules: as of 4.17, no need to explicitly build intermediate
+    targets anymore".  It is still a problem with samba 4.21, it just were
+    hidden.
+  * ldb-no-replace.diff: avoid embedding rpath to private samba libs
+    for libldb.so
+  * heimdal-spelling.patch: remove (forgotten, applied upstream)
+  * d/patches/* update dep3 metadata
+  * add-missing-libs-deps.diff: update to include more missing deps
+    (as submitted upstream)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 28 Nov 2024 22:28:27 +0300
+
 samba (2:4.21.2+dfsg-2) unstable; urgency=medium
 
   * resurrect python3-ldb (removed in previous release)
