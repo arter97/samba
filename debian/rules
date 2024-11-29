@@ -183,6 +183,7 @@ bin/built.stamp: bin/configured.stamp
 # recompilation/relinking is done again, to adopt to the actual install
 # paths. There's no need (for now) to build samba to be run from the build
 # directory, so we use `waf install' here instead of `waf build'.
+ifeq (,${mitkrb5-dep-pkgs})
 # However, as of 4.16 and still 4.21, `waf install' without the build step fails,
 # since it tries to run two executables which are not built.
 # Build these two executables first, and build the install stage.
@@ -190,6 +191,7 @@ bin/built.stamp: bin/configured.stamp
 # we'll repeat during actual install stage, but this is definitely
 # better/faster than building whole thing for _not_ running from the build dir.
 	${WAF} $(if $V,-v) --targets=compile_et,asn1_compile
+endif # !mitkrb5
 	${WAF} $(if $V,-v) install --destdir="${DESTDIR}"
 	touch $@
 build-indep:
