@@ -1,12 +1,13 @@
-samba (2:4.21.2+dfsg-4~exp1) experimental; urgency=medium
+samba (2:4.21.2+dfsg-4) unstable; urgency=medium
 
   * d/rules: guard building compile_et target with !mitkrb5
   * source3-lib-util_sec.c-include-grp.h-for-setgroups.patch for hurd ftbfs
   * build talloc/tevent/tdb from samba source:
    - import talloc, tevent and tdb packaging into samba
    - stop shipping internal-to-samba libpytalloc-util development files
+  * d/copyright: mention myself for d/*
 
- -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 29 Nov 2024 14:34:30 +0300
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 01 Dec 2024 22:28:05 +0300
 
 samba (2:4.21.2+dfsg-3) unstable; urgency=medium
 
