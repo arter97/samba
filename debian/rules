@@ -55,25 +55,26 @@ DESTDIR = ${CURDIR}/debian/tmp
 
 before-trixie := $(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES})
 
-# used to be dpkg_late_eval
-late-eval = $(or $(value cache-$1),$(eval cache-$1 := $(shell $2))$(value cache-$1))
-
-ldb-upstream-version = $(call late-eval,LDB_VERSION,grep ^LDB_VERSION lib/ldb/wscript | cut -d\' -f2)
+# lib/ldb/wscript
+ldb-upstream-version := 2.10.0
 ldb-version = 2:${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
-ldb-packages = libldb2 libldb-dev ldb-tools python3-ldb
+ldb-packages := libldb2 libldb-dev ldb-tools python3-ldb
 
-talloc-upstream-version = $(call late-eval,VERSION,grep ^VERSION lib/talloc/wscript | cut -d\' -f2)
+# lib/talloc/wscript
+talloc-upstream-version := 2.4.2
 talloc-version = ${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
-talloc-packages = libtalloc2 libtalloc-dev python3-talloc
+talloc-packages := libtalloc2 libtalloc-dev python3-talloc
 
-tevent-upstream-version = $(call late-eval,VERSION,grep ^VERSION lib/tevent/wscript | cut -d\' -f2)
+# lib/tevent/wscript
+tevent-upstream-version := 0.16.1
 tevent-version = ${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
 libtevent := $(if ${before-trixie},libtevent0,libtevent0t64)
-tevent-packages = ${libtevent} libtevent-dev
+tevent-packages := ${libtevent} libtevent-dev
 
-tdb-upstream-version = $(call late-eval,VERSION,grep ^VERSION lib/tdb/wscript | cut -d\' -f2)
+# lib/tdb/wscript
+tdb-upstream-version := 1.4.12
 tdb-version = ${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
-tdb-packages = libtdb1 tdb-tools libtdb-dev python3-tdb
+tdb-packages := libtdb1 tdb-tools libtdb-dev python3-tdb
 
 extra-version-vars = \
 	-Vldb:Version=${ldb-version} \
@@ -415,6 +416,23 @@ ifeq (,${before-trixie})
 	dh_movetousr -plibpam-winbind -plibnss-winbind
 endif
 
+# check-subpkg-ver name,variable-in-wscript
+define check-subpkg-ver
+	@v=$$(grep ^$2 lib/$1/wscript | cut -d\' -f2); \
+	[ "${$1-upstream-version}" = "$$v" ] && \
+	  echo "*** $1 version is $$v (ok)" || \
+	  { echo "Check & update $1-upstream-version (=${$1-upstream-version} upstream=$$v) in d/rules" >&2; \
+	    case "${$1-version}" in (*+samba*) echo "Remove +samba suffix from debian version" >&2;; esac; \
+	    grep -qFi " $1_$$v@$1_$$v " debian/lib$1*.symbols || \
+	      echo "Update d/lib$1*.symbols to include new version marker" >&2; \
+	    exit 1; }
+endef
+
 clean:
+	@echo "** Checking versions of bundled libs:"
+	$(call check-subpkg-ver,ldb,LDB_VERSION)
+	$(call check-subpkg-ver,talloc,VERSION)
+	$(call check-subpkg-ver,tevent,VERSION)
+	$(call check-subpkg-ver,tdb,VERSION)
 	# see also debian/clean
 	dh_clean bin/ testbuild/
