@@ -20,7 +20,6 @@ Build-Depends-Arch:
 	docbook-xml, docbook-xsl, xsltproc,
 	flex,
 	perl:any,
-	po-debconf,
 	rpcsvc-proto  <!pkg.samba.before-trixie>,
 # for winexe. gcc-mingw-w64 brings 4 toolchains, we need only 2
         gcc-mingw-w64-i686-win32, gcc-mingw-w64-x86-64-win32,
