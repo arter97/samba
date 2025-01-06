@@ -1,3 +1,33 @@
+samba (2:4.21.3+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=6750:
+     After 'machine password timeout' /etc/krb5.keytab is not updated
+   - https://bugzilla.samba.org/show_bug.cgi?id=15697:
+     Compound rename from Mac clients can fail with
+     NT_STATUS_INTERNAL_ERROR if the file has a lease
+   - https://bugzilla.samba.org/show_bug.cgi?id=15701:
+     More possible replication loops against Azure AD
+   - https://bugzilla.samba.org/show_bug.cgi?id=15724:
+     vfs crossrename seems not work correctly
+   - https://bugzilla.samba.org/show_bug.cgi?id=15755:
+     Avoid event failure race when disabling an event script
+   - https://bugzilla.samba.org/show_bug.cgi?id=15758:
+     Segfault in vfs_btrfs
+   - https://bugzilla.samba.org/show_bug.cgi?id=15765:
+     Fix heap-user-after-free with association groups
+   - https://bugzilla.samba.org/show_bug.cgi?id=15771:
+     Memory leak wbcCtxLookupSid
+  * d/patches/: specify more Forwarded: urls
+  * d/patches/: source3-lib-util_sec.c-include-grp.h-for-setgroups.patch >
+                include-grp.h-for-setgroups-in-a-few-places.patch:
+    add 1 more place for setgroups()
+  * d/rules: remember last versions of ldb/talloc/tevent/tdb, reality check
+  * d/control: since we don't use debconf anymore, no need
+    to (build-)depend on po-debconf either
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 06 Jan 2025 21:20:31 +0300
+
 samba (2:4.21.2+dfsg-4) unstable; urgency=medium
 
   * d/rules: guard building compile_et target with !mitkrb5
