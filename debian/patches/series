@@ -29,3 +29,4 @@ edns0.patch
 passchange-error-message.patch
 lower-dns-lookup-mismatch-messages.patch
 include-grp.h-for-setgroups-in-a-few-places.patch
+ctdb-failover-statd_callout-PATH_MAX-workaround.patch
