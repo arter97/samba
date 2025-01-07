@@ -60,7 +60,7 @@ Build-Depends-Arch:
 	xfslibs-dev [linux-any],
 	zlib1g-dev,
 # python (+#904999):
-	python3-dev:any | python3-dev, libpython3-dev,
+	python3-dev, libpython3-dev,
 	python3-dnspython,
 	python3-etcd,
 	python3-markdown,
@@ -207,8 +207,12 @@ Recommends: libnss-winbind, libpam-winbind,
 Suggests: bind9,
 	  bind9utils,
 	  ldb-tools,
-	  ntp | chrony,
-Enhances: bind9, ntp
+# Besides wanting accurate time, samba DC can provide signed time source
+# to the domain using special socket (see "ntp signd socket directory"
+# in smb.conf(5)).  There was a (wrong) patch to ntp to work with samba,
+# it has been dropped in ntpsec.
+	  time-daemon | chrony | ntpsec,
+Enhances: bind9, ntpsec
 Breaks:   samba-ad-provision (<< ${source:Upstream-Version}),
 # files moved from samba & samba-common-bin in 4.20.1-2:
 	  samba-common-bin (<< 2:4.20.1+dfsg-2~),
