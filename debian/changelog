@@ -1,3 +1,15 @@
+samba (2:4.21.3+dfsg-2) unstable; urgency=medium
+
+  * ctdb-failover-statd_callout-PATH_MAX-workaround.patch
+    another tweak for hurd (for missing PATH_MAX)
+  * d/control: add a note about ntp & signd socket, replace ntp with ntpsec
+  * d/control: provide ability to cross-build samba finally
+    (using qemu-user helper)
+  * d/control: mark arch-all perl and python packages with :native for now
+    (to help cross-building on bookworm)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 10 Jan 2025 23:23:31 +0300
+
 samba (2:4.21.3+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
