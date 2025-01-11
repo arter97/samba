@@ -749,6 +749,9 @@ Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 Section: libs
+# libtevent0t64 slipped out into mjt repository (for a short while)
+Replaces:  libtevent0t64 (<< 2:0.16.1) <pkg.samba.before-trixie>
+Conflicts: libtevent0t64 (<< 2:0.16.1) <pkg.samba.before-trixie>
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: talloc-based event loop library - shared library
  tevent is a simple library that can handle the main event loop for an
