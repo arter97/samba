@@ -20,6 +20,8 @@ Build-Depends-Arch:
 	docbook-xml, docbook-xsl, xsltproc,
 	flex,
 	perl:any,
+# :native for bookworm, on trixie and up it is not needed
+	libparse-yapp-perl:native | libparse-yapp-perl,
 	rpcsvc-proto  <!pkg.samba.before-trixie>,
 # for winexe. gcc-mingw-w64 brings 4 toolchains, we need only 2
         gcc-mingw-w64-i686-win32, gcc-mingw-w64-x86-64-win32,
@@ -48,7 +50,6 @@ Build-Depends-Arch:
 	libldap2-dev,
 	liblmdb-dev,
 	libpam0g-dev,
-	libparse-yapp-perl,
 	libpcap-dev [hurd-any],
 	libpopt-dev,
 	libreadline-dev,
@@ -62,9 +63,10 @@ Build-Depends-Arch:
 	zlib1g-dev,
 # python (+#904999):
 	python3-dev:native, libpython3-dev,
-	python3-dnspython,
-	python3-etcd,
-	python3-markdown,
+# :native for bookworm, for trixie and up it is not needed
+	python3-dnspython:native | python3-dnspython,
+	python3-etcd:native | python3-etcd,
+	python3-markdown:native | python3-markdown,
 # dependencies needed for selftest:
 #	python3-testtools <!nocheck>,
 #	lmdb-utils <!nocheck>,
