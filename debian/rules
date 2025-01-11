@@ -55,25 +55,27 @@ DESTDIR = ${CURDIR}/debian/tmp
 
 before-trixie := $(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES})
 
+subver-suffix := +samba${DEB_VERSION_UPSTREAM_REVISION}
+
 # lib/ldb/wscript
 ldb-upstream-version := 2.10.0
-ldb-version = 2:${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
+ldb-version = 2:${ldb-upstream-version}${subver-suffix}
 ldb-packages := libldb2 libldb-dev ldb-tools python3-ldb
 
 # lib/talloc/wscript
 talloc-upstream-version := 2.4.2
-talloc-version = ${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
+talloc-version = 2:${talloc-upstream-version}${subver-suffix}
 talloc-packages := libtalloc2 libtalloc-dev python3-talloc
 
 # lib/tevent/wscript
 tevent-upstream-version := 0.16.1
-tevent-version = ${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
+tevent-version = 2:${tevent-upstream-version}${subver-suffix}
 libtevent := $(if ${before-trixie},libtevent0,libtevent0t64)
 tevent-packages := ${libtevent} libtevent-dev
 
 # lib/tdb/wscript
 tdb-upstream-version := 1.4.12
-tdb-version = ${ldb-upstream-version}+samba${DEB_VERSION_UPSTREAM_REVISION}
+tdb-version = 2:${tdb-upstream-version}${subver-suffix}
 tdb-packages := libtdb1 tdb-tools libtdb-dev python3-tdb
 
 extra-version-vars = \
