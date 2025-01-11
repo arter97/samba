@@ -407,6 +407,9 @@ endif
 	$(call depcheck, ${libtevent}, samba|samba-libs|${libsmbclient}|libwbclient0)
 	$(call depcheck, libtdb1, samba|samba-libs|${libsmbclient}|libwbclient0)
 
+override_dh_installexamples:
+	dh_installexamples -Xwscript_build
+
 override_dh_gencontrol:
 	dh_gencontrol $(addprefix -p, ${ldb-packages})    -- -v${ldb-version}
 	dh_gencontrol $(addprefix -p, ${talloc-packages}) -- -v${talloc-version}
