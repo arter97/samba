@@ -723,7 +723,7 @@ Description: hierarchical pool based memory allocator - Python3 bindings
 
 ###################### tevent packages
 Package: libtevent0t64
-Build-Profiles: <!pkg.tevent.before-trixie>
+Build-Profiles: <!pkg.samba.before-trixie>
 Provides: ${t64:Provides}
 Replaces: libtevent0
 Breaks: libtevent0 (<< ${source:Version})
@@ -744,7 +744,7 @@ Description: talloc-based event loop library - shared library
 
 Package: libtevent0
 # the same as libtevent0t64
-Build-Profiles: <pkg.tevent.before-trixie>
+Build-Profiles: <pkg.samba.before-trixie>
 Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
@@ -766,8 +766,8 @@ Architecture: any
 Multi-Arch: same
 Depends: libc6-dev,
          libtalloc-dev,
-         libtevent0t64 (= ${binary:Version}) <!pkg.tevent.before-trixie>,
-         libtevent0    (= ${binary:Version}) < pkg.tevent.before-trixie>,
+         libtevent0t64 (= ${binary:Version}) <!pkg.samba.before-trixie>,
+         libtevent0    (= ${binary:Version}) < pkg.samba.before-trixie>,
          ${misc:Depends}
 Description: talloc-based event loop library - development files
  tevent is a simple library that can handle the main event loop for an
