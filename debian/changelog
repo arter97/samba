@@ -1,3 +1,57 @@
+samba (2:4.21.3+dfsg-5) unstable; urgency=medium
+
+  * the Fixing Big Mishaps release.
+
+  * d/rules: fix talloc, tevent, tdb subpackages version numbers, add epoch
+
+    Due to a mistake, I screwed up sub-packages versions completely,
+    by using the wrong variable when generating the versions, - so
+    all mentioned packages had version number of ldb, not their own.
+
+    Fix this.
+
+    Unfortunately, the wrong version is larger than all the correct ones.
+    To compensate, use the same epoch number as is already used by current
+    samba package (2:).
+
+    While at it, use common variable to hold the +samba version suffix.
+
+  * d/*.symbols: mark most recent version markers with 2: epoch too
+
+  * d/control,d/rules: ensure we use the most recent libtalloc/libtevent/libtdb
+    for now, to compensate for the wrong versions.
+
+  * d/control: add explicit Provides of non-t64 libs
+
+    Apparentlty due to usage of both t64 and pre-t64 packages
+    (with different build profiles), debhelper is not populating
+    necessary values for ${t64:Provides}.  So libtevent0t64 is
+    not providing libtevent0 on the relevant architectures.
+    Ditto for libsmbclient0 providing libsmbclient.
+
+    Add explicit arch-specific Provides: for libsmbclient0 and
+    libtevent0t64.
+
+    List only the affected release architectures in there.
+
+    This removes the only user of X-Time64-Compat control field
+    in debian.
+
+  * d/rules: do not install wscript_build in examples
+
+  * d/control: fix libtevent wrong build profile when building for mjt's
+    repository.  Does not affect debian thankfully.  The problem is that
+    libtevent0t64 slipped into the repository for older (before-trixie)
+    distributions, where t64 migration hasn't been completed.  This should
+    not cause actual problems as a problem is only possible when upgrading
+    to the new debian (or ubuntu) release where t64 transition has happened,
+    and during such upgrade, new libtevent0t64 will be pulled in - thanks to
+    the first big mistake above, since it now has 2: epoch.
+  * d/control: add Breaks for libtevent0t64 on mjt repo.  This also
+    does not affect debian, but makes my life definitely easier.
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sun, 12 Jan 2025 00:17:49 +0300
+
 samba (2:4.21.3+dfsg-4) unstable; urgency=medium
 
   * Revert "d/control: mark arch-all perl and python packages with :native
