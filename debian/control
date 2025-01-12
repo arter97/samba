@@ -427,6 +427,7 @@ Description: Samba Virtual FileSystem glusterfs modules
  vfs_glusterfs_fuse modules.
 
 Package: libsmbclient0
+# ${t64:Provides}:
 Provides: libsmbclient (= ${binary:Version}) [amd64 arm64 i386 mips64el ppc64el riscv64 s390x]
 Replaces: libsmbclient
 Breaks: libsmbclient (<< ${source:Version})
@@ -723,6 +724,7 @@ Description: hierarchical pool based memory allocator - Python3 bindings
 ###################### tevent packages
 Package: libtevent0t64
 Build-Profiles: <!pkg.samba.before-trixie>
+# ${t64:Provides}:
 Provides: libtevent0 (= ${binary:Version}) [amd64 arm64 i386 mips64el ppc64el riscv64 s390x]
 Replaces: libtevent0
 Breaks: libtevent0 (<< ${source:Version})
