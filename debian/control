@@ -2,8 +2,7 @@ Source: samba
 Section: net
 Priority: optional
 Maintainer: Debian Samba Maintainers <pkg-samba-maint@lists.alioth.debian.org>
-Uploaders: Steve Langasek <vorlon@debian.org>,
-           Jelmer Vernooĳ <jelmer@debian.org>,
+Uploaders: Jelmer Vernooĳ <jelmer@debian.org>,
            Mathieu Parent <sathieu@debian.org>,
            Michael Tokarev <mjt@tls.msk.ru>
 Homepage: https://www.samba.org
