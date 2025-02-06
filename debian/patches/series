@@ -18,15 +18,6 @@ ctdb-create-piddir.patch
 silence-waf-uselib_local.diff
 disable-setuid-confchecks.patch
 move-msg.sock-from-var-lib-samba-to-run-samba.patch
-testparm-do-not-fail-if-pid-dir-does-not-exist.patch
-add-missing-libs-deps.diff
-fruit-disable-useless-size_t-overflow-check.patch
 meaningful-error-if-no-samba-ad-provision.patch
 meaningful-error-if-no-python3-markdown.patch
 ctdb-use-run-instead-of-var-run.patch
-silence-can-not-convert-group-sid.diff
-edns0.patch
-passchange-error-message.patch
-lower-dns-lookup-mismatch-messages.patch
-include-grp.h-for-setgroups-in-a-few-places.patch
-ctdb-failover-statd_callout-PATH_MAX-workaround.patch
