@@ -30,8 +30,8 @@ type mail >/dev/null 2>&1 || exit 0
 
 	if [ -z "$BINARYNAME" ]; then
 		echo "However, the executable could not be found for process $1."
-		echo "It may have died unexpectedly, or you may not have permission to debug"
-		echo "the process."
+		echo "It may have died unexpectedly, or this script may not have permission to"
+		echo "debug the process."
 		exit 1
 	fi
 
