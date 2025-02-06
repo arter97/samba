@@ -67,18 +67,3 @@ index cbc0482d73f..cb37e79861e 100755
  		;;
  	*)
  		echo "Internal error"
-diff --git a/ctdb/tools/statd_callout_helper b/ctdb/tools/statd_callout_helper
-index a17b57c3de7..b4ad8ae68f7 100755
---- a/ctdb/tools/statd_callout_helper
-+++ b/ctdb/tools/statd_callout_helper
-@@ -29,7 +29,9 @@ die()
- }
- 
- # Try different variables to find config file for NFS_HOSTNAME
--load_system_config "nfs" "nfs-common"
-+if ! type nfsconf > /dev/null 2>&1; then
-+    load_system_config "nfs" "nfs-common"
-+fi
- 
- # If NFS_HOSTNAME not set then try to pull it out of /etc/nfs.conf
- if [ -z "$NFS_HOSTNAME" ]; then
