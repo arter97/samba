@@ -69,6 +69,8 @@ int lp_rpc_high_port(void);
 const char *lp_dns_hostname(void);
 bool lp_lanman_auth(void);
 enum samba_weak_crypto lp_weak_crypto(void);
+bool lp_strict_rename(int snum);
+int lp_smb3_directory_leases(void);
 
 int lp_wi_scan_global_parametrics(
 	const char *regex, size_t max_matches,
@@ -163,6 +165,7 @@ bool lp_load_global_no_reinit(const char *file_name);
 bool lp_load_no_reinit(const char *file_name);
 bool lp_load_client_no_reinit(const char *file_name);
 bool lp_load_with_registry_shares(const char *pszFname);
+bool lp_load_with_registry_without_shares(const char *pszFname);
 int lp_numservices(void);
 void lp_dump(FILE *f, bool show_defaults, int maxtoprint);
 void lp_dump_one(FILE * f, bool show_defaults, int snum);

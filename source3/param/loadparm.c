@@ -162,6 +162,7 @@ static const struct loadparm_service _sDefault =
 	.volume = NULL,
 	.fstype = NULL,
 	.vfs_objects = NULL,
+	.vfs_mkdir_use_tmp_name = Auto,
 	.msdfs_proxy = NULL,
 	.aio_write_behind = NULL,
 	.dfree_command = NULL,
@@ -214,7 +215,7 @@ static const struct loadparm_service _sDefault =
 	.follow_symlinks = true,
 	.sync_always = false,
 	.strict_allocate = false,
-	.strict_rename = false,
+	._strict_rename = false,
 	.strict_sync = true,
 	.mangling_char = '~',
 	.copymap = NULL,
@@ -669,6 +670,7 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 	Globals.winbind_sealed_pipes = true;
 	Globals.require_strong_key = true;
 	Globals.reject_md5_servers = true;
+	Globals._client_use_krb5_netlogon = LP_ENUM_Default;
 	Globals.server_schannel = true;
 	Globals.server_schannel_require_seal = true;
 	Globals.reject_md5_clients = true;
@@ -878,6 +880,7 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 	Globals.smb2_max_trans = DEFAULT_SMB2_MAX_TRANSACT;
 	Globals.smb2_max_credits = DEFAULT_SMB2_MAX_CREDITS;
 	Globals.smb2_leases = true;
+	Globals._smb3_directory_leases = Auto;
 	Globals.server_multi_channel_support = true;
 
 	lpcfg_string_set(Globals.ctx, &Globals.ncalrpc_dir,
@@ -941,8 +944,6 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 
 	Globals.nsupdate_command = str_list_make_v3_const(NULL, "/usr/bin/nsupdate -g", NULL);
 
-	Globals.cldap_port = 389;
-
 	Globals.dgram_port = NBT_DGRAM_SERVICE_PORT;
 
 	Globals.nbt_port = NBT_NAME_SERVICE_PORT;
@@ -1002,6 +1003,13 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 	Globals.ad_dc_functional_level = DS_DOMAIN_FUNCTION_2008_R2,
 
 	Globals.acl_claims_evaluation = ACL_CLAIMS_EVALUATION_AD_DC_ONLY;
+
+	/* Set the default Himmelblaud globals */
+	lpcfg_string_set(Globals.ctx,
+			&Globals.himmelblaud_hsm_pin_path,
+			get_dyn_HIMMELBLAUD_HSM_PIN_PATH());
+	Globals.himmelblaud_hello_enabled = false;
+	Globals.himmelblaud_sfa_fallback = false;
 
 	/* Now put back the settings that were set with lp_set_cmdline() */
 	apply_lp_set_cmdline();
@@ -4291,6 +4299,17 @@ bool lp_load_with_registry_shares(const char *pszFname)
 			  true); /* load_all_shares*/
 }
 
+bool lp_load_with_registry_without_shares(const char *pszFname)
+{
+	return lp_load_ex(pszFname,
+			  false, /* global_only */
+			  true,  /* save_defaults */
+			  false, /* add_ipc */
+			  true, /* reinit_globals */
+			  true,  /* allow_include_registry */
+			  false); /* load_all_shares*/
+}
+
 /***************************************************************************
  Return the max number of services.
 ***************************************************************************/
@@ -4678,7 +4697,7 @@ enum brl_flavour lp_posix_cifsu_locktype(files_struct *fsp)
 	if (posix_default_lock_was_set) {
 		return posix_cifsx_locktype;
 	} else {
-		return (fsp->posix_flags & FSP_POSIX_FLAGS_OPEN) ?
+		return fsp->fsp_flags.posix_open ?
 			POSIX_LOCK : WINDOWS_LOCK;
 	}
 }
@@ -4912,4 +4931,26 @@ uint32_t lp_get_async_dns_timeout(void)
 	 * as per the man page.
 	 */
 	return MAX(Globals.async_dns_timeout, 1);
+}
+
+bool lp_strict_rename(int snum)
+{
+	if (lp_smb3_directory_leases()){
+		return true;
+	}
+	return lp__strict_rename(snum);
+}
+
+int lp_smb3_directory_leases(void)
+{
+	bool dirleases = lp__smb3_directory_leases();
+
+	if (lp__smb3_directory_leases() == Auto) {
+		dirleases &= !lp_clustering();
+	}
+
+	dirleases &= lp_smb2_leases();
+	dirleases &= lp_oplocks(GLOBAL_SECTION_SNUM);
+	dirleases &= !lp_kernel_oplocks(GLOBAL_SECTION_SNUM);
+	return dirleases;
 }

@@ -323,16 +323,17 @@ bool sid_peek_check_rid(const struct dom_sid *exp_dom_sid, const struct dom_sid 
 
 void sid_copy(struct dom_sid *dst, const struct dom_sid *src)
 {
-	int i;
+	const int8_t num_auths = MIN(15, MAX(0, src->num_auths));
+	int8_t i;
 
 	*dst = (struct dom_sid) {
 		.sid_rev_num = src->sid_rev_num,
-		.num_auths = src->num_auths,
+		.num_auths = num_auths,
 	};
 
 	memcpy(&dst->id_auth[0], &src->id_auth[0], sizeof(src->id_auth));
 
-	for (i = 0; i < src->num_auths; i++)
+	for (i = 0; i < num_auths; i++)
 		dst->sub_auths[i] = src->sub_auths[i];
 }
 
@@ -1072,7 +1073,6 @@ NTSTATUS dom_sid_lookup_predefined_sid(const struct dom_sid *sid,
 				       const char **authority_name)
 {
 	size_t di;
-	bool match_domain = false;
 
 	*name = NULL;
 	*type = SID_NAME_UNKNOWN;
@@ -1094,8 +1094,6 @@ NTSTATUS dom_sid_lookup_predefined_sid(const struct dom_sid *sid,
 			continue;
 		}
 
-		match_domain = true;
-
 		for (ni = 0; ni < d->num_names; ni++) {
 			const struct predefined_name_mapping *n =
 				&d->names[ni];
@@ -1113,7 +1111,7 @@ NTSTATUS dom_sid_lookup_predefined_sid(const struct dom_sid *sid,
 		}
 	}
 
-	if (!match_domain) {
+	if (sid->num_auths == 0) {
 		return NT_STATUS_INVALID_SID;
 	}
 

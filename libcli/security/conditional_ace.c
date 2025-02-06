@@ -109,26 +109,23 @@ static bool check_integer_range(const struct ace_condition_token *tok)
 	return true;
 }
 
-
-static ssize_t pull_integer(TALLOC_CTX *mem_ctx,
-			uint8_t *data, size_t length,
-			struct ace_condition_int *tok)
+static ssize_t pull_integer(uint8_t *data,
+			    size_t length,
+			    struct ace_condition_int *tok)
 {
-	ssize_t bytes_used;
+	size_t consumed;
 	enum ndr_err_code ndr_err;
-	DATA_BLOB v = data_blob_const(data, length);
-	struct ndr_pull *ndr = ndr_pull_init_blob(&v, mem_ctx);
-	if (ndr == NULL) {
-		return -1;
-	}
-	ndr_err = ndr_pull_ace_condition_int(ndr, NDR_SCALARS|NDR_BUFFERS, tok);
+
+	ndr_err = ndr_pull_struct_blob_noalloc(
+		data,
+		length,
+		tok,
+		(ndr_pull_flags_fn_t)ndr_pull_ace_condition_int,
+		&consumed);
 	if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
-		TALLOC_FREE(ndr);
 		return -1;
 	}
-	bytes_used = ndr->offset;
-	TALLOC_FREE(ndr);
-	return bytes_used;
+	return consumed;
 }
 
 static ssize_t push_integer(uint8_t *data, size_t available,
@@ -335,8 +332,7 @@ static ssize_t pull_composite(TALLOC_CTX *mem_ctx,
 		case CONDITIONAL_ACE_TOKEN_INT16:
 		case CONDITIONAL_ACE_TOKEN_INT32:
 		case CONDITIONAL_ACE_TOKEN_INT64:
-			consumed = pull_integer(mem_ctx,
-						el_data,
+			consumed = pull_integer(el_data,
 						available,
 						&el->data.int64);
 			ok = check_integer_range(el);
@@ -507,7 +503,7 @@ static ssize_t pull_end_padding(uint8_t *data, size_t length)
 	 *
 	 * zero is also called CONDITIONAL_ACE_TOKEN_INVALID_OR_PADDING.
 	 */
-	ssize_t i;
+	size_t i;
 	if (length > 2) {
 		return -1;
 	}
@@ -592,8 +588,7 @@ struct ace_condition_script *parse_conditional_ace(TALLOC_CTX *mem_ctx,
 		case CONDITIONAL_ACE_TOKEN_INT16:
 		case CONDITIONAL_ACE_TOKEN_INT32:
 		case CONDITIONAL_ACE_TOKEN_INT64:
-			consumed = pull_integer(program,
-						tok_data,
+			consumed = pull_integer(tok_data,
 						available,
 						&tok->data.int64);
 			ok = check_integer_range(tok);
@@ -706,17 +701,6 @@ struct ace_condition_script *parse_conditional_ace(TALLOC_CTX *mem_ctx,
 	if (program->tokens == NULL) {
 		goto fail;
 	}
-	/*
-	 * When interpreting the program we will need a stack, which in the
-	 * very worst case can be as deep as the program is long.
-	 */
-	program->stack = talloc_array(program,
-				      struct ace_condition_token,
-				      program->length + 1);
-	if (program->stack == NULL) {
-		goto fail;
-	}
-
 	return program;
   fail:
 	talloc_free(program);
@@ -2218,7 +2202,19 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 	struct ace_condition_token *lhs = NULL;
 	struct ace_condition_token *rhs = NULL;
 	struct ace_condition_token result = {};
+	struct ace_condition_token *stack = NULL;
 	bool ok;
+
+	/*
+	 * When interpreting the program we will need a stack, which in the
+	 * very worst case can be as deep as the program is long.
+	 */
+	stack = talloc_array(mem_ctx,
+			     struct ace_condition_token,
+			     program->length + 1);
+	if (stack == NULL) {
+		goto error;
+	}
 
 	for (i = 0; i < program->length; i++) {
 		struct ace_condition_token *tok = &program->tokens[i];
@@ -2232,7 +2228,7 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 		case CONDITIONAL_ACE_TOKEN_SID:
 		case CONDITIONAL_ACE_TOKEN_COMPOSITE:
 		/* just plonk these literals on the stack */
-			program->stack[depth] = *tok;
+			stack[depth] = *tok;
 			depth++;
 			break;
 
@@ -2243,7 +2239,7 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 			if (! ok) {
 				goto error;
 			}
-			program->stack[depth] = result;
+			stack[depth] = result;
 			depth++;
 			break;
 
@@ -2255,7 +2251,7 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 			if (! ok) {
 				goto error;
 			}
-			program->stack[depth] = result;
+			stack[depth] = result;
 			depth++;
 			break;
 
@@ -2271,12 +2267,12 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 				goto error;
 			}
 			depth--;
-			lhs = &program->stack[depth];
+			lhs = &stack[depth];
 			ok = member_lookup(token, tok, lhs, &result);
 			if (! ok) {
 				goto error;
 			}
-			program->stack[depth] = result;
+			stack[depth] = result;
 			depth++;
 			break;
 		/* binary relational operators */
@@ -2294,14 +2290,14 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 				goto error;
 			}
 			depth--;
-			rhs = &program->stack[depth];
+			rhs = &stack[depth];
 			depth--;
-			lhs = &program->stack[depth];
+			lhs = &stack[depth];
 			ok = relational_operator(token, tok, lhs, rhs, &result);
 			if (! ok) {
 				goto error;
 			}
-			program->stack[depth] = result;
+			stack[depth] = result;
 			depth++;
 			break;
 		/* unary logical operators */
@@ -2312,12 +2308,12 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 				goto error;
 			}
 			depth--;
-			lhs = &program->stack[depth];
+			lhs = &stack[depth];
 			ok = unary_logic_operator(mem_ctx, token, tok, lhs, sd, &result);
 			if (!ok) {
 				goto error;
 			}
-			program->stack[depth] = result;
+			stack[depth] = result;
 			depth++;
 			break;
 		/* binary logical operators */
@@ -2327,14 +2323,14 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 				goto error;
 			}
 			depth--;
-			rhs = &program->stack[depth];
+			rhs = &stack[depth];
 			depth--;
-			lhs = &program->stack[depth];
+			lhs = &stack[depth];
 			ok = binary_logic_operator(token, tok, lhs, rhs, &result);
 			if (! ok) {
 				goto error;
 			}
-			program->stack[depth] = result;
+			stack[depth] = result;
 			depth++;
 			break;
 		default:
@@ -2348,11 +2344,11 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 	if (depth != 1) {
 		goto error;
 	}
-	result = program->stack[0];
+	result = stack[0];
 	if (result.type != CONDITIONAL_ACE_SAMBA_RESULT_BOOL) {
 		goto error;
 	}
-
+	TALLOC_FREE(stack);
 	return result.data.result.value;
 
   error:
@@ -2360,6 +2356,7 @@ int run_conditional_ace(TALLOC_CTX *mem_ctx,
 	 * the result of an error is always UNKNOWN, which should be
 	 * interpreted pessimistically, not allowing access.
 	 */
+	TALLOC_FREE(stack);
 	return ACE_CONDITION_UNKNOWN;
 }
 

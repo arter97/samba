@@ -170,6 +170,9 @@ _PUBLIC_ char *generate_random_machine_password(TALLOC_CTX *mem_ctx, size_t min,
 /**
  Use the random number generator to generate a random string.
 **/
+_PUBLIC_ char *generate_random_str_list_buf(char *buf,
+					    size_t buflen,
+					    const char *list);
 _PUBLIC_ char *generate_random_str_list(TALLOC_CTX *mem_ctx, size_t len, const char *list);
 
 /**
@@ -649,5 +652,15 @@ struct tevent_context *samba_tevent_context_init(TALLOC_CTX *mem_ctx);
  * samba_tevent_set_debug(ev, "pysmb_tevent");
  */
 void samba_tevent_set_debug(struct tevent_context *ev, const char *name);
+
+static inline char nybble_to_hex_lower(uint8_t val)
+{
+	return hexchars_lower[val & 0xf];
+}
+
+static inline char nybble_to_hex_upper(uint8_t val)
+{
+	return hexchars_upper[val & 0xf];
+}
 
 #endif /* _SAMBA_UTIL_H_ */

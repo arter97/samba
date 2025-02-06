@@ -223,10 +223,7 @@ NTSTATUS cli_smb(TALLOC_CTX *mem_ctx, struct cli_state *cli,
 
 /* The following definitions come from libsmb/clierror.c  */
 
-NTSTATUS cli_nt_error(struct cli_state *cli);
 int cli_status_to_errno(NTSTATUS status);
-int cli_errno(struct cli_state *cli);
-bool cli_is_error(struct cli_state *cli);
 bool cli_state_is_connected(struct cli_state *cli);
 
 /* The following definitions come from libsmb/clifile.c  */
@@ -278,8 +275,6 @@ NTSTATUS cli_posix_hardlink_recv(struct tevent_req *req);
 NTSTATUS cli_posix_hardlink(struct cli_state *cli,
 			const char *oldname,
 			const char *newname);
-uint32_t unix_perms_to_wire(mode_t perms);
-mode_t wire_perms_to_unix(uint32_t perms);
 struct tevent_req *cli_posix_getacl_send(TALLOC_CTX *mem_ctx,
 					struct tevent_context *ev,
 					struct cli_state *cli,
@@ -312,13 +307,20 @@ NTSTATUS cli_posix_stat_recv(struct tevent_req *req, struct stat_ex *sbuf);
 NTSTATUS cli_posix_stat(struct cli_state *cli,
 			const char *fname,
 			struct stat_ex *sbuf);
-struct tevent_req *cli_posix_chmod_send(TALLOC_CTX *mem_ctx,
-					struct tevent_context *ev,
-					struct cli_state *cli,
-					const char *fname,
-					mode_t mode);
-NTSTATUS cli_posix_chmod_recv(struct tevent_req *req);
-NTSTATUS cli_posix_chmod(struct cli_state *cli, const char *fname, mode_t mode);
+;
+struct tevent_req *cli_fchmod_send(TALLOC_CTX *mem_ctx,
+				   struct tevent_context *ev,
+				   struct cli_state *cli,
+				   uint16_t fnum,
+				   mode_t mode);
+NTSTATUS cli_fchmod_recv(struct tevent_req *req);
+struct tevent_req *cli_chmod_send(TALLOC_CTX *mem_ctx,
+				  struct tevent_context *ev,
+				  struct cli_state *cli,
+				  const char *fname,
+				  mode_t mode);
+NTSTATUS cli_chmod_recv(struct tevent_req *req);
+NTSTATUS cli_chmod(struct cli_state *cli, const char *fname, mode_t mode);
 struct tevent_req *cli_posix_chown_send(TALLOC_CTX *mem_ctx,
 					struct tevent_context *ev,
 					struct cli_state *cli,
@@ -736,6 +738,18 @@ NTSTATUS cli_get_posix_fs_info(struct cli_state *cli,
 			       uint64_t *total_file_nodes,
 			       uint64_t *free_file_nodes,
 			       uint64_t *fs_identifier);
+struct tevent_req *cli_get_posix_fs_info_send(TALLOC_CTX *mem_ctx,
+					      struct tevent_context *ev,
+					      struct cli_state *cli);
+NTSTATUS cli_get_posix_fs_info_recv(struct tevent_req *req,
+				    uint32_t *optimal_transfer_size,
+				    uint32_t *block_size,
+				    uint64_t *total_blocks,
+				    uint64_t *blocks_available,
+				    uint64_t *user_blocks_available,
+				    uint64_t *total_file_nodes,
+				    uint64_t *free_file_nodes,
+				    uint64_t *fs_identifier);
 struct tevent_req *cli_posix_whoami_send(TALLOC_CTX *mem_ctx,
 			struct tevent_context *ev,
 			struct cli_state *cli);

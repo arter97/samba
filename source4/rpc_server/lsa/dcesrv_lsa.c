@@ -1079,7 +1079,7 @@ static NTSTATUS add_trust_user(TALLOC_CTX *mem_ctx,
 		return NT_STATUS_NO_MEMORY;
 	}
 
-	ret = ldb_msg_add_fmt(msg, "samAccountName", "%s$", netbios_name);
+	ret = ldb_msg_add_fmt(msg, "sAMAccountName", "%s$", netbios_name);
 	if (ret != LDB_SUCCESS) {
 		return NT_STATUS_NO_MEMORY;
 	}
@@ -1932,7 +1932,7 @@ static NTSTATUS update_trust_user(TALLOC_CTX *mem_ctx,
 
 	ret = gendb_search(sam_ldb, mem_ctx,
 			   base_dn, &msgs, attrs,
-			   "samAccountName=%s$", netbios_name);
+			   "sAMAccountName=%s$", netbios_name);
 	if (ret > 1) {
 		return NT_STATUS_INTERNAL_DB_CORRUPTION;
 	}
@@ -3059,7 +3059,8 @@ static NTSTATUS dcesrv_lsa_AddRemoveAccountRights(struct dcesrv_call_state *dce_
 {
 	struct auth_session_info *session_info =
 		dcesrv_call_session_info(dce_call);
-	const char *sidstr, *sidndrstr;
+	struct dom_sid_buf sidbuf;
+	const char *sidndrstr = NULL;
 	struct ldb_message *msg;
 	struct ldb_message_element *el;
 	int ret;
@@ -3084,13 +3085,7 @@ static NTSTATUS dcesrv_lsa_AddRemoveAccountRights(struct dcesrv_call_state *dce_
 		return NT_STATUS_NO_MEMORY;
 	}
 
-	sidstr = dom_sid_string(msg, sid);
-	if (sidstr == NULL) {
-		TALLOC_FREE(msg);
-		return NT_STATUS_NO_MEMORY;
-	}
-
-	dnstr = talloc_asprintf(msg, "sid=%s", sidstr);
+	dnstr = talloc_asprintf(msg, "sid=%s", dom_sid_str_buf(sid, &sidbuf));
 	if (dnstr == NULL) {
 		TALLOC_FREE(msg);
 		return NT_STATUS_NO_MEMORY;

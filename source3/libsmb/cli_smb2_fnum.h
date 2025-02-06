@@ -67,6 +67,8 @@ NTSTATUS cli_smb2_create_fnum(
 	TALLOC_CTX *mem_ctx,
 	struct smb2_create_blobs *out_cblobs);
 
+bool cli_smb2_fnum_is_posix(struct cli_state *cli, uint16_t fnum);
+
 struct tevent_req *cli_smb2_close_fnum_send(TALLOC_CTX *mem_ctx,
 					    struct tevent_context *ev,
 					    struct cli_state *cli,
@@ -320,5 +322,19 @@ struct tevent_req *cli_smb2_fsctl_send(
 	uint32_t max_out);
 NTSTATUS cli_smb2_fsctl_recv(
 	struct tevent_req *req, TALLOC_CTX *mem_ctx, DATA_BLOB *out);
+
+struct tevent_req *cli_smb2_get_posix_fs_info_send(TALLOC_CTX *mem_ctx,
+						   struct tevent_context *ev,
+						   struct cli_state *cli);
+NTSTATUS cli_smb2_get_posix_fs_info_recv(struct tevent_req *req,
+					 uint32_t *optimal_transfer_size,
+					 uint32_t *block_size,
+					 uint64_t *total_blocks,
+					 uint64_t *blocks_available,
+					 uint64_t *user_blocks_available,
+					 uint64_t *total_file_nodes,
+					 uint64_t *free_file_nodes,
+					 uint64_t *fs_identifier);
+
 
 #endif /* __SMB2CLI_FNUM_H__ */

@@ -31,6 +31,9 @@
 
 #undef strcasecmp
 
+#undef DBGC_CLASS
+#define DBGC_CLASS DBGC_LDB
+
 static int ldb_eval_transitive_filter_helper(TALLOC_CTX *mem_ctx,
 					     struct ldb_context *ldb,
 					     const char *attr,
@@ -351,7 +354,7 @@ static int ldb_comparator_trans(struct ldb_context *ldb,
  * where the value is a number of hours since the start of 1601.
  *
  * This allows the caller to find records that should become a DNS
- * tomestone, despite that information being deep within an NDR packed
+ * tombstone, despite that information being deep within an NDR packed
  * object
  */
 static int dsdb_match_for_dns_to_tombstone_time(struct ldb_context *ldb,

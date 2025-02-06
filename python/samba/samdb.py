@@ -35,6 +35,7 @@ from samba.common import normalise_int32
 from samba.common import get_bytes, cmp
 from samba.dcerpc import security
 from samba import is_ad_dc_built
+from samba import NTSTATUSError, ntstatus
 import binascii
 
 __docformat__ = "restructuredText"
@@ -132,7 +133,7 @@ class SamDB(samba.Ldb):
         """Disables an account
 
         :param search_filter: LDAP filter to find the user (eg
-            samccountname=name)
+            sAMAccountName=name)
         """
 
         flags = samba.dsdb.UF_ACCOUNTDISABLE
@@ -142,7 +143,7 @@ class SamDB(samba.Ldb):
         """Enables an account
 
         :param search_filter: LDAP filter to find the user (eg
-            samccountname=name)
+            sAMAccountName=name)
         """
 
         flags = samba.dsdb.UF_ACCOUNTDISABLE | samba.dsdb.UF_PASSWD_NOTREQD
@@ -153,7 +154,7 @@ class SamDB(samba.Ldb):
         """Toggle_userAccountFlags
 
         :param search_filter: LDAP filter to find the user (eg
-            samccountname=name)
+            sAMAccountName=name)
         :param flags: samba.dsdb.UF_* flags
         :param on: on=True (default) => set, on=False => unset
         :param strict: strict=False (default) ignore if no action is needed
@@ -197,7 +198,7 @@ userAccountControl: %u
         """Forces a password change at next login
 
         :param search_filter: LDAP filter to find the user (eg
-            samccountname=name)
+            sAMAccountName=name)
         """
         res = self.search(base=self.domain_dn(), scope=ldb.SCOPE_SUBTREE,
                           expression=search_filter, attrs=[])
@@ -365,43 +366,116 @@ lockoutTime: 0
 
         return filter
 
-    def add_remove_group_members(self, groupname, members,
+    def add_remove_group_members(self, group, members,
                                  add_members_operation=True,
                                  member_types=None,
                                  member_base_dn=None):
         """Adds or removes group members
 
-        :param groupname: Name of the target group
+        :param group: sAMAccountName, DN, SID or GUID of the target group
         :param members: list of group members
         :param add_members_operation: Defines if its an add or remove
             operation
+        :param member_types: List of object types, used to filter the search
+            for the specified members
+        :param member_base_dn: Base dn for member search
         """
         if member_types is None:
             member_types = ['user', 'group', 'computer']
 
-        groupfilter = "(&(sAMAccountName=%s)(objectCategory=%s,%s))" % (
-            ldb.binary_encode(groupname), "CN=Group,CN=Schema,CN=Configuration", self.domain_dn())
+        if member_base_dn is None:
+            member_base_dn = self.domain_dn()
+
+        partial_groupfilter = None
+
+        group_sid = None
+        try:
+            group_sid = security.dom_sid(group)
+        except ValueError:
+            pass
+        if group_sid is not None:
+            partial_groupfilter = "(objectClass=*)"
+
+        group_guid = None
+        if partial_groupfilter is None:
+            try:
+                group_guid = misc.GUID(group)
+            except NTSTATUSError as e:
+                (status, _) = e.args
+                if status != ntstatus.NT_STATUS_INVALID_PARAMETER:
+                    raise e
+            if group_guid is not None:
+                partial_groupfilter = "(objectClass=*)"
+
+        if partial_groupfilter is None:
+            group_dn = None
+            try:
+                if isinstance(group, ldb.Dn):
+                    group_dn = ldb.Dn(self, group.extended_str(1))
+                else:
+                    group_dn = ldb.Dn(self, str(group))
+            except ValueError:
+                pass
+            if group_dn is not None:
+                group_b_sid = group_dn.get_extended_component("SID")
+                group_b_guid = group_dn.get_extended_component("GUID")
+                if group_b_sid is not None:
+                    group_sid = ndr_unpack(security.dom_sid, group_b_sid)
+                    partial_groupfilter = "(objectClass=*)"
+                elif group_b_guid is not None:
+                    group_guid = ndr_unpack(misc.GUID, group_b_guid)
+                    partial_groupfilter = "(objectClass=*)"
+                else:
+                    search_base = str(group_dn)
+                    search_scope = ldb.SCOPE_BASE
+
+        if group_sid is not None:
+            search_base = '<SID=%s>' % group_sid
+            search_scope = ldb.SCOPE_BASE
+
+        if group_guid is not None:
+            search_base = '<GUID=%s>' % group_guid
+            search_scope = ldb.SCOPE_BASE
+
+        if partial_groupfilter is None:
+            search_base = self.domain_dn()
+            search_scope = ldb.SCOPE_SUBTREE
+            partial_groupfilter = "(sAMAccountName=%s)" % (
+                ldb.binary_encode(group))
+
+        groupfilter = "(&%s(objectCategory=%s,%s))" % (
+            partial_groupfilter,
+            "CN=Group,CN=Schema,CN=Configuration",
+            self.domain_dn())
 
         self.transaction_start()
         try:
-            targetgroup = self.search(base=self.domain_dn(), scope=ldb.SCOPE_SUBTREE,
-                                      expression=groupfilter, attrs=['member'])
+            targetgroup = self.search(base=search_base,
+                                      scope=search_scope,
+                                      expression=groupfilter,
+                                      controls=["extended_dn:1:1"],
+                                      attrs=['member'])
             if len(targetgroup) == 0:
-                raise Exception('Unable to find group "%s"' % groupname)
+                raise Exception('Unable to find group "%s"' % group)
             assert(len(targetgroup) == 1)
 
             modified = False
 
+            if group_sid is not None:
+                targetgroup_dn = '<SID=%s>' % group_sid
+            elif group_guid is not None:
+                targetgroup_dn = '<GUID=%s>' % group_guid
+            else:
+                targetgroup_dn = str(targetgroup[0].dn)
+
             addtargettogroup = """
 dn: %s
 changetype: modify
-""" % (str(targetgroup[0].dn))
+""" % (targetgroup_dn)
 
             for member in members:
                 targetmember_dn = None
-                if member_base_dn is None:
-                    member_base_dn = self.domain_dn()
-
+                membersid = None
                 try:
                     membersid = security.dom_sid(member)
                     targetmember_dn = "<SID=%s>" % str(membersid)
@@ -420,10 +494,10 @@ changetype: modify
                         pass
 
                 if targetmember_dn is None:
-                    filter = self.group_member_filter(member, member_types)
+                    search_filter = self.group_member_filter(member, member_types)
                     targetmember = self.search(base=member_base_dn,
                                                scope=ldb.SCOPE_SUBTREE,
-                                               expression=filter,
+                                               expression=search_filter,
                                                attrs=[])
 
                     if len(targetmember) > 1:
@@ -436,13 +510,33 @@ changetype: modify
                         raise Exception('Unable to find "%s". Operation cancelled.' % member)
                     targetmember_dn = targetmember[0].dn.extended_str(1)
 
-                if add_members_operation is True and (targetgroup[0].get('member') is None or get_bytes(targetmember_dn) not in [str(x) for x in targetgroup[0]['member']]):
+                def _is_member(samdb, group, member_dn, member_sid):
+                    if group.get('member') is None:
+                        return False
+
+                    for m in group.get('member'):
+                        m_ext_dn = ldb.Dn(samdb, str(m))
+                        m_binary_sid = m_ext_dn.get_extended_component("SID")
+                        if m_binary_sid:
+                            m_sid = ndr_unpack(security.dom_sid, m_binary_sid)
+                            if member_sid == m_sid:
+                                return True
+                        if member_dn == str(m_ext_dn):
+                            return True
+
+                    return False
+
+                is_member = _is_member(self,
+                                       targetgroup[0],
+                                       targetmember_dn,
+                                       membersid)
+                if add_members_operation is True and not is_member:
                     modified = True
                     addtargettogroup += """add: member
 member: %s
 """ % (str(targetmember_dn))
 
-                elif add_members_operation is False and (targetgroup[0].get('member') is not None and get_bytes(targetmember_dn) in targetgroup[0]['member']):
+                elif add_members_operation is False and is_member:
                     modified = True
                     addtargettogroup += """delete: member
 member: %s
@@ -875,7 +969,7 @@ member: %s
         """Sets the password for a user
 
         :param search_filter: LDAP filter to find the user (eg
-            samccountname=name)
+            sAMAccountName=name)
         :param password: Password for the user
         :param force_change_at_next_login: Force password change
         """
@@ -918,7 +1012,7 @@ unicodePwd:: %s
         """Sets the account expiry for a user
 
         :param search_filter: LDAP filter to find the user (eg
-            samaccountname=name)
+            sAMAccountName=name)
         :param expiry_seconds: expiry time from now in seconds
         :param no_expiry_req: if set, then don't expire password
         """

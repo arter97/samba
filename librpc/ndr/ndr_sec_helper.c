@@ -210,7 +210,7 @@ size_t ndr_subcontext_size_of_ace_coda(const struct security_ace *ace,
 size_t ndr_size_security_acl(const struct security_acl *theacl, libndr_flags flags)
 {
 	size_t ret;
-	int i;
+	uint32_t i;
 	if (!theacl) return 0;
 	ret = 8;
 	for (i=0;i<theacl->num_aces;i++) {
@@ -336,7 +336,7 @@ enum ndr_err_code ndr_pull_dom_sid28(struct ndr_pull *ndr, ndr_flags_type ndr_fl
 
 	status = ndr_pull_advance(ndr, 28);
 	if (!NDR_ERR_CODE_IS_SUCCESS(status)) {
-		talloc_free(subndr);
+		TALLOC_FREE(subndr);
 		return status;
 	}
 
@@ -348,7 +348,7 @@ enum ndr_err_code ndr_pull_dom_sid28(struct ndr_pull *ndr, ndr_flags_type ndr_fl
 		ZERO_STRUCT(sid->sub_auths);
 	}
 
-	talloc_free(subndr);
+	TALLOC_FREE(subndr);
 	return NDR_ERR_SUCCESS;
 }
 

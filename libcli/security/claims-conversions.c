@@ -22,6 +22,7 @@
 #include "libcli/security/claims-conversions.h"
 #include "lib/util/debug.h"
 #include "lib/util/stable_sort.h"
+#include "libcli/security/dom_sid.h"
 
 #include "librpc/gen_ndr/conditional_ace.h"
 #include "librpc/gen_ndr/claims.h"
@@ -134,7 +135,7 @@ static bool blob_string_sid_to_sid(DATA_BLOB *blob,
 		return false;
 	}
 
-	if (end - str != len) {
+	if (str + len != end) {
 		return false;
 	}
 	return true;

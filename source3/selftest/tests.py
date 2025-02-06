@@ -42,13 +42,23 @@ smbtorture4_options.extend([
 
 
 def plansmbtorture4testsuite(name, env, options, description='', environ=None):
+    target = 'samba3'
+    if 'ad_dc_ntvfs' in env:
+        target = 'samba4-ntvfs'
+    elif 'ad_dc' in env:
+        target = 'samba4'
+    elif 'fl200' in env:
+        target = 'samba4'
+    elif 's4member' in env:
+        target = 'samba4'
+
     if description == '':
         modname = "samba3.%s" % (name, )
     else:
         modname = "samba3.%s %s" % (name, description)
 
     selftesthelpers.plansmbtorture4testsuite(
-        name, env, options, target='samba3', modname=modname, environ=environ)
+        name, env, options, target=target, modname=modname, environ=environ)
 
 def compare_versions(version1, version2):
     for i in range(max(len(version1),len(version2))):
@@ -1378,6 +1388,10 @@ for t in tests:
         pass
     elif t == "smb2.create_no_streams":
         plansmbtorture4testsuite(t, "fileserver", '//$SERVER_IP/nfs4acl_simple_40 -U$USERNAME%$PASSWORD')
+    elif t == "smb2.lease":
+        plansmbtorture4testsuite(t, "fileserver", '//$SERVER_IP/tmp -U$USERNAME%$PASSWORD')
+    elif t == "smb2.dirlease":
+        plansmbtorture4testsuite(t, "fileserver", '//$SERVER_IP/tmp -U$USERNAME%$PASSWORD')
     elif t == "rpc.wkssvc":
         plansmbtorture4testsuite(t, "ad_member", '//$SERVER/tmp -U$DC_USERNAME%$DC_PASSWORD')
     elif t == "rpc.srvsvc":

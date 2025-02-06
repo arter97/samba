@@ -25,6 +25,7 @@
 #include "../lib/util/time.h"
 #include "../lib/util/data_blob.h"
 #include "librpc/gen_ndr/misc.h"
+#include "libcli/util/ntstatus.h"
 
 struct cli_credentials;
 struct ccache_container;
@@ -355,10 +356,6 @@ void cli_credentials_dump(struct cli_credentials *creds);
  * Return attached NETLOGON credentials
  */
 struct netlogon_creds_CredentialState *cli_credentials_get_netlogon_creds(struct cli_credentials *cred);
-
-NTSTATUS netlogon_creds_session_encrypt(
-	struct netlogon_creds_CredentialState *state,
-	DATA_BLOB data);
 
 /**
  * Kerberos FAST handling

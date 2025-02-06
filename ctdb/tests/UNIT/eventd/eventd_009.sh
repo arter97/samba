@@ -183,7 +183,7 @@ simple_test script list data
 ok_null
 simple_test run 10 data disablehack
 
-# Confirm that both subsequent scripts were disabled
+# Confirm that both subsequent 
 ok <<EOF
 01.dummy             OK         DURATION DATETIME
 02.disabled          DISABLED  

@@ -87,6 +87,20 @@ static uint32_t filter_mode_by_protocol(enum protocol_types protocol,
 	return mode;
 }
 
+mode_t apply_conf_file_mask(struct connection_struct *conn, mode_t mode)
+{
+	mode &= lp_create_mask(SNUM(conn));
+	mode |= lp_force_create_mode(SNUM(conn));
+	return mode;
+}
+
+mode_t apply_conf_dir_mask(struct connection_struct *conn, mode_t mode)
+{
+	mode &= lp_directory_mask(SNUM(conn));
+	mode |= lp_force_directory_mode(SNUM(conn));
+	return mode;
+}
+
 /****************************************************************************
  Change a dos mode to a unix mode.
     Base permission for files:
@@ -158,11 +172,7 @@ mode_t unix_mode(connection_struct *conn, int dosmode,
 		} else {
 			/* Provisionally add all 'x' bits */
 			result |= (S_IXUSR | S_IXGRP | S_IXOTH);
-
-			/* Apply directory mask */
-			result &= lp_directory_mask(SNUM(conn));
-			/* Add in force bits */
-			result |= lp_force_directory_mode(SNUM(conn));
+			result = apply_conf_dir_mask(conn, result);
 		}
 	} else {
 		if ((dosmode & FILE_ATTRIBUTE_ARCHIVE) &&
@@ -184,10 +194,7 @@ mode_t unix_mode(connection_struct *conn, int dosmode,
 			/* Inherit 666 component of parent directory mode */
 			result |= dir_mode & (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR | S_IWGRP | S_IWOTH);
 		} else {
-			/* Apply mode mask */
-			result &= lp_create_mask(SNUM(conn));
-			/* Add in force bits */
-			result |= lp_force_create_mode(SNUM(conn));
+			result = apply_conf_file_mask(conn, result);
 		}
 	}
 
@@ -680,7 +687,9 @@ static uint32_t dos_mode_post(uint32_t dosmode,
 	dosmode |= dos_mode_from_name(fsp->conn, smb_fname->base_name, dosmode);
 
 	if (S_ISDIR(smb_fname->st.st_ex_mode)) {
-		dosmode |= FILE_ATTRIBUTE_DIRECTORY;
+		if (!(dosmode & FILE_ATTRIBUTE_REPARSE_POINT)) {
+			dosmode |= FILE_ATTRIBUTE_DIRECTORY;
+		}
 	} else if (dosmode == 0) {
 		dosmode = FILE_ATTRIBUTE_NORMAL;
 	}
@@ -714,16 +723,27 @@ uint32_t fdos_mode(struct files_struct *fsp)
 	}
 
 	switch (fsp->fsp_name->st.st_ex_mode & S_IFMT) {
-	case S_IFLNK:
-		return FILE_ATTRIBUTE_NORMAL;
+	case S_IFREG:
+	case S_IFDIR:
 		break;
-	case S_IFIFO:
-	case S_IFSOCK:
-	case S_IFBLK:
-	case S_IFCHR:
-		return FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_REPARSE_POINT;
+	case S_IFLNK:
+		if (fsp->fsp_flags.posix_open &&
+		    !conn_using_smb2(fsp->conn->sconn)) {
+			/*
+			 * SMB1 posix doesn't like the reparse point flag
+			 */
+			result = FILE_ATTRIBUTE_NORMAL;
+		} else {
+			/*
+			 * Everybody else wants to see symlinks as
+			 * reparse points
+			 */
+			result = FILE_ATTRIBUTE_REPARSE_POINT;
+		}
+
 		break;
 	default:
+		return FILE_ATTRIBUTE_REPARSE_POINT;
 		break;
 	}
 
@@ -940,7 +960,7 @@ int file_set_dosmode(connection_struct *conn,
 		return -1;
 	}
 
-	if ((smb_fname->fsp->posix_flags & FSP_POSIX_FLAGS_OPEN) &&
+	if (smb_fname->fsp->fsp_flags.posix_open &&
 	    !lp_store_dos_attributes(SNUM(conn)))
 	{
 		return 0;
@@ -1064,9 +1084,12 @@ int file_set_dosmode(connection_struct *conn,
 
 done:
 	if (!newfile) {
-		notify_fname(conn, NOTIFY_ACTION_MODIFIED,
+		notify_fname(conn,
+			     NOTIFY_ACTION_MODIFIED |
+			     NOTIFY_ACTION_DIRLEASE_BREAK,
 			     FILE_NOTIFY_CHANGE_ATTRIBUTES,
-			     smb_fname->base_name);
+			     smb_fname,
+			     fsp_get_smb2_lease(smb_fname->fsp));
 	}
 	if (ret == 0) {
 		smb_fname->st.st_ex_mode = unixmode;
@@ -1166,9 +1189,12 @@ NTSTATUS file_set_sparse(connection_struct *conn,
 		return status;
 	}
 
-	notify_fname(conn, NOTIFY_ACTION_MODIFIED,
+	notify_fname(conn,
+		     NOTIFY_ACTION_MODIFIED |
+		     NOTIFY_ACTION_DIRLEASE_BREAK,
 		     FILE_NOTIFY_CHANGE_ATTRIBUTES,
-		     fsp->fsp_name->base_name);
+		     fsp->fsp_name,
+		     fsp_get_smb2_lease(fsp));
 
 	fsp->fsp_name->st.cached_dos_attributes = new_dosmode;
 	fsp->fsp_flags.is_sparse = sparse;
@@ -1245,30 +1271,14 @@ done:
 }
 
 /******************************************************************
- Force a "sticky" write time on a pathname. This will always be
- returned on all future write time queries and set on close.
-******************************************************************/
-
-bool set_sticky_write_time_path(struct file_id fileid, struct timespec mtime)
-{
-	if (is_omit_timespec(&mtime)) {
-		return true;
-	}
-
-	if (!set_sticky_write_time(fileid, mtime)) {
-		return false;
-	}
-
-	return true;
-}
-
-/******************************************************************
  Force a "sticky" write time on an fsp. This will always be
  returned on all future write time queries and set on close.
 ******************************************************************/
 
 bool set_sticky_write_time_fsp(struct files_struct *fsp, struct timespec mtime)
 {
+	bool ok;
+
 	if (is_omit_timespec(&mtime)) {
 		return true;
 	}
@@ -1276,7 +1286,8 @@ bool set_sticky_write_time_fsp(struct files_struct *fsp, struct timespec mtime)
 	fsp->fsp_flags.write_time_forced = true;
 	TALLOC_FREE(fsp->update_write_time_event);
 
-	return set_sticky_write_time_path(fsp->file_id, mtime);
+	ok = set_sticky_write_time(fsp->file_id, mtime);
+	return ok;
 }
 
 /******************************************************************

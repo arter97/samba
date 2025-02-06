@@ -54,7 +54,7 @@
  * and attributes. The tar callback function is get_file_callback().
  *
  * The callback function checks whether the file should be skipped
- * according the the configuration via tar_create_skip_path(). If it's
+ * according to the configuration via tar_create_skip_path(). If it's
  * not skipped it's downloaded and written to the archive in
  * tar_get_file().
  *
@@ -1220,8 +1220,14 @@ close_out:
 
 	status = cli_setatr(cli, full_path, mode, mtime);
 	if (!NT_STATUS_IS_OK(status)) {
-		d_printf("Error setting attributes on remote file %s: %s\n",
-				full_path, nt_errstr(status));
+		char *timestr = timestring(talloc_tos(), mtime);
+		d_printf("Error setting attributes (mode: %3o, mtime: %s) on "
+			 "remote file %s: %s\n",
+			 mode & 0777,
+			 timestr,
+			 full_path,
+			 nt_errstr(status));
+		TALLOC_FREE(timestr);
 		err = 1;
 	}
 

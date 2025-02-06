@@ -64,6 +64,7 @@ COMMON = [
     'tar',
     'tree',
     'wget',
+    'cargo',
 ]
 
 
@@ -83,6 +84,9 @@ PKGS = [
     ('libcap-dev', 'libcap-devel'),
     ('libacl1-dev', 'libacl-devel'),
     ('libattr1-dev', 'libattr-devel'),
+    ('libutf8proc-dev', 'utf8proc-devel'),
+    ('libssl-dev', 'openssl-devel'),
+    ('libclang-dev', 'clang-devel'),
 
     # libNAME1-dev, NAME2-devel
     ('libpopt-dev', 'popt-devel'),
@@ -236,17 +240,19 @@ if [ ! -f /usr/bin/python3 ]; then
 fi
 """
 
-CENTOS8S_YUM_BOOTSTRAP = r"""
+ROCKY8_DNF_BOOTSTRAP = r"""
 #!/bin/bash
 {GENERATED_MARKER}
 set -xueo pipefail
 
-sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
-sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
-
 yum update -y
 yum install -y dnf-plugins-core
 yum install -y epel-release
+yum install -y centos-release-ceph-pacific
+
+sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Ceph-*
+sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Ceph-*
+sed -i 's/$contentdir/centos/g' /etc/yum.repos.d/CentOS-Ceph-*
 
 yum -v repolist all
 yum config-manager --set-enabled powertools -y
@@ -255,6 +261,7 @@ yum update -y
 
 yum install -y \
     --setopt=install_weak_deps=False \
+    --setopt=centos-ceph-pacific.module_hotfixes=true \
     {pkgs}
 
 yum clean all
@@ -446,14 +453,16 @@ DEB_DISTS = {
         'replace': {
             'language-pack-en': '',   # included in locales
             'shfmt': '',
+            'cargo': '', # included cargo is broken
         }
     },
     'debian11-32bit': {
-        'docker_image': 'registry-1.docker.io/i386/debian:11',
+        'docker_image': 'debian:11',  # specify the platform in .gitlab-ci.yaml
         'vagrant_box': 'debian/bullseye32',
         'replace': {
             'language-pack-en': '',   # included in locales
             'shfmt': '',
+            'cargo': '', # included cargo is broken
         }
     },
     'debian12': {
@@ -462,6 +471,7 @@ DEB_DISTS = {
         'replace': {
             'language-pack-en': '',   # included in locales
             'libtracker-sparql-2.0-dev': '',  # only tracker 3.x is available
+            'cargo': '', # included cargo is broken
         }
     },
     'debian12-32bit': {
@@ -470,6 +480,7 @@ DEB_DISTS = {
         'replace': {
             'language-pack-en': '',   # included in locales
             'libtracker-sparql-2.0-dev': '',  # only tracker 3.x is available
+            'cargo': '', # included cargo is broken
         }
     },
     'ubuntu1804': {
@@ -507,10 +518,10 @@ DEB_DISTS = {
 
 
 RPM_DISTS = {
-    'centos8s': {
-        'docker_image': 'quay.io/centos/centos:stream8',
-        'vagrant_box': 'centos/stream8',
-        'bootstrap': CENTOS8S_YUM_BOOTSTRAP,
+    'rocky8': {
+        'docker_image': 'docker.io/library/rockylinux:8',
+        'vagrant_box': 'rocky/8',
+        'bootstrap': ROCKY8_DNF_BOOTSTRAP,
         'replace': {
             'lsb-release': 'redhat-lsb',
             '@development-tools': '"@Development Tools"',  # add quotes
@@ -544,9 +555,9 @@ RPM_DISTS = {
             'curl': '',  # Use installed curl-minimal
         }
     },
-    'fedora40': {
-        'docker_image': 'quay.io/fedora/fedora:40',
-        'vagrant_box': 'fedora/40-cloud-base',
+    'fedora41': {
+        'docker_image': 'quay.io/fedora/fedora:41',
+        'vagrant_box': 'fedora/41-cloud-base',
         'bootstrap': DNF_BOOTSTRAP,
         'replace': {
             'lsb-release': 'redhat-lsb',

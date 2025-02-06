@@ -2455,7 +2455,7 @@ static bool check_auth_crap(void)
 	char user_session_key[16];
 	char *hex_lm_key;
 	char *hex_user_session_key;
-	char *error_string;
+	char *error_string = NULL;
 	uint8_t authoritative = 1;
 
 	setbuf(stdout, NULL);
@@ -2485,6 +2485,7 @@ static bool check_auth_crap(void)
 		SAFE_FREE(error_string);
 		return False;
 	}
+	SAFE_FREE(error_string);
 
 	if (request_lm_key
 	    && (!all_zero((uint8_t *)lm_key, sizeof(lm_key)))) {
@@ -2803,7 +2804,7 @@ enum {
 		opt_workstation = "";
 	}
 
-	lp_ctx = loadparm_init_s3(NULL, loadparm_s3_helpers());
+	lp_ctx = loadparm_init_s3(frame, loadparm_s3_helpers());
 	if (lp_ctx == NULL) {
 		fprintf(stderr, "loadparm_init_s3() failed!\n");
 		exit(1);

@@ -128,7 +128,6 @@ struct fruit_config_data {
 	bool unix_info_enabled;
 	bool copyfile_enabled;
 	bool veto_appledouble;
-	bool posix_rename;
 	bool aapl_zero_file_id;
 	const char *model;
 	bool time_machine;
@@ -230,12 +229,10 @@ static struct adouble *ad_get_meta_fsp(TALLOC_CTX *ctx,
 		return NULL;
 	}
 
-	smb_fname_cp = cp_smb_filename(ctx,
-				       smb_fname);
+	smb_fname_cp = cp_smb_filename_nostream(ctx, smb_fname);
 	if (smb_fname_cp == NULL) {
 		return NULL;
 	}
-	TALLOC_FREE(smb_fname_cp->stream_name);
 	config->in_openat_pathref_fsp = true;
 	status = openat_pathref_fsp(handle->conn->cwd_fsp,
 				    smb_fname_cp);
@@ -292,7 +289,7 @@ static int init_fruit_config(vfs_handle_struct *handle)
 	if (enumval == -1) {
 		DEBUG(1, ("value for %s: resource type unknown\n",
 			  FRUIT_PARAM_TYPE_NAME));
-		return -1;
+		goto fail;
 	}
 	config->rsrc = (enum fruit_rsrc)enumval;
 
@@ -301,7 +298,7 @@ static int init_fruit_config(vfs_handle_struct *handle)
 	if (enumval == -1) {
 		DEBUG(1, ("value for %s: metadata type unknown\n",
 			  FRUIT_PARAM_TYPE_NAME));
-		return -1;
+		goto fail;
 	}
 	config->meta = (enum fruit_meta)enumval;
 
@@ -310,7 +307,7 @@ static int init_fruit_config(vfs_handle_struct *handle)
 	if (enumval == -1) {
 		DEBUG(1, ("value for %s: locking type unknown\n",
 			  FRUIT_PARAM_TYPE_NAME));
-		return -1;
+		goto fail;
 	}
 	config->locking = (enum fruit_locking)enumval;
 
@@ -319,7 +316,7 @@ static int init_fruit_config(vfs_handle_struct *handle)
 	if (enumval == -1) {
 		DEBUG(1, ("value for %s: encoding type unknown\n",
 			  FRUIT_PARAM_TYPE_NAME));
-		return -1;
+		goto fail;
 	}
 	config->encoding = (enum fruit_encoding)enumval;
 
@@ -341,9 +338,6 @@ static int init_fruit_config(vfs_handle_struct *handle)
 
 	config->use_copyfile = lp_parm_bool(-1, FRUIT_PARAM_TYPE_NAME,
 					   "copyfile", false);
-
-	config->posix_rename = lp_parm_bool(
-		SNUM(handle->conn), FRUIT_PARAM_TYPE_NAME, "posix_rename", true);
 
 	config->aapl_zero_file_id =
 	    lp_parm_bool(SNUM(handle->conn), FRUIT_PARAM_TYPE_NAME,
@@ -389,6 +383,13 @@ static int init_fruit_config(vfs_handle_struct *handle)
 				return -1);
 
 	return 0;
+fail:
+	{
+		int err = errno;
+		TALLOC_FREE(config);
+		errno = err;
+	}
+	return -1;
 }
 
 static bool add_fruit_stream(TALLOC_CTX *mem_ctx, unsigned int *num_streams,
@@ -417,34 +418,22 @@ static bool add_fruit_stream(TALLOC_CTX *mem_ctx, unsigned int *num_streams,
 	return true;
 }
 
-static bool filter_empty_rsrc_stream(unsigned int *num_streams,
+static void filter_empty_rsrc_stream(unsigned int *num_streams,
 				     struct stream_struct **streams)
 {
-	struct stream_struct *tmp = *streams;
 	unsigned int i;
 
-	if (*num_streams == 0) {
-		return true;
-	}
-
 	for (i = 0; i < *num_streams; i++) {
-		if (strequal_m(tmp[i].name, AFPRESOURCE_STREAM)) {
-			break;
+		struct stream_struct *s = &(*streams)[i];
+
+		if (strequal_m(s->name, AFPRESOURCE_STREAM) &&
+		    (s->size == 0)) {
+			TALLOC_FREE(s->name);
+			ARRAY_DEL_ELEMENT((*streams), i, *num_streams);
+			*num_streams -= 1;
+			return;
 		}
 	}
-
-	if (i == *num_streams) {
-		return true;
-	}
-
-	if (tmp[i].size > 0) {
-		return true;
-	}
-
-	TALLOC_FREE(tmp[i].name);
-	ARRAY_DEL_ELEMENT(tmp, i, *num_streams);
-	*num_streams -= 1;
-	return true;
 }
 
 static bool del_fruit_stream(TALLOC_CTX *mem_ctx, unsigned int *num_streams,
@@ -647,7 +636,7 @@ static NTSTATUS fruit_check_access(vfs_handle_struct *handle,
 	/* FIXME: hardcoded data fork, add resource fork */
 	enum apple_fork fork_type = APPLE_FORK_DATA;
 
-	DBG_DEBUG("fruit_check_access: %s, am: %s/%s, sm: 0x%x\n",
+	DBG_DEBUG("%s, am: %s/%s, sm: 0x%x\n",
 		  fsp_str_dbg(fsp),
 		  access_mask & FILE_READ_DATA ? "READ" :"-",
 		  access_mask & FILE_WRITE_DATA ? "WRITE" : "-",
@@ -1895,7 +1884,8 @@ static int fruit_renameat(struct vfs_handle_struct *handle,
 			files_struct *srcfsp,
 			const struct smb_filename *smb_fname_src,
 			files_struct *dstfsp,
-			const struct smb_filename *smb_fname_dst)
+			const struct smb_filename *smb_fname_dst,
+			const struct vfs_rename_how *how)
 {
 	int rc = -1;
 	struct fruit_config_data *config = NULL;
@@ -1915,7 +1905,8 @@ static int fruit_renameat(struct vfs_handle_struct *handle,
 				srcfsp,
 				smb_fname_src,
 				dstfsp,
-				smb_fname_dst);
+				smb_fname_dst,
+				how);
 	if (rc != 0) {
 		return -1;
 	}
@@ -1944,7 +1935,8 @@ static int fruit_renameat(struct vfs_handle_struct *handle,
 			srcfsp,
 			src_adp_smb_fname,
 			dstfsp,
-			dst_adp_smb_fname);
+			dst_adp_smb_fname,
+			how);
 	if (errno == ENOENT) {
 		rc = 0;
 	}
@@ -1966,12 +1958,41 @@ static int fruit_unlink_meta_stream(vfs_handle_struct *handle,
 }
 
 static int fruit_unlink_meta_netatalk(vfs_handle_struct *handle,
+				      struct files_struct *dirfsp,
 				      const struct smb_filename *smb_fname)
 {
-	SMB_ASSERT(smb_fname->fsp != NULL);
-	SMB_ASSERT(fsp_is_alternate_stream(smb_fname->fsp));
-	return SMB_VFS_FREMOVEXATTR(smb_fname->fsp->base_fsp,
-				   AFPINFO_EA_NETATALK);
+	struct smb_filename *base_name = NULL;
+	struct files_struct *base_fsp = NULL;
+	int ret = -1;
+
+	if (smb_fname->fsp == NULL) {
+		NTSTATUS status;
+
+		base_name = cp_smb_filename_nostream(talloc_tos(), smb_fname);
+		if (base_name == NULL) {
+			errno = ENOMEM;
+			goto done;
+		}
+
+		status = openat_pathref_fsp(dirfsp, base_name);
+		if (!NT_STATUS_IS_OK(status)) {
+			errno = map_errno_from_nt_status(status);
+			goto done;
+		}
+		base_fsp = base_name->fsp;
+	} else {
+		SMB_ASSERT(fsp_is_alternate_stream(smb_fname->fsp));
+		base_fsp = smb_fname->fsp->base_fsp;
+	}
+
+	ret = SMB_VFS_FREMOVEXATTR(base_fsp, AFPINFO_EA_NETATALK);
+done:
+	{
+		int err = errno;
+		TALLOC_FREE(base_name);
+		errno = err;
+	}
+	return ret;
 }
 
 static int fruit_unlink_meta(vfs_handle_struct *handle,
@@ -1992,7 +2013,7 @@ static int fruit_unlink_meta(vfs_handle_struct *handle,
 		break;
 
 	case FRUIT_META_NETATALK:
-		rc = fruit_unlink_meta_netatalk(handle, smb_fname);
+		rc = fruit_unlink_meta_netatalk(handle, dirfsp, smb_fname);
 		break;
 
 	default:
@@ -3216,7 +3237,7 @@ static int fruit_stat_base(vfs_handle_struct *handle,
 	}
 	smb_fname->stream_name = tmp_stream_name;
 
-	DBG_DEBUG("fruit_stat_base [%s] dev [%ju] ino [%ju]\n",
+	DBG_DEBUG("[%s] dev [%ju] ino [%ju]\n",
 		  smb_fname->base_name,
 		  (uintmax_t)smb_fname->st.st_ex_dev,
 		  (uintmax_t)smb_fname->st.st_ex_ino);
@@ -3746,8 +3767,7 @@ static NTSTATUS fruit_streaminfo_meta_stream(
 	struct stream_struct **pstreams)
 {
 	struct stream_struct *stream = *pstreams;
-	unsigned int num_streams = *pnum_streams;
-	int i;
+	unsigned int i, num_streams = *pnum_streams;
 
 	for (i = 0; i < num_streams; i++) {
 		if (strequal_m(stream[i].name, AFPINFO_STREAM)) {
@@ -3784,10 +3804,9 @@ static NTSTATUS fruit_streaminfo_meta_netatalk(
 	struct stream_struct **pstreams)
 {
 	struct stream_struct *stream = *pstreams;
-	unsigned int num_streams = *pnum_streams;
+	unsigned int i, num_streams = *pnum_streams;
 	struct adouble *ad = NULL;
 	bool is_fi_empty;
-	int i;
 	bool ok;
 
 	/* Remove the Netatalk xattr from the list */
@@ -3881,13 +3900,7 @@ static NTSTATUS fruit_streaminfo_rsrc_stream(
 	unsigned int *pnum_streams,
 	struct stream_struct **pstreams)
 {
-	bool ok;
-
-	ok = filter_empty_rsrc_stream(pnum_streams, pstreams);
-	if (!ok) {
-		DBG_ERR("Filtering resource stream failed\n");
-		return NT_STATUS_INTERNAL_ERROR;
-	}
+	filter_empty_rsrc_stream(pnum_streams, pstreams);
 	return NT_STATUS_OK;
 }
 
@@ -3899,13 +3912,7 @@ static NTSTATUS fruit_streaminfo_rsrc_xattr(
 	unsigned int *pnum_streams,
 	struct stream_struct **pstreams)
 {
-	bool ok;
-
-	ok = filter_empty_rsrc_stream(pnum_streams, pstreams);
-	if (!ok) {
-		DBG_ERR("Filtering resource stream failed\n");
-		return NT_STATUS_INTERNAL_ERROR;
-	}
+	filter_empty_rsrc_stream(pnum_streams, pstreams);
 	return NT_STATUS_OK;
 }
 
@@ -3918,11 +3925,10 @@ static NTSTATUS fruit_streaminfo_rsrc_adouble(
 	struct stream_struct **pstreams)
 {
 	struct stream_struct *stream = *pstreams;
-	unsigned int num_streams = *pnum_streams;
+	unsigned int i, num_streams = *pnum_streams;
 	struct adouble *ad = NULL;
 	bool ok;
 	size_t rlen;
-	int i;
 
 	/*
 	 * Check if there's a AFPRESOURCE_STREAM from the VFS streams backend
@@ -4346,15 +4352,6 @@ static NTSTATUS fruit_create_file(vfs_handle_struct *handle,
 
 	fsp = *result;
 
-	if (global_fruit_config.nego_aapl) {
-		if (config->posix_rename && fsp->fsp_flags.is_directory) {
-			/*
-			 * Enable POSIX directory rename behaviour
-			 */
-			fsp->posix_flags |= FSP_POSIX_FLAGS_RENAME;
-		}
-	}
-
 	/*
 	 * If this is a plain open for existing files, opening an 0
 	 * byte size resource fork MUST fail with
@@ -4589,7 +4586,7 @@ static NTSTATUS fruit_fset_nt_acl(vfs_handle_struct *handle,
 		return NT_STATUS_NO_MEMORY;
 	}
 
-	DBG_DEBUG("fruit_fset_nt_acl: %s\n", fsp_str_dbg(fsp));
+	DBG_DEBUG("%s\n", fsp_str_dbg(fsp));
 
 	status = check_ms_nfs(handle, fsp, psd, &ms_nfs_mode, &do_chmod);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -5250,7 +5247,7 @@ static bool fruit_get_num_bands(vfs_handle_struct *handle,
 	TALLOC_FREE(bands_dir);
 
 	*_nbands = nbands;
-	return true;
+	return nbands > 0;
 }
 
 static bool fruit_tmsize_do_dirent(vfs_handle_struct *handle,
@@ -5297,22 +5294,15 @@ static bool fruit_tmsize_do_dirent(vfs_handle_struct *handle,
 		return true;
 	}
 
-	/*
-	 * Arithmetic on 32-bit systems may cause overflow, depending on
-	 * size_t precision. First we check its unlikely, then we
-	 * force the precision into target off_t, then we check that
-	 * the total did not overflow either.
-	 */
-	if (bandsize > SIZE_MAX/nbands) {
-		DBG_ERR("tmsize potential overflow: bandsize [%zu] nbands [%zu]\n",
-			bandsize, nbands);
-		return false;
-	}
 	tm_size = (off_t)bandsize * (off_t)nbands;
-
-	if (state->total_size + tm_size < state->total_size) {
-		DBG_ERR("tm total size overflow: bandsize [%zu] nbands [%zu]\n",
-			bandsize, nbands);
+	if (tm_size / nbands != bandsize ||
+	    state->total_size + tm_size < state->total_size)
+	{
+		DBG_ERR("tm size overflow: total_size [%jd]"
+			" bandsize [%zu] nbands [%zu]\n",
+			(intmax_t)state->total_size,
+			bandsize,
+			nbands);
 		return false;
 	}
 

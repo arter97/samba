@@ -253,7 +253,6 @@ static NTSTATUS add_trusted_domain(const char *domain_name,
 	domain->domain_flags = trust_flags;
 	domain->domain_type = trust_type;
 	domain->domain_trust_attribs = trust_attribs;
-	domain->secure_channel_type = secure_channel_type;
 	domain->routing_domain = routing_domain;
 	sid_copy(&domain->sid, sid);
 
@@ -279,6 +278,15 @@ static NTSTATUS add_trusted_domain(const char *domain_name,
 
 	domain->can_do_ncacn_ip_tcp = domain->active_directory;
 
+	if (secure_channel_type != SEC_CHAN_NULL) {
+		/*
+		 * If we loaded the domain from
+		 * our config it is initialized
+		 * completely.
+		 */
+		domain->initialized = true;
+	}
+
 	/* Link to domain list */
 	DLIST_ADD_END(_domain_list, domain);
 
@@ -292,19 +300,6 @@ static NTSTATUS add_trusted_domain(const char *domain_name,
 
 	*_d = domain;
 	return NT_STATUS_OK;
-}
-
-bool set_routing_domain(struct winbindd_domain *domain,
-			struct winbindd_domain *routing_domain)
-{
-	if (domain->routing_domain == NULL) {
-		domain->routing_domain = routing_domain;
-		return true;
-	}
-	if (domain->routing_domain != routing_domain) {
-		return false;
-	}
-	return true;
 }
 
 bool add_trusted_domain_from_auth(uint16_t validation_level,
@@ -943,12 +938,6 @@ bool add_trusted_domains_dc(void)
 				   nt_errstr(status));
 			return false;
 		}
-
-		if (domains[i]->trust_type == LSA_TRUST_TYPE_UPLEVEL) {
-			domain->active_directory = true;
-		}
-		domain->domain_type = domains[i]->trust_type;
-		domain->domain_trust_attribs = domains[i]->trust_attributes;
 	}
 
 	for (i = 0; i < num_domains; i++) {

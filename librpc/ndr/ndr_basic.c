@@ -1127,7 +1127,7 @@ _PUBLIC_ void ndr_print_enum(struct ndr_print *ndr, const char *name, const char
 	}
 }
 
-_PUBLIC_ void ndr_print_bitmap_flag(struct ndr_print *ndr, size_t size, const char *flag_name, uint32_t flag, uint32_t value)
+_PUBLIC_ void ndr_print_bitmap_flag(struct ndr_print *ndr, size_t size, const char *flag_name, uint64_t flag, uint64_t value)
 {
 	if (flag == 0) {
 		return;
@@ -1141,9 +1141,9 @@ _PUBLIC_ void ndr_print_bitmap_flag(struct ndr_print *ndr, size_t size, const ch
 		value >>= 1;
 	}
 	if (flag == 1) {
-		ndr->print(ndr, "   %"PRIu32": %-25s", value, flag_name);
+		ndr->print(ndr, "   %"PRIu64": %-25s", value, flag_name);
 	} else {
-		ndr->print(ndr, "0x%02"PRIx32": %-25s (%"PRIu32")", value, flag_name, value);
+		ndr->print(ndr, "0x%02"PRIx64": %-25s (%"PRIu64")", value, flag_name, value);
 	}
 }
 
@@ -1288,7 +1288,7 @@ _PUBLIC_ void ndr_print_NTTIME_hyper(struct ndr_print *ndr, const char *name, NT
 _PUBLIC_ void ndr_print_time_t(struct ndr_print *ndr, const char *name, time_t t)
 {
 	if (t == (time_t)-1 || t == 0) {
-		ndr->print(ndr, "%-25s: (time_t)%d", name, (int)t);
+		ndr->print(ndr, "%-25s: (time_t)%" PRIi64, name, (int64_t)t);
 	} else {
 		ndr->print(ndr, "%-25s: %s", name, timestring(ndr, t));
 	}
@@ -1404,18 +1404,23 @@ _PUBLIC_ void ndr_print_DATA_BLOB(struct ndr_print *ndr, const char *name, DATA_
  */
 _PUBLIC_ enum ndr_err_code ndr_push_DATA_BLOB(struct ndr_push *ndr, ndr_flags_type ndr_flags, DATA_BLOB blob)
 {
+	static const uint8_t padding[8] = { 0, };
+
 	if (ndr->flags & LIBNDR_FLAG_REMAINING) {
 		/* nothing to do */
 	} else if (ndr->flags & (LIBNDR_ALIGN_FLAGS & ~LIBNDR_FLAG_NOALIGN)) {
+		blob.data = discard_const_p(uint8_t, padding);
 		if (ndr->flags & LIBNDR_FLAG_ALIGN2) {
 			blob.length = NDR_ALIGN(ndr, 2);
 		} else if (ndr->flags & LIBNDR_FLAG_ALIGN4) {
 			blob.length = NDR_ALIGN(ndr, 4);
 		} else if (ndr->flags & LIBNDR_FLAG_ALIGN8) {
 			blob.length = NDR_ALIGN(ndr, 8);
+		} else {
+			return ndr_push_error(ndr,
+					      NDR_ERR_LENGTH,
+					      "Invalid align flags");
 		}
-		NDR_PUSH_ALLOC_SIZE(ndr, blob.data, blob.length);
-		data_blob_clear(&blob);
 	} else {
 		NDR_CHECK(ndr_push_uint3264(ndr, NDR_SCALARS, blob.length));
 	}

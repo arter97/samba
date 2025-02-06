@@ -268,7 +268,6 @@ static bool check_user_ok(connection_struct *conn,
 {
 	const struct loadparm_substitution *lp_sub =
 		loadparm_s3_global_substitution();
-	unsigned int i;
 	bool readonly_share = false;
 	bool admin_user = false;
 	struct vuid_cache_entry *ent = NULL;
@@ -276,24 +275,21 @@ static bool check_user_ok(connection_struct *conn,
 	NTSTATUS status;
 	bool ok;
 
-	for (i=0; i<VUID_CACHE_SIZE; i++) {
-		ent = &conn->vuid_cache->array[i];
-		if (ent->vuid == vuid) {
-			if (vuid == UID_FIELD_INVALID) {
-				/*
-				 * Slow path, we don't care
-				 * about the array traversal.
-				*/
-				continue;
+	if (vuid != UID_FIELD_INVALID) {
+		unsigned int i;
+
+		for (i=0; i<VUID_CACHE_SIZE; i++) {
+			ent = &conn->vuid_cache->array[i];
+			if (ent->vuid == vuid) {
+				free_conn_state_if_unused(conn);
+				conn->session_info = ent->session_info;
+				conn->read_only = ent->read_only;
+				conn->share_access = ent->share_access;
+				conn->vuid = ent->vuid;
+				conn->veto_list = ent->veto_list;
+				conn->hide_list = ent->hide_list;
+				return(True);
 			}
-			free_conn_state_if_unused(conn);
-			conn->session_info = ent->session_info;
-			conn->read_only = ent->read_only;
-			conn->share_access = ent->share_access;
-			conn->vuid = ent->vuid;
-			conn->veto_list = ent->veto_list;
-			conn->hide_list = ent->hide_list;
-			return(True);
 		}
 	}
 
@@ -457,9 +453,8 @@ static void print_impersonation_info(connection_struct *conn)
 		return;
 	}
 
-	cwdfname = vfs_GetWd(talloc_tos(), conn);
-	if (cwdfname == NULL) {
-		return;
+	if (conn->tcon_done) {
+		cwdfname = vfs_GetWd(talloc_tos(), conn);
 	}
 
 	DBG_INFO("Impersonated user: uid=(%d,%d), gid=(%d,%d), cwd=[%s]\n",
@@ -467,7 +462,7 @@ static void print_impersonation_info(connection_struct *conn)
 		 (int)geteuid(),
 		 (int)getgid(),
 		 (int)getegid(),
-		 cwdfname->base_name);
+		 cwdfname ? cwdfname->base_name : "no cwd");
 	TALLOC_FREE(cwdfname);
 }
 

@@ -35,13 +35,17 @@ print("OPTIONS %s" % " ".join(smbtorture4_options), file=sys.stderr)
 
 
 def plansmbtorture4testsuite(name, env, options, modname=None, environ=None):
+    target = 'samba4'
+    if 'ntvfs' in env:
+        target = 'samba4-ntvfs'
+
     if environ is None:
         environ = {}
 
     return selftesthelpers.plansmbtorture4testsuite(name,
                                                     env,
                                                     options,
-                                                    target='samba4',
+                                                    target=target,
                                                     modname=modname,
                                                     environ=environ)
 
@@ -1987,6 +1991,14 @@ for env in ["fl2008r2dc", "fl2003dc"]:
                            environ={
                                **krb5_environ,
                                'FAST_SUPPORT': fast_support,
+                           })
+
+for env in ["ad_dc"]:
+    planoldpythontestsuite(env, "samba.tests.krb5.netlogon",
+                           environ={
+                               **krb5_environ,
+                               'NETLOGON_STRONG_KEY_SUPPORT': '0',
+                               'NETLOGON_AUTH_KRB5_SUPPORT': '1',
                            })
 
 planoldpythontestsuite('fl2008r2dc', 'samba.tests.krb5.salt_tests',

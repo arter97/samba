@@ -672,18 +672,27 @@ sub provision_raw_prepare($$$$$$$$$$$$$$)
 		push (@provision_options, "OPENSSL_FORCE_FIPS_MODE=1");
 	}
 
-	if (defined($ENV{GDB_PROVISION})) {
-		push (@provision_options, "gdb --args");
-		if (!defined($ENV{PYTHON})) {
-		    push (@provision_options, "env");
-		    push (@provision_options, "python");
+	if (defined($ENV{GDB_PROVISION}) ||
+	    defined($ENV{RR_PROVISION}) ||
+	    defined($ENV{PY_DEV_PROVISION}) ||
+	    defined($ENV{VALGRIND_PROVISION})) {
+		if (defined($ENV{GDB_PROVISION})) {
+			push (@provision_options, "gdb --args");
 		}
-	}
-	if (defined($ENV{VALGRIND_PROVISION})) {
-		push (@provision_options, "valgrind");
+		if (defined($ENV{RR_PROVISION})) {
+			push (@provision_options, "rr");
+		}
+		if (defined($ENV{VALGRIND_PROVISION})) {
+			push (@provision_options, "valgrind");
+		}
 		if (!defined($ENV{PYTHON})) {
-		    push (@provision_options, "env");
-		    push (@provision_options, "python");
+			push (@provision_options, "env");
+			push (@provision_options, "python");
+		}
+		if (defined($ENV{PY_DEV_PROVISION})) {
+			# makes Python more likely to emit warnings
+			# and debug info.
+			push (@provision_options, "-X dev");
 		}
 	}
 
@@ -1637,6 +1646,7 @@ sub provision_ad_dc_ntvfs($$$)
 	client min protocol = CORE
 	server min protocol = LANMAN1
 
+	server support krb5 netlogon = yes
 	CVE_2020_1472:warn_about_unused_debug_level = 3
 	CVE_2022_38023:warn_about_unused_debug_level = 3
 	allow nt4 crypto:torturetest\$ = yes
@@ -1650,6 +1660,16 @@ sub provision_ad_dc_ntvfs($$$)
 	server reject md5 schannel:tests4u2selfwk\$ = no
 	server reject md5 schannel:torturepacbdc\$ = no
 	server reject md5 schannel:torturepacwksta\$ = no
+	server reject aes schannel:schannel2\$ = no
+	server reject aes schannel:schannel3\$ = no
+	server reject aes schannel:schannel8\$ = no
+	server reject aes schannel:schannel9\$ = no
+	server reject aes schannel:torturetest\$ = no
+	server reject aes schannel:tests4u2proxywk\$ = no
+	server reject aes schannel:tests4u2selfbdc\$ = no
+	server reject aes schannel:tests4u2selfwk\$ = no
+	server reject aes schannel:torturepacbdc\$ = no
+	server reject aes schannel:torturepacwksta\$ = no
 	server require schannel:schannel0\$ = no
 	server require schannel:schannel1\$ = no
 	server require schannel:schannel2\$ = no
@@ -1727,6 +1747,11 @@ sub provision_fl2000dc($$)
 	server reject md5 schannel:tests4u2selfwk\$ = no
 	server reject md5 schannel:torturepacbdc\$ = no
 	server reject md5 schannel:torturepacwksta\$ = no
+	server reject aes schannel:tests4u2proxywk\$ = no
+	server reject aes schannel:tests4u2selfbdc\$ = no
+	server reject aes schannel:tests4u2selfwk\$ = no
+	server reject aes schannel:torturepacbdc\$ = no
+	server reject aes schannel:torturepacwksta\$ = no
 ";
 	my $extra_provision_options = ["--base-schema=2008_R2"];
 	# This environment uses plain text secrets
@@ -1782,6 +1807,11 @@ sub provision_fl2003dc($$$)
 	server reject md5 schannel:tests4u2selfwk\$ = no
 	server reject md5 schannel:torturepacbdc\$ = no
 	server reject md5 schannel:torturepacwksta\$ = no
+	server reject aes schannel:tests4u2proxywk\$ = no
+	server reject aes schannel:tests4u2selfbdc\$ = no
+	server reject aes schannel:tests4u2selfwk\$ = no
+	server reject aes schannel:torturepacbdc\$ = no
+	server reject aes schannel:torturepacwksta\$ = no
 ";
 
 	my $extra_provision_options = ["--base-schema=2008_R2"];
@@ -1839,12 +1869,18 @@ sub provision_fl2008r2dc($$$)
         # delay by 10 seconds, 10^7 usecs
 	ldap_server:delay_expire_disconnect = 10000
 
+	server support krb5 netlogon = yes
 	CVE_2022_38023:warn_about_unused_debug_level = 3
 	server reject md5 schannel:tests4u2proxywk\$ = no
 	server reject md5 schannel:tests4u2selfbdc\$ = no
 	server reject md5 schannel:tests4u2selfwk\$ = no
 	server reject md5 schannel:torturepacbdc\$ = no
 	server reject md5 schannel:torturepacwksta\$ = no
+	server reject aes schannel:tests4u2proxywk\$ = no
+	server reject aes schannel:tests4u2selfbdc\$ = no
+	server reject aes schannel:tests4u2selfwk\$ = no
+	server reject aes schannel:torturepacbdc\$ = no
+	server reject aes schannel:torturepacwksta\$ = no
 ";
 	my $extra_provision_options = ["--base-schema=2008_R2"];
 	my $ret = $self->provision($prefix,
@@ -2071,9 +2107,11 @@ sub provision_ad_dc()
 	lpq cache time = 0
 	print notify backchannel = yes
 
+	server support krb5 netlogon = yes
 	CVE_2020_1472:warn_about_unused_debug_level = 3
 	CVE_2022_38023:warn_about_unused_debug_level = 3
 	CVE_2022_38023:error_debug_level = 2
+	allow nt4 crypto:samlogontest\$ = yes
 	server reject md5 schannel:schannel2\$ = no
 	server reject md5 schannel:schannel3\$ = no
 	server reject md5 schannel:schannel8\$ = no
@@ -2085,6 +2123,17 @@ sub provision_ad_dc()
 	server reject md5 schannel:torturepacbdc\$ = no
 	server reject md5 schannel:torturepacwksta\$ = no
 	server reject md5 schannel:samlogontest\$ = no
+	server reject aes schannel:schannel2\$ = no
+	server reject aes schannel:schannel3\$ = no
+	server reject aes schannel:schannel8\$ = no
+	server reject aes schannel:schannel9\$ = no
+	server reject aes schannel:torturetest\$ = no
+	server reject aes schannel:tests4u2proxywk\$ = no
+	server reject aes schannel:tests4u2selfbdc\$ = no
+	server reject aes schannel:tests4u2selfwk\$ = no
+	server reject aes schannel:torturepacbdc\$ = no
+	server reject aes schannel:torturepacwksta\$ = no
+	server reject aes schannel:samlogontest\$ = no
 	server require schannel:schannel0\$ = no
 	server require schannel:schannel1\$ = no
 	server require schannel:schannel2\$ = no

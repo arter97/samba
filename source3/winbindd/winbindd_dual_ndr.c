@@ -40,7 +40,16 @@
 struct wbint_bh_state {
 	struct winbindd_domain *domain;
 	struct winbindd_child *child;
+	const struct dcerpc_binding *binding;
 };
+
+static const struct dcerpc_binding *wbint_bh_get_binding(struct dcerpc_binding_handle *h)
+{
+	struct wbint_bh_state *hs = dcerpc_binding_handle_data(h,
+				     struct wbint_bh_state);
+
+	return hs->binding;
+}
 
 static bool wbint_bh_is_connected(struct dcerpc_binding_handle *h)
 {
@@ -293,7 +302,7 @@ static void wbint_bh_do_ndr_print(struct dcerpc_binding_handle *h,
 {
 	void *struct_ptr = discard_const(_struct_ptr);
 
-	if (DEBUGLEVEL < 10) {
+	if (!CHECK_DEBUGLVLC(DBGC_RPC_PARSE, 10)) {
 		return;
 	}
 
@@ -313,6 +322,7 @@ static void wbint_bh_do_ndr_print(struct dcerpc_binding_handle *h,
 
 static const struct dcerpc_binding_handle_ops wbint_bh_ops = {
 	.name			= "wbint",
+	.get_binding		= wbint_bh_get_binding,
 	.is_connected		= wbint_bh_is_connected,
 	.set_timeout		= wbint_bh_set_timeout,
 	.raw_call_send		= wbint_bh_raw_call_send,
@@ -453,23 +463,24 @@ fail:
 static NTSTATUS set_remote_addresses(struct dcesrv_connection *conn,
 				     int sock)
 {
-	struct sockaddr_storage st = { 0 };
-	struct sockaddr *sar = (struct sockaddr *)&st;
+	struct samba_sockaddr ssa;
 	struct tsocket_address *remote = NULL;
 	struct tsocket_address *local = NULL;
-	socklen_t sa_len = sizeof(st);
 	NTSTATUS status;
 	int ret;
 
-	ZERO_STRUCT(st);
-	ret = getpeername(sock, sar, &sa_len);
+	ssa = (struct samba_sockaddr) { .sa_socklen = sizeof(ssa.u.ss), };
+	ret = getpeername(sock, &ssa.u.sa, &ssa.sa_socklen);
 	if (ret != 0) {
 		status = map_nt_error_from_unix(ret);
 		DBG_ERR("getpeername failed: %s\n", nt_errstr(status));
 		return status;
 	}
 
-	ret = tsocket_address_bsd_from_sockaddr(conn, sar, sa_len, &remote);
+	ret = tsocket_address_bsd_from_sockaddr(conn,
+						&ssa.u.sa,
+						ssa.sa_socklen,
+						&remote);
 	if (ret != 0) {
 		status = map_nt_error_from_unix(ret);
 		DBG_ERR("tsocket_address_bsd_from_sockaddr failed: %s\n",
@@ -477,15 +488,18 @@ static NTSTATUS set_remote_addresses(struct dcesrv_connection *conn,
 		return status;
 	}
 
-	ZERO_STRUCT(st);
-	ret = getsockname(sock, sar, &sa_len);
+	ssa = (struct samba_sockaddr) { .sa_socklen = sizeof(ssa.u.ss), };
+	ret = getsockname(sock, &ssa.u.sa, &ssa.sa_socklen);
 	if (ret != 0) {
 		status = map_nt_error_from_unix(ret);
 		DBG_ERR("getsockname failed: %s\n", nt_errstr(status));
 		return status;
 	}
 
-	ret = tsocket_address_bsd_from_sockaddr(conn, sar, sa_len, &local);
+	ret = tsocket_address_bsd_from_sockaddr(conn,
+						&ssa.u.sa,
+						ssa.sa_socklen,
+						&local);
 	if (ret != 0) {
 		status = map_nt_error_from_unix(ret);
 		DBG_ERR("tsocket_address_bsd_from_sockaddr failed: %s\n",
@@ -504,8 +518,10 @@ struct dcerpc_binding_handle *wbint_binding_handle(TALLOC_CTX *mem_ctx,
 						struct winbindd_domain *domain,
 						struct winbindd_child *child)
 {
-	struct dcerpc_binding_handle *h;
-	struct wbint_bh_state *hs;
+	struct dcerpc_binding_handle *h = NULL;
+	struct wbint_bh_state *hs = NULL;
+	struct dcerpc_binding *b = NULL;
+	NTSTATUS status;
 
 	h = dcerpc_binding_handle_create(mem_ctx,
 					 &wbint_bh_ops,
@@ -519,6 +535,37 @@ struct dcerpc_binding_handle *wbint_binding_handle(TALLOC_CTX *mem_ctx,
 	}
 	hs->domain = domain;
 	hs->child = child;
+
+	status = dcerpc_parse_binding(hs, "", &b);
+	if (!NT_STATUS_IS_OK(status)) {
+		TALLOC_FREE(h);
+		return NULL;
+	}
+	status = dcerpc_binding_set_transport(b, NCACN_INTERNAL);
+	if (!NT_STATUS_IS_OK(status)) {
+		TALLOC_FREE(h);
+		return NULL;
+	}
+	status = dcerpc_binding_set_string_option(b, "host", "localhost");
+	if (!NT_STATUS_IS_OK(status)) {
+		TALLOC_FREE(h);
+		return NULL;
+	}
+	status = dcerpc_binding_set_string_option(b,
+						  "endpoint",
+						  "winbindd_dual_ndrcmd");
+	if (!NT_STATUS_IS_OK(status)) {
+		TALLOC_FREE(h);
+		return NULL;
+	}
+	status = dcerpc_binding_set_abstract_syntax(b,
+						&ndr_table_winbind.syntax_id);
+	if (!NT_STATUS_IS_OK(status)) {
+		TALLOC_FREE(h);
+		return NULL;
+	}
+
+	hs->binding = b;
 
 	return h;
 }

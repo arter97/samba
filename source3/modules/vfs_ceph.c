@@ -363,6 +363,9 @@ static int cephwrap_statvfs(struct vfs_handle_struct *handle,
 	statbuf->TotalFileNodes = statvfs_buf.f_files;
 	statbuf->FreeFileNodes = statvfs_buf.f_ffree;
 	statbuf->FsIdentifier = statvfs_buf.f_fsid;
+	statbuf->FsCapabilities =
+		FILE_CASE_SENSITIVE_SEARCH | FILE_CASE_PRESERVED_NAMES;
+
 	DBG_DEBUG("[CEPH] f_bsize: %ld, f_blocks: %ld, f_bfree: %ld, "
 		  "f_bavail: %ld\n",
 		  (long int)statvfs_buf.f_bsize,
@@ -377,9 +380,7 @@ static uint32_t cephwrap_fs_capabilities(
 	struct vfs_handle_struct *handle,
 	enum timestamp_set_resolution *p_ts_res)
 {
-	uint32_t caps = FILE_CASE_SENSITIVE_SEARCH | FILE_CASE_PRESERVED_NAMES;
-
-	*p_ts_res = TIMESTAMP_SET_NT_OR_BETTER;
+	uint32_t caps = vfs_get_fs_capabilities(handle->conn, p_ts_res);
 
 	return caps;
 }
@@ -712,7 +713,8 @@ static int cephwrap_renameat(struct vfs_handle_struct *handle,
 			files_struct *srcfsp,
 			const struct smb_filename *smb_fname_src,
 			files_struct *dstfsp,
-			const struct smb_filename *smb_fname_dst)
+			const struct smb_filename *smb_fname_dst,
+			const struct vfs_rename_how *how)
 {
 	struct smb_filename *full_fname_src = NULL;
 	struct smb_filename *full_fname_dst = NULL;
@@ -722,6 +724,11 @@ static int cephwrap_renameat(struct vfs_handle_struct *handle,
 	if (smb_fname_src->stream_name || smb_fname_dst->stream_name) {
 		errno = ENOENT;
 		return result;
+	}
+
+	if (how->flags != 0) {
+		errno = EINVAL;
+		return -1;
 	}
 
 	full_fname_src = full_path_from_dirfsp_atname(talloc_tos(),

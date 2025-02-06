@@ -91,6 +91,18 @@ static const struct enum_list enum_bool_auto[] = {
 	{-1, NULL}
 };
 
+static const struct enum_list enum_bool_auto_default[] = {
+	{false, "No"},
+	{false, "False"},
+	{false, "0"},
+	{true, "Yes"},
+	{true, "True"},
+	{true, "1"},
+	{Auto, "Auto"},
+	{LP_ENUM_Default, "default"},
+	{-1, NULL}
+};
+
 static const struct enum_list enum_csc_policy[] = {
 	{CSC_POLICY_MANUAL, "manual"},
 	{CSC_POLICY_DOCUMENTS, "documents"},
@@ -446,6 +458,14 @@ static const struct enum_list enum_ad_functional_level[] = {
 static const struct enum_list enum_acl_claims_evaluation[] = {
 	{ACL_CLAIMS_EVALUATION_AD_DC_ONLY, "AD DC only"},
 	{ACL_CLAIMS_EVALUATION_NEVER, "never"},
+	{-1, NULL}
+};
+
+static const struct enum_list enum_client_netlogon_ping_protocol[] = {
+	{CLIENT_NETLOGON_PING_CLDAP, "cldap"},
+	{CLIENT_NETLOGON_PING_LDAP, "ldap"},
+	{CLIENT_NETLOGON_PING_LDAPS, "ldaps"},
+	{CLIENT_NETLOGON_PING_STARTTLS, "starttls"},
 	{-1, NULL}
 };
 

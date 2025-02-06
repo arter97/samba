@@ -2840,7 +2840,6 @@ struct loadparm_context *loadparm_init(TALLOC_CTX *mem_ctx)
 	lpcfg_do_global_parameter(lp_ctx, "smb ports", "445 139");
 	lpcfg_do_global_parameter_var(lp_ctx, "nbt port", "%d", NBT_NAME_SERVICE_PORT);
 	lpcfg_do_global_parameter_var(lp_ctx, "dgram port", "%d", NBT_DGRAM_SERVICE_PORT);
-	lpcfg_do_global_parameter(lp_ctx, "cldap port", "389");
 	lpcfg_do_global_parameter(lp_ctx, "krb5 port", "88");
 	lpcfg_do_global_parameter(lp_ctx, "kpasswd port", "464");
 	lpcfg_do_global_parameter_var(lp_ctx, "dns port", "%d", DNS_SERVICE_PORT);
@@ -2932,6 +2931,8 @@ struct loadparm_context *loadparm_init(TALLOC_CTX *mem_ctx)
 	lpcfg_do_global_parameter(lp_ctx, "guest account", GUEST_ACCOUNT);
 
 	lpcfg_do_global_parameter(lp_ctx, "client schannel", "True");
+
+	lpcfg_do_global_parameter(lp_ctx, "client use krb5 netlogon", "default");
 
 	lpcfg_do_global_parameter(lp_ctx, "smb encrypt", "default");
 
@@ -3077,6 +3078,8 @@ struct loadparm_context *loadparm_init(TALLOC_CTX *mem_ctx)
 
 	lpcfg_do_global_parameter(lp_ctx, "smb2 leases", "yes");
 
+	lpcfg_do_global_parameter(lp_ctx, "smb3 directory leases", "Auto");
+
 	lpcfg_do_global_parameter(lp_ctx, "server multi channel support", "yes");
 
 	lpcfg_do_global_parameter(lp_ctx, "kerberos encryption types", "all");
@@ -3094,6 +3097,8 @@ struct loadparm_context *loadparm_init(TALLOC_CTX *mem_ctx)
 	lpcfg_do_global_parameter(lp_ctx, "ea support", "yes");
 
 	lpcfg_do_global_parameter(lp_ctx, "store dos attributes", "yes");
+
+	lpcfg_do_global_parameter(lp_ctx, "vfs mkdir use tmp name", "Auto");
 
 	lpcfg_do_global_parameter(lp_ctx, "debug encryption", "no");
 
@@ -3162,6 +3167,17 @@ struct loadparm_context *loadparm_init(TALLOC_CTX *mem_ctx)
 	lpcfg_do_global_parameter(lp_ctx,
 				  "acl claims evaluation",
 				  "AD DC only");
+
+	/* Set the default Himmelblaud globals */
+	lpcfg_do_global_parameter(lp_ctx,
+				  "himmelblaud hsm pin path",
+				  get_dyn_HIMMELBLAUD_HSM_PIN_PATH());
+	lpcfg_do_global_parameter(lp_ctx,
+				  "himmelblaud hello enabled",
+				  "false");
+	lpcfg_do_global_parameter(lp_ctx,
+				  "himmelblaud sfa fallback",
+				  "false");
 
 	for (i = 0; parm_table[i].label; i++) {
 		if (!(lp_ctx->flags[i] & FLAG_CMDLINE)) {
@@ -3665,6 +3681,17 @@ bool lpcfg_server_signing_allowed(struct loadparm_context *lp_ctx, bool *mandato
 	}
 
 	return allowed;
+}
+
+int lpcfg_client_use_krb5_netlogon(struct loadparm_context *lp_ctx)
+{
+	int val = lpcfg__client_use_krb5_netlogon(lp_ctx);
+
+	if (val == LP_ENUM_Default) {
+		val = false;
+	}
+
+	return val;
 }
 
 int lpcfg_tdb_hash_size(struct loadparm_context *lp_ctx, const char *name)

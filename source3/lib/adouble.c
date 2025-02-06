@@ -282,7 +282,7 @@ static bool ad_entry_check_size(uint32_t eid,
 				uint32_t off,
 				uint32_t got_len)
 {
-	struct {
+	static const struct {
 		off_t expected_len;
 		bool fixed_size;
 		bool minimum_size;
@@ -493,7 +493,7 @@ static bool ad_pack_move_reso(struct vfs_handle_struct *handle,
 		 * This buffer is already set when converting a resourcefork
 		 * stream from vfs_streams_depot backend via ad_unconvert(). It
 		 * is NULL with vfs_streams_xattr where the resourcefork stream
-		 * is stored in an AppleDouble sidecar file vy vfs_fruit.
+		 * is stored in an AppleDouble sidecar file by vfs_fruit.
 		 */
 		ad->ad_rsrc_data = talloc_size(ad, reso_len);
 		if (ad->ad_rsrc_data == NULL) {
@@ -949,7 +949,7 @@ static bool ad_unpack_xattrs(struct adouble *ad)
 }
 
 /**
- * Unpack an AppleDouble blob into a struct adoble
+ * Unpack an AppleDouble blob into a struct adouble
  **/
 static bool ad_unpack(struct adouble *ad, const size_t nentries,
 		      size_t filesize)
@@ -1185,16 +1185,15 @@ static bool ad_convert_xattr(vfs_handle_struct *handle,
 		files_struct *fsp = NULL;
 		ssize_t nwritten;
 
-		status = string_replace_allocate(handle->conn,
-						 e->adx_name,
-						 string_replace_cmaps,
-						 talloc_tos(),
-						 &mapped_name,
-						 vfs_translate_to_windows);
-		if (!NT_STATUS_IS_OK(status) &&
-		    !NT_STATUS_EQUAL(status, NT_STATUS_NONE_MAPPED))
-		{
-			DBG_ERR("string_replace_allocate failed\n");
+		rc = string_replace_allocate(handle->conn,
+					     e->adx_name,
+					     string_replace_cmaps,
+					     talloc_tos(),
+					     &mapped_name,
+					     vfs_translate_to_windows);
+		if (rc != 0) {
+			DBG_ERR("string_replace_allocate failed: %s\n",
+				strerror(rc));
 			ok = false;
 			goto fail;
 		}
@@ -1746,6 +1745,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 	ssize_t nread;
 	NTSTATUS status;
 	bool ok;
+	int rc;
 
 	sname = synthetic_smb_fname(ad,
 				    smb_fname->base_name,
@@ -1901,16 +1901,14 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 		*p = '\0';
 	}
 
-	status = string_replace_allocate(handle->conn,
-					 e->adx_name,
-					 cmaps,
-					 ad,
-					 &mapped_name,
-					 vfs_translate_to_unix);
-	if (!NT_STATUS_IS_OK(status) &&
-	    !NT_STATUS_EQUAL(status, NT_STATUS_NONE_MAPPED))
-	{
-		DBG_ERR("string_replace_allocate failed\n");
+	rc = string_replace_allocate(handle->conn,
+				     e->adx_name,
+				     cmaps,
+				     ad,
+				     &mapped_name,
+				     vfs_translate_to_unix);
+	if (rc != 0) {
+		DBG_ERR("string_replace_allocate failed: %s\n", strerror(rc));
 		ok = false;
 		goto out;
 	}
@@ -2451,7 +2449,7 @@ static int adouble_destructor(struct adouble *ad)
 }
 
 /**
- * Allocate a struct adouble without initialiing it
+ * Allocate a struct adouble without initializing it
  *
  * The struct is either hang of the fsp extension context or if fsp is
  * NULL from ctx.
@@ -2581,14 +2579,10 @@ static struct adouble *ad_get_internal(TALLOC_CTX *ctx,
 	int rc = 0;
 	ssize_t len;
 	struct adouble *ad = NULL;
-	int mode;
 
 	if (fsp != NULL) {
-		if (fsp_is_alternate_stream(fsp)) {
-			smb_fname = fsp->base_fsp->fsp_name;
-		} else {
-			smb_fname = fsp->fsp_name;
-		}
+		struct files_struct *meta_fsp = metadata_fsp(fsp);
+		smb_fname = meta_fsp->fsp_name;
 	}
 
 	DEBUG(10, ("ad_get(%s) called for %s\n",
@@ -2602,12 +2596,9 @@ static struct adouble *ad_get_internal(TALLOC_CTX *ctx,
 	}
 
 	/* Try rw first so we can use the fd in ad_convert() */
-	mode = O_RDWR;
-
-	rc = ad_open(handle, ad, fsp, smb_fname, mode, 0);
+	rc = ad_open(handle, ad, fsp, smb_fname, O_RDWR, 0);
 	if (rc == -1 && ((errno == EROFS) || (errno == EACCES))) {
-		mode = O_RDONLY;
-		rc = ad_open(handle, ad, fsp, smb_fname, mode, 0);
+		rc = ad_open(handle, ad, fsp, smb_fname, O_RDONLY, 0);
 	}
 	if (rc == -1) {
 		DBG_DEBUG("ad_open [%s] error [%s]\n",

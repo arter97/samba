@@ -414,10 +414,6 @@ int rep_ftruncate(int,off_t);
 int rep_initgroups(char *name, gid_t id);
 #endif
 
-#if !defined(HAVE_BZERO) && defined(HAVE_MEMSET)
-#define bzero(a,b) memset((a),'\0',(b))
-#endif
-
 #ifndef HAVE_DLERROR
 #define dlerror rep_dlerror
 char *rep_dlerror(void);
@@ -1014,6 +1010,15 @@ ssize_t rep_copy_file_range(int fd_in,
 			    unsigned int flags);
 #endif /* HAVE_COPY_FILE_RANGE */
 
+
+#define copy_reflink rep_copy_reflink
+
+ssize_t rep_copy_reflink(int src_fd,
+			 off_t src_off,
+			 int dst_fd,
+			 off_t dst_off,
+			 off_t to_copy);
+
 #ifndef FALL_THROUGH
 # ifdef HAVE_FALLTHROUGH_ATTRIBUTE
 #  define FALL_THROUGH __attribute__ ((fallthrough))
@@ -1091,6 +1096,9 @@ static inline bool hex_byte(const char *in, uint8_t *out)
 	*out = (hi<<4)+lo;
 	return ok;
 }
+
+extern const char hexchars_lower[];
+extern const char hexchars_upper[];
 
 /* Needed for Solaris atomic_add_XX functions. */
 #if defined(HAVE_SYS_ATOMIC_H)

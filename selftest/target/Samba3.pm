@@ -1158,6 +1158,7 @@ sub setup_ad_member_rfc2307
         idmap config $dcvars->{DOMAIN} : bind_path_group = ou=idmap,dc=samba,dc=example,dc=com
 
         password server = $dcvars->{SERVER}
+	client netlogon ping protocol = starttls
 ";
 
 	my $ret = $self->provision(
@@ -1258,6 +1259,9 @@ sub setup_admem_idmap_autorid
 	# Prevent overriding the provisioned lib/krb5.conf which sets certain
 	# values required for tests to succeed
 	create krb5 conf = no
+
+	client use krb5 netlogon = yes
+	reject aes netlogon servers = yes
 ";
 
 	my $ret = $self->provision(
@@ -1467,6 +1471,7 @@ sub setup_ad_member_idmap_ad
 	gensec_gssapi:requested_life_time = 5
 	winbind scan trusted domains = yes
 	winbind expand groups = 1
+	client netlogon ping protocol = ldaps
 ";
 
 	my $ret = $self->provision(
@@ -1571,6 +1576,7 @@ sub setup_ad_member_oneway
 	idmap config * : backend = tdb
 	idmap config * : range = 1000000-1999999
 	gensec_gssapi:requested_life_time = 5
+	client netlogon ping protocol = ldap
 ";
 
 	my $ret = $self->provision(

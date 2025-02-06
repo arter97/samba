@@ -509,6 +509,43 @@ ctdb_check_unix_socket()
 ################################################
 # kill off any TCP connections with the given IP
 ################################################
+
+kill_tcp_summarise()
+{
+	_mode="$1"
+	_count="$2"
+	_method="$3"
+
+	_connections=$(get_tcp_connections_for_ip "$_ip")
+	if [ -z "$_connections" ]; then
+		_remaining=0
+	else
+		_remaining=$(echo "$_connections" | wc -l)
+	fi
+
+	case "$_mode" in
+	total)
+		_total="$_count"
+		_killed=$((_total - _remaining))
+		;;
+	killed)
+		_killed="$_count"
+		_total=$((_killed + _remaining))
+		;;
+	esac
+
+	_t="${_killed}/${_total}"
+	_m=""
+	if [ -n "$_method" ]; then
+		_m=", using ${_method}"
+	fi
+	echo "Killed ${_t} TCP connections to released IP ${_ip}${_m}"
+	if [ -n "$_connections" ]; then
+		echo "Remaining connections:"
+		echo "$_connections" | sed -e 's|^|  |'
+	fi
+}
+
 kill_tcp_connections()
 {
 	_iface="$1"
@@ -518,6 +555,16 @@ kill_tcp_connections()
 	if [ "$3" = "oneway" ]; then
 		_oneway=true
 	fi
+
+	case "$CTDB_KILLTCP_USE_SS_KILL" in
+	yes | try)
+		_killcount=$(ss -K -tnH state established src "$_ip" | wc -l)
+		kill_tcp_summarise "killed" "$_killcount" "ss -K"
+		if [ "$CTDB_KILLTCP_USE_SS_KILL" = "yes" ]; then
+			return
+		fi
+		;;
+	esac
 
 	get_tcp_connections_for_ip "$_ip" | {
 		_killcount=0
@@ -556,22 +603,11 @@ kill_tcp_connections()
 			return
 		}
 
-		_connections=$(get_tcp_connections_for_ip "$_ip")
-		if [ -z "$_connections" ]; then
-			_remaining=0
-		else
-			_remaining=$(echo "$_connections" | wc -l)
+		_method=""
+		if [ "$CTDB_KILLTCP_USE_SS_KILL" = "try" ]; then
+			_method="ctdb_killtcp"
 		fi
-
-		_actually_killed=$((_killcount - _remaining))
-
-		_t="${_actually_killed}/${_killcount}"
-		echo "Killed ${_t} TCP connections to released IP $_ip"
-
-		if [ -n "$_connections" ]; then
-			echo "Remaining connections:"
-			echo "$_connections" | sed -e 's|^|  |'
-		fi
+		kill_tcp_summarise "total" "$_killcount" "$_method"
 	}
 }
 
@@ -866,6 +902,11 @@ ctdb_counter_get()
 	# shellcheck disable=SC2086
 	echo $_val
 }
+ctdb_counter_exists()
+{
+	_ctdb_counter_common "$1"
+	[ -e "$_counter_file" ]
+}
 
 #
 # Fail counter/threshold combination to control warnings and node unhealthy
@@ -1119,11 +1160,8 @@ nfs_callout_init()
 	export CTDB_NFS_CALLOUT_STATE_DIR="${_state_dir}/callout-state"
 
 	# Export, if set, for use by clustered NFS callouts
-	if [ -n "$CTDB_NFS_STATE_FS_TYPE" ]; then
-		export CTDB_NFS_STATE_FS_TYPE
-	fi
-	if [ -n "$CTDB_NFS_STATE_MNT" ]; then
-		export CTDB_NFS_STATE_MNT
+	if [ -n "$CTDB_NFS_SHARED_STATE_DIR" ]; then
+		export CTDB_NFS_SHARED_STATE_DIR
 	fi
 	if [ -n "$CTDB_NFS_EXPORTS_FILE" ]; then
 		export CTDB_NFS_EXPORTS_FILE

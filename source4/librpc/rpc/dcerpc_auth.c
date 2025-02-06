@@ -21,6 +21,8 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define SOURCE4_LIBRPC_INTERNALS 1
+
 #include "includes.h"
 #include <tevent.h>
 #include "libcli/composite/composite.h"
@@ -376,6 +378,12 @@ struct composite_context *dcerpc_bind_auth_send(TALLOC_CTX *mem_ctx,
 			  nt_errstr(c->status)));
 		composite_error(c, c->status);
 		return c;
+	}
+
+	if (p->conn->flags & DCERPC_SCHANNEL) {
+		service = "netlogon";
+		gensec_want_feature(sec->generic_state,
+				    GENSEC_FEATURE_NO_DELEGATION);
 	}
 
 	if (service != NULL) {

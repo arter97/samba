@@ -26,10 +26,10 @@
 #define __LIBNDR_H__
 
 #include <talloc.h>
-#include "../lib/util/discard.h" /* for discard_const */
-#include "../lib/util/data_blob.h"
-#include "../lib/util/time.h"
-#include "../lib/util/charset/charset.h"
+#include "lib/util/discard.h" /* for discard_const */
+#include "lib/util/data_blob.h"
+#include "lib/util/time.h"
+#include "lib/util/charset/charset.h"
 
 /*
   this provides definitions for the libcli/rpc/ MSRPC library
@@ -478,7 +478,7 @@ enum ndr_compression_alg {
 	enum ndr_err_code _status; \
 	_status = call; \
 	if (unlikely(!NDR_ERR_CODE_IS_SUCCESS(_status))) {	\
-		talloc_free(ndr);		 \
+		TALLOC_FREE(ndr);		 \
 		return _status; \
 	} \
 } while (0)
@@ -515,12 +515,6 @@ enum ndr_compression_alg {
 	if (unlikely(!(s))) return ndr_pull_error(ndr, NDR_ERR_ALLOC, "Alloc %zu * %s failed: %s\n", (size_t)n, # s, __location__); \
 } while (0)
 
-
-#define NDR_PUSH_ALLOC_SIZE(ndr, s, size) do { \
-       (s) = talloc_array(ndr, uint8_t, size); \
-       if (unlikely(!(s))) return ndr_push_error(ndr, NDR_ERR_ALLOC, "push alloc %zu failed: %s\n", (size_t)size, __location__); \
-} while (0)
-
 #define NDR_PUSH_ALLOC(ndr, s) do { \
        (s) = talloc_ptrtype(ndr, (s)); \
        if (unlikely(!(s))) return ndr_push_error(ndr, NDR_ERR_ALLOC, "push alloc %s failed: %s\n", # s, __location__); \
@@ -539,7 +533,7 @@ typedef enum ndr_err_code (*ndr_pull_flags_fn_t)(struct ndr_pull *, ndr_flags_ty
 typedef void (*ndr_print_fn_t)(struct ndr_print *, const char *, const void *);
 typedef void (*ndr_print_function_t)(struct ndr_print *, const char *, ndr_flags_type, const void *);
 
-#include "../libcli/util/error.h"
+#include "libcli/util/error.h"
 #include "librpc/gen_ndr/misc.h"
 
 extern const struct ndr_syntax_id ndr_transfer_syntax_ndr;
@@ -638,7 +632,7 @@ enum ndr_err_code ndr_push_struct_blob(DATA_BLOB *blob, TALLOC_CTX *mem_ctx, con
 enum ndr_err_code ndr_push_struct_into_fixed_blob(DATA_BLOB *blob,
 						  const void *p,
 						  ndr_push_flags_fn_t fn);
-enum ndr_err_code ndr_push_union_blob(DATA_BLOB *blob, TALLOC_CTX *mem_ctx, void *p, uint32_t level, ndr_push_flags_fn_t fn);
+enum ndr_err_code ndr_push_union_blob(DATA_BLOB *blob, TALLOC_CTX *mem_ctx, const void *p, uint32_t level, ndr_push_flags_fn_t fn);
 size_t ndr_size_struct(const void *p, libndr_flags flags, ndr_push_flags_fn_t push);
 size_t ndr_size_union(const void *p, libndr_flags flags, uint32_t level, ndr_push_flags_fn_t push);
 uint32_t ndr_push_get_relative_base_offset(struct ndr_push *ndr);
@@ -669,15 +663,52 @@ void ndr_print_debug_helper(struct ndr_print *ndr, const char *format, ...) PRIN
 void ndr_print_debugc_helper(struct ndr_print *ndr, const char *format, ...) PRINTF_ATTRIBUTE(2,3);
 void ndr_print_printf_helper(struct ndr_print *ndr, const char *format, ...) PRINTF_ATTRIBUTE(2,3);
 void ndr_print_string_helper(struct ndr_print *ndr, const char *format, ...) PRINTF_ATTRIBUTE(2,3);
-bool ndr_print_debug(int level, ndr_print_fn_t fn, const char *name, void *ptr, const char *location, const char *function);
-void ndr_print_debugc(int dbgc_class, ndr_print_fn_t fn, const char *name, void *ptr);
-void ndr_print_union_debug(ndr_print_fn_t fn, const char *name, uint32_t level, void *ptr);
-void ndr_print_function_debug(ndr_print_function_t fn, const char *name, ndr_flags_type flags, void *ptr);
-char *ndr_print_struct_string(TALLOC_CTX *mem_ctx, ndr_print_fn_t fn, const char *name, void *ptr);
-char *ndr_print_union_string(TALLOC_CTX *mem_ctx, ndr_print_fn_t fn, const char *name, uint32_t level, void *ptr);
+bool ndr_print_debug(int level,
+		     ndr_print_fn_t fn,
+		     const char *name,
+		     const void *ptr,
+		     const char *location,
+		     const char *function);
+void ndr_print_debugc(int dbgc_class,
+		      ndr_print_fn_t fn,
+		      const char *name,
+		      const void *ptr);
+void ndr_print_union_debug(ndr_print_fn_t fn,
+			   const char *name,
+			   uint32_t level,
+			   const void *ptr);
+void ndr_print_function_debug(ndr_print_function_t fn,
+			      const char *name,
+			      ndr_flags_type flags,
+			      const void *ptr);
+char *ndr_print_struct_string(TALLOC_CTX *mem_ctx,
+			      ndr_print_fn_t fn,
+			      const char *name,
+			      const void *ptr);
+char *ndr_print_struct_secret_string(TALLOC_CTX *mem_ctx,
+				     ndr_print_fn_t fn,
+				     const char *name,
+				     const void *ptr);
+char *ndr_print_union_string(TALLOC_CTX *mem_ctx,
+			     ndr_print_fn_t fn,
+			     const char *name,
+			     uint32_t level,
+			     const void *ptr);
+char *ndr_print_union_secret_string(TALLOC_CTX *mem_ctx,
+				    ndr_print_fn_t fn,
+				    const char *name,
+				    uint32_t level,
+				    const void *ptr);
 char *ndr_print_function_string(TALLOC_CTX *mem_ctx,
-				ndr_print_function_t fn, const char *name,
-				ndr_flags_type flags, void *ptr);
+				ndr_print_function_t fn,
+				const char *name,
+				ndr_flags_type flags,
+				const void *ptr);
+char *ndr_print_function_secret_string(TALLOC_CTX *mem_ctx,
+				       ndr_print_function_t fn,
+				       const char *name,
+				       ndr_flags_type flags,
+				       const void *ptr);
 void ndr_set_flags(libndr_flags *pflags, libndr_flags new_flags);
 enum ndr_err_code _ndr_pull_error(struct ndr_pull *ndr,
 				  enum ndr_err_code ndr_err,
@@ -721,8 +752,11 @@ enum ndr_err_code ndr_token_store(TALLOC_CTX *mem_ctx,
 			 struct ndr_token_list *list,
 			 const void *key,
 			 uint32_t value);
-enum ndr_err_code ndr_token_retrieve_cmp_fn(struct ndr_token_list *list, const void *key, uint32_t *v,
-					    int(*_cmp_fn)(const void*,const void*), bool erase);
+enum ndr_err_code ndr_token_peek_cmp_fn(struct ndr_token_list *list,
+					const void *key,
+					uint32_t *v,
+					int (*_cmp_fn)(const void *,
+						       const void *));
 enum ndr_err_code ndr_token_retrieve(struct ndr_token_list *list, const void *key, uint32_t *v);
 enum ndr_err_code ndr_token_peek(struct ndr_token_list *list, const void *key, uint32_t *v);
 enum ndr_err_code ndr_pull_array_size(struct ndr_pull *ndr, const void *p);
@@ -761,6 +795,16 @@ enum ndr_err_code ndr_pull_struct_blob_all_noalloc(const DATA_BLOB *blob,
 						   void *p, ndr_pull_flags_fn_t fn);
 enum ndr_err_code ndr_pull_union_blob(const DATA_BLOB *blob, TALLOC_CTX *mem_ctx, void *p, uint32_t level, ndr_pull_flags_fn_t fn);
 enum ndr_err_code ndr_pull_union_blob_all(const DATA_BLOB *blob, TALLOC_CTX *mem_ctx, void *p, uint32_t level, ndr_pull_flags_fn_t fn);
+
+enum ndr_err_code _ndr_deepcopy_struct(ndr_push_flags_fn_t push_fn,
+				       const void *src,
+				       ndr_pull_flags_fn_t pull_fn,
+				       TALLOC_CTX *dst_mem, void *dst);
+#define ndr_deepcopy_struct(type, src, dst_mem, dst) \
+	_ndr_deepcopy_struct((ndr_push_flags_fn_t)ndr_push_ ## type, \
+			     src, \
+			     (ndr_pull_flags_fn_t)ndr_pull_ ## type, \
+			     dst_mem, dst)
 
 /* from libndr_basic.h */
 #define NDR_SCALAR_PROTO(name, type) \
@@ -837,8 +881,7 @@ enum ndr_err_code ndr_push_ref_ptr(struct ndr_push *ndr);
 void ndr_print_struct(struct ndr_print *ndr, const char *name, const char *type);
 void ndr_print_null(struct ndr_print *ndr);
 void ndr_print_enum(struct ndr_print *ndr, const char *name, const char *type, const char *val, uint32_t value);
-void ndr_print_bitmap_flag(struct ndr_print *ndr, size_t size, const char *flag_name, uint32_t flag, uint32_t value);
-void ndr_print_bitmap_flag(struct ndr_print *ndr, size_t size, const char *flag_name, uint32_t flag, uint32_t value);
+void ndr_print_bitmap_flag(struct ndr_print *ndr, size_t size, const char *flag_name, uint64_t flag, uint64_t value);
 void ndr_print_ptr(struct ndr_print *ndr, const char *name, const void *p);
 void ndr_print_union(struct ndr_print *ndr, const char *name, int level, const char *type);
 void ndr_print_bad_level(struct ndr_print *ndr, const char *name, uint16_t level);

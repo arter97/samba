@@ -21,7 +21,7 @@
 
 #include "includes.h"
 #include "torture/torture.h"
-#include "libcli/cldap/cldap.h"
+#include "source3/libads/netlogon_ping.h"
 #include "../lib/tsocket/tsocket.h"
 #include "librpc/gen_ndr/ndr_lsa_c.h"
 #include "librpc/gen_ndr/netlogon.h"
@@ -1123,7 +1123,7 @@ static bool test_LookupSids3_fail(struct dcerpc_binding_handle *b,
 	if (NT_STATUS_EQUAL(r.out.result, NT_STATUS_ACCESS_DENIED) ||
 	    NT_STATUS_EQUAL(r.out.result, NT_STATUS_RPC_PROTSEQ_NOT_SUPPORTED)) {
 		torture_comment(tctx,
-				"LookupNames4 correctly returned with "
+				"LookupSids3 correctly returned with "
 				"result: %s\n",
 				nt_errstr(r.out.result));
 		return true;
@@ -1145,7 +1145,8 @@ bool test_many_LookupSids(struct dcerpc_pipe *p,
 	struct lsa_SidArray sids;
 	int i;
 	struct dcerpc_binding_handle *b = p->binding_handle;
-	enum dcerpc_transport_t transport = dcerpc_binding_get_transport(p->binding);
+	enum dcerpc_transport_t transport =
+		dcerpc_binding_handle_get_transport(b);
 
 	torture_comment(tctx, "\nTesting LookupSids with lots of SIDs\n");
 
@@ -1211,6 +1212,15 @@ bool test_many_LookupSids(struct dcerpc_pipe *p,
 
 		if (auth_type == DCERPC_AUTH_TYPE_SCHANNEL &&
 		    auth_level >= DCERPC_AUTH_LEVEL_INTEGRITY) {
+			if (!test_LookupSids3(b, tctx, level, &sids)) {
+				return false;
+			}
+			if (!test_LookupNames4(b, tctx, level, &names, true)) {
+				return false;
+			}
+		} else if (auth_type == DCERPC_AUTH_TYPE_KRB5 &&
+			   auth_level == DCERPC_AUTH_LEVEL_PRIVACY)
+		{
 			if (!test_LookupSids3(b, tctx, level, &sids)) {
 				return false;
 			}
@@ -1730,8 +1740,9 @@ static bool test_CreateSecret(struct dcerpc_pipe *p,
 		torture_assert_ntstatus_ok(tctx, r2.out.result,
 					   "OpenSecret failed");
 
-		torture_assert_ntstatus_ok(tctx, dcerpc_fetch_session_key(p, &session_key),
-					   "dcerpc_fetch_session_key failed");
+		torture_assert_ntstatus_ok(tctx,
+			dcerpc_binding_handle_transport_session_key(b, tctx, &session_key),
+			"transport_session_key failed");
 
 		enc_key = sess_encrypt_string(secret1, &session_key);
 
@@ -4368,8 +4379,8 @@ static bool check_dom_trust_pw(struct dcerpc_pipe *p,
 	const char *trusted_netbios_name = trusted->netbios_name.string;
 	const char *trusted_dns_name = trusted->domain_name.string;
 	struct tsocket_address *dest_addr;
-	struct cldap_socket *cldap;
-	struct cldap_netlogon cldap1;
+	struct netlogon_samlogon_response **responses = NULL;
+	struct netlogon_samlogon_response *resp = NULL;
 	enum dcerpc_AuthType auth_type;
 	enum dcerpc_AuthLevel auth_level;
 
@@ -4419,45 +4430,59 @@ static bool check_dom_trust_pw(struct dcerpc_pipe *p,
 			talloc_asprintf(tctx,"Failed to resolve %s: %s",
 					nbt_name.name, nt_errstr(status)));
 
-	rc = tsocket_address_inet_from_strings(tctx, "ip",
-					       ip,
-					       lpcfg_cldap_port(tctx->lp_ctx),
-					       &dest_addr);
-	torture_assert_int_equal(tctx, rc, 0,
-				 talloc_asprintf(tctx,
-						 "tsocket_address_inet_from_strings failed parsing %s:%d",
-						 host, lpcfg_cldap_port(tctx->lp_ctx)));
+	rc = tsocket_address_inet_from_strings(
+		tctx, "ip", ip, 389, &dest_addr);
+	torture_assert_int_equal(
+		tctx,
+		rc,
+		0,
+		talloc_asprintf(tctx,
+				"tsocket_address_inet_from_strings failed "
+				"parsing %s:%d",
+				host,
+				389));
 
-	/* cldap_socket_init should now know about the dest. address */
-	status = cldap_socket_init(tctx, NULL, dest_addr, &cldap);
-	torture_assert_ntstatus_ok(tctx, status, "cldap_socket_init");
+	status = netlogon_pings(tctx, /* mem_ctx */
+				lpcfg_client_netlogon_ping_protocol(
+					tctx->lp_ctx), /* proto */
+				&dest_addr,	       /* servers */
+				1,		       /* num_servers */
+				(struct netlogon_ping_filter){
+					.ntversion = NETLOGON_NT_VERSION_5 |
+						     NETLOGON_NT_VERSION_5EX,
+					.acct_ctrl = (secure_channel_type ==
+						      SEC_CHAN_DNS_DOMAIN)
+							     ? ACB_AUTOLOCK
+							     : ACB_DOMTRUST,
+					.user = account,
+				},
+				1, /* min_servers */
+				tevent_timeval_current_ofs(2, 0), /* timeout */
+				&responses);
+	torture_assert_ntstatus_ok(tctx, status, "netlogon_pings");
 
-	ZERO_STRUCT(cldap1);
-	cldap1.in.dest_address = NULL;
-	cldap1.in.dest_port = 0;
-	cldap1.in.version = NETLOGON_NT_VERSION_5 | NETLOGON_NT_VERSION_5EX;
-	cldap1.in.user = account;
-	if (secure_channel_type == SEC_CHAN_DNS_DOMAIN) {
-		cldap1.in.acct_control = ACB_AUTOLOCK;
-	} else {
-		cldap1.in.acct_control = ACB_DOMTRUST;
-	}
-	status = cldap_netlogon(cldap, tctx, &cldap1);
-	torture_assert_ntstatus_ok(tctx, status, "cldap_netlogon");
-	torture_assert_int_equal(tctx, cldap1.out.netlogon.ntver,
+	resp = responses[0];
+
+	torture_assert_int_equal(tctx,
+				 resp->ntver,
 				 NETLOGON_NT_VERSION_5EX,
 				 "ntver");
-	torture_assert_int_equal(tctx, cldap1.out.netlogon.data.nt5_ex.nt_version,
-				 NETLOGON_NT_VERSION_1 | NETLOGON_NT_VERSION_5EX,
+	torture_assert_int_equal(tctx,
+				 resp->data.nt5_ex.nt_version,
+				 NETLOGON_NT_VERSION_1 |
+					 NETLOGON_NT_VERSION_5EX,
 				 "nt_version");
-	torture_assert_int_equal(tctx, cldap1.out.netlogon.data.nt5_ex.command,
+	torture_assert_int_equal(tctx,
+				 resp->data.nt5_ex.command,
 				 LOGON_SAM_LOGON_RESPONSE_EX,
 				 "command");
-	torture_assert_str_equal(tctx, cldap1.out.netlogon.data.nt5_ex.user_name,
-				 cldap1.in.user,
+	torture_assert_str_equal(tctx,
+				 resp->data.nt5_ex.user_name,
+				 account,
 				 "user_name");
-	server_name = talloc_asprintf(tctx, "\\\\%s",
-			cldap1.out.netlogon.data.nt5_ex.pdc_dns_name);
+	server_name = talloc_asprintf(tctx,
+				      "\\\\%s",
+				      resp->data.nt5_ex.pdc_dns_name);
 	torture_assert(tctx, server_name, __location__);
 
 	status = dcerpc_parse_binding(tctx, binding, &b2);
@@ -4658,9 +4683,9 @@ static bool test_CreateTrustedDomainEx_common(struct dcerpc_pipe *p,
 	domsid = talloc_array(tctx, struct dom_sid *, num_trusts);
 	trustdom_handle = talloc_array(tctx, struct policy_handle, num_trusts);
 
-	status = dcerpc_fetch_session_key(p, &session_key);
+	status = dcerpc_binding_handle_transport_session_key(b, tctx, &session_key);
 	if (!NT_STATUS_IS_OK(status)) {
-		torture_comment(tctx, "dcerpc_fetch_session_key failed - %s\n", nt_errstr(status));
+		torture_comment(tctx, "transport_session_key failed - %s\n", nt_errstr(status));
 		return false;
 	}
 
@@ -5315,7 +5340,7 @@ bool torture_rpc_lsa(struct torture_context *tctx)
 	torture_assert_ntstatus_ok(tctx, status, "Error connecting to server");
 
 	b = p->binding_handle;
-	transport = dcerpc_binding_get_transport(p->binding);
+	transport = dcerpc_binding_handle_get_transport(b);
 
 	/* Test lsaLookupSids3 and lsaLookupNames4 over tcpip */
 	if (transport == NCACN_IP_TCP) {
@@ -5415,7 +5440,7 @@ bool torture_rpc_lsa_get_user(struct torture_context *tctx)
 	torture_assert_ntstatus_ok(tctx, status, "Error connecting to server");
 
 	b = p->binding_handle;
-	transport = dcerpc_binding_get_transport(p->binding);
+	transport = dcerpc_binding_handle_get_transport(b);
 
 	if (transport == NCACN_IP_TCP) {
 		if (!test_GetUserName_fail(b, tctx)) {
@@ -5439,7 +5464,7 @@ static bool testcase_LookupNames(struct torture_context *tctx,
 	struct lsa_TransNameArray tnames;
 	struct lsa_TransNameArray2 tnames2;
 	struct dcerpc_binding_handle *b = p->binding_handle;
-	enum dcerpc_transport_t transport = dcerpc_binding_get_transport(p->binding);
+	enum dcerpc_transport_t transport = dcerpc_binding_handle_get_transport(b);
 
 	if (transport != NCACN_NP && transport != NCALRPC) {
 		torture_comment(tctx, "testcase_LookupNames is only available "
@@ -5530,7 +5555,7 @@ static bool testcase_TrustedDomains(struct torture_context *tctx,
 	struct lsa_trustdom_state *state =
 		talloc_get_type_abort(data, struct lsa_trustdom_state);
 	struct dcerpc_binding_handle *b = p->binding_handle;
-	enum dcerpc_transport_t transport = dcerpc_binding_get_transport(p->binding);
+	enum dcerpc_transport_t transport = dcerpc_binding_handle_get_transport(b);
 
 	if (transport != NCACN_NP && transport != NCALRPC) {
 		torture_comment(tctx, "testcase_TrustedDomains is only available "
@@ -5605,7 +5630,7 @@ static bool testcase_Privileges(struct torture_context *tctx,
 {
 	struct policy_handle *handle;
 	struct dcerpc_binding_handle *b = p->binding_handle;
-	enum dcerpc_transport_t transport = dcerpc_binding_get_transport(p->binding);
+	enum dcerpc_transport_t transport = dcerpc_binding_handle_get_transport(b);
 
 	if (transport != NCACN_NP && transport != NCALRPC) {
 		torture_skip(tctx, "testcase_Privileges is only available "

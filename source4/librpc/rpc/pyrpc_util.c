@@ -20,6 +20,8 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define SOURCE4_LIBRPC_INTERNALS 1
+
 #include "lib/replace/system/python.h"
 #include "python/py3compat.h"
 #include "includes.h"
@@ -51,7 +53,7 @@ bool py_check_dcerpc_type(PyObject *obj, const char *module, const char *type_na
 	Py_DECREF(mod);
 	if (type == NULL) {
 		PyErr_Format(PyExc_RuntimeError, "Unable to find type %s in module %s",
-			module, type_name);
+			     type_name, module);
 		return false;
 	}
 
@@ -102,11 +104,29 @@ PyObject *py_dcerpc_interface_init_helper(PyTypeObject *type, PyObject *args, Py
 	PyObject *py_lp_ctx = Py_None, *py_credentials = Py_None, *py_basis = Py_None;
 	NTSTATUS status;
 	unsigned int timeout = (unsigned int)-1;
+	int raise_result_exceptions = 1;
 	const char *kwnames[] = {
-		"binding", "lp_ctx", "credentials", "timeout", "basis_connection", NULL
+		"binding",
+		"lp_ctx",
+		"credentials",
+		"timeout",
+		"basis_connection",
+		"raise_result_exceptions",
+		NULL
 	};
+	bool ok;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|OOIO:samr", discard_const_p(char *, kwnames), &binding_string, &py_lp_ctx, &py_credentials, &timeout, &py_basis)) {
+	ok = PyArg_ParseTupleAndKeywords(args,
+					 kwargs,
+					 "s|OOIOp",
+					 discard_const_p(char *, kwnames),
+					 &binding_string,
+					 &py_lp_ctx,
+					 &py_credentials,
+					 &timeout,
+					 &py_basis,
+					 &raise_result_exceptions);
+	if (!ok) {
 		return NULL;
 	}
 
@@ -122,6 +142,7 @@ PyObject *py_dcerpc_interface_init_helper(PyTypeObject *type, PyObject *args, Py
 		return NULL;
 	}
 
+	ret->raise_result_exceptions = (raise_result_exceptions != 0);
 	ret->pipe = NULL;
 	ret->binding_handle = NULL;
 	ret->ev = NULL;
@@ -300,7 +321,7 @@ static PyObject *py_dcerpc_run_function(dcerpc_InterfaceObject *iface,
 		return NULL;
 	}
 
-	result = md->unpack_out_data(r);
+	result = md->unpack_out_data(r, iface->raise_result_exceptions);
 
 	talloc_free(mem_ctx);
 	return result;

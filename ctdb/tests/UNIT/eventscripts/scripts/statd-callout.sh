@@ -1,8 +1,28 @@
 setup()
 {
+	CTDB_STATD_CALLOUT_SHARED_STORAGE="$1"
+
 	setup_public_addresses
 	ctdb_set_pnn
 	setup_date "1234567890"
+
+	export FAKE_NFS_HOSTNAME="cluster1"
+
+	case "$CTDB_STATD_CALLOUT_SHARED_STORAGE" in
+	"" | persistent_db)
+		CTDB_STATD_CALLOUT_SHARED_STORAGE="persistent_db:statd_foo.tdb"
+		;;
+	shared_dir)
+		export CTDB_NFS_SHARED_STATE_DIR="/clusterfs"
+		;;
+	esac
+
+	export CTDB_STATD_CALLOUT_SHARED_STORAGE
+	statd_callout_mode="${CTDB_STATD_CALLOUT_SHARED_STORAGE%%:*}"
+	statd_callout_location="${CTDB_STATD_CALLOUT_SHARED_STORAGE#*:}"
+	if [ "$statd_callout_location" = "$CTDB_STATD_CALLOUT_SHARED_STORAGE" ]; then
+		statd_callout_location=""
+	fi
 }
 
 ctdb_catdb_format_pairs()
@@ -42,14 +62,71 @@ EOF
 		done |
 		ctdb_catdb_format_pairs | {
 		ok
-		simple_test_command ctdb catdb ctdb.tdb
+		simple_test_command ctdb catdb "$statd_callout_location"
 	} || exit $?
+}
+
+check_shared_dir_statd_state()
+{
+	ctdb_get_my_public_addresses |
+		while read -r _ _sip _; do
+			for _cip; do
+				echo "statd-state@${_sip}@${_cip}"
+			done
+		done |
+		sort | {
+		ok
+		_dir="${CTDB_TEST_TMP_DIR}${statd_callout_location}"
+		mkdir -p "$_dir"
+		(cd "$_dir" && simple_test_command ls)
+	} || exit $?
+}
+
+check_shared_storage_statd_state()
+{
+	case "$statd_callout_mode" in
+	persistent_db)
+		if [ -z "$statd_callout_location" ]; then
+			statd_callout_location="statd_foo.tdb"
+		fi
+		check_ctdb_tdb_statd_state "$@"
+		;;
+	shared_dir)
+		if [ -z "$statd_callout_location" ]; then
+			statd_callout_location="statd"
+		fi
+		case "$statd_callout_location" in
+		/*)
+			:
+			;;
+		*)
+			_t="$CTDB_NFS_SHARED_STATE_DIR"
+			statd_callout_location="${_t}/${statd_callout_location}"
+			;;
+		esac
+		check_shared_dir_statd_state "$@"
+		;;
+	none)
+		:
+		;;
+	esac
 }
 
 check_statd_callout_smnotify()
 {
-	_state_even=$(( $(date '+%s') / 2 * 2))
-	_state_odd=$((_state_even + 1))
+	case "$statd_callout_mode" in
+	none)
+		return
+		;;
+	esac
+
+	# The state here doesn't really matter because the date stub
+	# generates a fixed value (as per above setup() function,
+	# which happens to set it to an even value).  In reality,
+	# sm-notify would convert it to an odd value, but for testing
+	# it doesn't really matter because the sm-notify stub just
+	# prints the state and it just needs to be matched.
+	_state=$(date '+%s')
 
 	nfs_load_config
 
@@ -57,10 +134,7 @@ check_statd_callout_smnotify()
 		while read -r _ _sip _; do
 			for _cip; do
 				cat <<EOF
-SM_NOTIFY: ${_sip} -> ${_cip}, MON_NAME=${_sip}, STATE=${_state_even}
-SM_NOTIFY: ${_sip} -> ${_cip}, MON_NAME=${NFS_HOSTNAME}, STATE=${_state_even}
-SM_NOTIFY: ${_sip} -> ${_cip}, MON_NAME=${_sip}, STATE=${_state_odd}
-SM_NOTIFY: ${_sip} -> ${_cip}, MON_NAME=${NFS_HOSTNAME}, STATE=${_state_odd}
+SM_NOTIFY: ${_sip} -> ${_cip}, MON_NAME=${FAKE_NFS_HOSTNAME}, STATE=${_state}
 EOF
 			done
 		done | {
@@ -107,7 +181,7 @@ EOF
 
 	case "$event" in
 	add-client | del-client)
-		cmd="${CTDB_SCRIPTS_TESTS_LIBEXEC_DIR}/statd_callout"
+		cmd="${CTDB_SCRIPTS_HELPER_BINDIR}/statd_callout"
 		unit_test "$cmd" "$event" "$@"
 		;;
 	*)

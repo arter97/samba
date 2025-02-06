@@ -60,6 +60,7 @@ c = libsmb.Conn("127.0.0.1",
 #include "trans2.h"
 #include "libsmb/clirap.h"
 #include "librpc/rpc/pyrpc_util.h"
+#include "librpc/gen_ndr/ndr_security.h"
 
 #define LIST_ATTRIBUTE_MASK \
 	(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_SYSTEM|FILE_ATTRIBUTE_HIDDEN)
@@ -1070,6 +1071,48 @@ fail:
 	return v;
 }
 
+static PyObject *py_cli_get_posix_fs_info(
+	struct py_cli_state *self, PyObject *args, PyObject *kwds)
+{
+	NTSTATUS status;
+	struct tevent_req *req = NULL;
+	uint32_t optimal_transfer_size = 0;
+	uint32_t block_size = 0;
+	uint64_t total_blocks = 0;
+	uint64_t blocks_available = 0;
+	uint64_t user_blocks_available = 0;
+	uint64_t total_file_nodes = 0;
+	uint64_t free_file_nodes = 0;
+	uint64_t fs_identifier = 0;
+
+	req = cli_get_posix_fs_info_send(NULL, self->ev, self->cli);
+	if (!py_tevent_req_wait_exc(self, req)) {
+		return NULL;
+	}
+
+	status = cli_get_posix_fs_info_recv(req,
+					    &optimal_transfer_size,
+					    &block_size,
+					    &total_blocks,
+					    &blocks_available,
+					    &user_blocks_available,
+					    &total_file_nodes,
+					    &free_file_nodes,
+					    &fs_identifier);
+	TALLOC_FREE(req);
+	PyErr_NTSTATUS_NOT_OK_RAISE(status);
+
+	return Py_BuildValue("{s:I,s:I,s:I,s:I,s:I,s:I,s:I,s:I}",
+			     "optimal_transfer_size", optimal_transfer_size,
+			     "block_size", block_size,
+			     "total_blocks", total_blocks,
+			     "blocks_available", blocks_available,
+			     "user_blocks_available", user_blocks_available,
+			     "total_file_nodes", total_file_nodes,
+			     "free_file_nodes", free_file_nodes,
+			     "fs_identifier", fs_identifier);
+}
+
 static PyObject *py_cli_create_ex(
 	struct py_cli_state *self, PyObject *args, PyObject *kwds)
 {
@@ -1265,6 +1308,42 @@ static PyObject *py_cli_close(struct py_cli_state *self, PyObject *args)
 	Py_RETURN_NONE;
 }
 
+static PyObject *py_wire_mode_to_unix(struct py_cli_state *self,
+				      PyObject *args)
+{
+	unsigned long long wire = 0;
+	mode_t mode;
+	bool ok;
+	PyObject *v = NULL;
+
+	ok = PyArg_ParseTuple(args, "K", &wire);
+	if (!ok) {
+		return NULL;
+	}
+	mode = wire_mode_to_unix(wire);
+
+	v = Py_BuildValue("I", (unsigned)mode);
+	return v;
+}
+
+static PyObject *py_unix_mode_to_wire(struct py_cli_state *self,
+				      PyObject *args)
+{
+	unsigned long long mode = 0;
+	uint32_t wire;
+	bool ok;
+	PyObject *v = NULL;
+
+	ok = PyArg_ParseTuple(args, "K", &mode);
+	if (!ok) {
+		return NULL;
+	}
+	wire = unix_mode_to_wire(mode);
+
+	v = Py_BuildValue("I", (unsigned)wire);
+	return v;
+}
+
 static PyObject *py_cli_qfileinfo(struct py_cli_state *self, PyObject *args)
 {
 	struct tevent_req *req = NULL;
@@ -1308,6 +1387,129 @@ static PyObject *py_cli_qfileinfo(struct py_cli_state *self, PyObject *args)
 				       (unsigned long long)mode,
 				       "tag",
 				       (unsigned long long)tag);
+		break;
+	}
+	case FSCC_FILE_POSIX_INFORMATION: {
+		size_t data_off = 0;
+		time_t btime;
+		time_t atime;
+		time_t mtime;
+		time_t ctime;
+		uint64_t size;
+		uint64_t alloc_size;
+		uint32_t attr;
+		uint64_t ino;
+		uint32_t dev;
+		uint32_t nlinks;
+		uint32_t reparse_tag;
+		uint32_t mode;
+		size_t sid_size;
+		enum ndr_err_code ndr_err;
+		struct dom_sid owner, group;
+		struct dom_sid_buf owner_buf, group_buf;
+
+		if (num_rdata < 80) {
+			PyErr_SetNTSTATUS(NT_STATUS_INVALID_NETWORK_RESPONSE);
+			return NULL;
+		}
+
+		btime = nt_time_to_unix(PULL_LE_U64(rdata, data_off));
+		data_off += 8;
+		atime = nt_time_to_unix(PULL_LE_U64(rdata, data_off));
+		data_off += 8;
+		mtime = nt_time_to_unix(PULL_LE_U64(rdata, data_off));
+		data_off += 8;
+		ctime = nt_time_to_unix(PULL_LE_U64(rdata, data_off));
+		data_off += 8;
+		size = PULL_LE_U64(rdata, data_off);
+		data_off += 8;
+		alloc_size = PULL_LE_U64(rdata, data_off);
+		data_off += 8;
+		attr = PULL_LE_U32(rdata, data_off);
+		data_off += 4;
+		ino = PULL_LE_U64(rdata, data_off);
+		data_off += 8;
+		dev = PULL_LE_U32(rdata, data_off);
+		data_off += 4;
+		/* 4 bytes reserved */
+		data_off += 4;
+		nlinks = PULL_LE_U32(rdata, data_off);
+		data_off += 4;
+		reparse_tag = PULL_LE_U32(rdata, data_off);
+		data_off += 4;
+		mode = PULL_LE_U32(rdata, data_off);
+		data_off += 4;
+
+		ndr_err = ndr_pull_struct_blob_noalloc(
+			rdata + data_off,
+			num_rdata - data_off,
+			&owner,
+			(ndr_pull_flags_fn_t)ndr_pull_dom_sid,
+			&sid_size);
+		if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
+			PyErr_SetNTSTATUS(NT_STATUS_INVALID_NETWORK_RESPONSE);
+			return NULL;
+		}
+		if (data_off + sid_size < data_off ||
+		    data_off + sid_size > num_rdata)
+		{
+			PyErr_SetNTSTATUS(NT_STATUS_INVALID_NETWORK_RESPONSE);
+			return NULL;
+		}
+		data_off += sid_size;
+
+		ndr_err = ndr_pull_struct_blob_noalloc(
+			rdata + data_off,
+			num_rdata - data_off,
+			&group,
+			(ndr_pull_flags_fn_t)ndr_pull_dom_sid,
+			&sid_size);
+		if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
+			PyErr_SetNTSTATUS(NT_STATUS_INVALID_NETWORK_RESPONSE);
+			return NULL;
+		}
+
+		result = Py_BuildValue(
+			"{s:i,"			/* attr */
+			"s:K,s:K,s:K,s:K,"	/* dates */
+			"s:K,s:K,"		/* sizes */
+			"s:K,s:K,s:K,"		/* ino, dev, nlinks */
+			"s:K,s:K,"		/* tag, mode */
+			"s:s,s:s}",		/* owner, group */
+
+			"attrib",
+			attr,
+
+			"btime",
+			(unsigned long long)btime,
+			"atime",
+			(unsigned long long)atime,
+			"mtime",
+			(unsigned long long)mtime,
+			"ctime",
+			(unsigned long long)ctime,
+
+			"allocation_size",
+			(unsigned long long)alloc_size,
+			"size",
+			(unsigned long long)size,
+
+			"ino",
+			(unsigned long long)ino,
+			"dev",
+			(unsigned long long)dev,
+			"nlink",
+			(unsigned long long)nlinks,
+
+			"reparse_tag",
+			(unsigned long long)reparse_tag,
+			"perms",
+			(unsigned long long)mode,
+
+			"owner_sid",
+			dom_sid_str_buf(&owner, &owner_buf),
+			"group_sid",
+			dom_sid_str_buf(&group, &group_buf));
 		break;
 	}
 	default:
@@ -1960,7 +2162,7 @@ static NTSTATUS list_posix_helper(struct file_info *finfo,
 			     finfo->attr,
 			     "size",
 			     finfo->size,
-			     "allocaction_size",
+			     "allocation_size",
 			     finfo->allocated_size,
 			     "btime",
 			     convert_timespec_to_time_t(finfo->btime_ts),
@@ -2733,6 +2935,82 @@ static PyObject *py_cli_fsctl(
 	return result;
 }
 
+static int copy_chunk_cb(off_t n, void *priv)
+{
+	return 1;
+}
+
+static PyObject *py_cli_copy_chunk(struct py_cli_state *self,
+				   PyObject *args,
+				   PyObject *kwds)
+{
+	TALLOC_CTX *frame = talloc_stackframe();
+	struct tevent_req *req = NULL;
+	PyObject *result = NULL;
+	int fnum_src;
+	int fnum_dst;
+	unsigned long long size;
+	unsigned long long src_offset;
+	unsigned long long dst_offset;
+	off_t written;
+	static const char *kwlist[] = {
+		"fnum_src",
+		"fnum_dst",
+		"size",
+		"src_offset",
+		"dst_offset",
+		NULL,
+	};
+	NTSTATUS status;
+	bool ok;
+
+	if (smbXcli_conn_protocol(self->cli->conn) < PROTOCOL_SMB2_02) {
+		errno = EINVAL;
+		PyErr_SetFromErrno(PyExc_RuntimeError);
+		goto err;
+	}
+
+	ok = ParseTupleAndKeywords(
+		    args,
+		    kwds,
+		    "iiKKK",
+		    kwlist,
+		    &fnum_src,
+		    &fnum_dst,
+		    &size,
+		    &src_offset,
+		    &dst_offset);
+	if (!ok) {
+		goto err;
+	}
+
+	req = cli_smb2_splice_send(frame,
+				   self->ev,
+				   self->cli,
+				   fnum_src,
+				   fnum_dst,
+				   size,
+				   src_offset,
+				   dst_offset,
+				   copy_chunk_cb,
+				   NULL);
+	if (!py_tevent_req_wait_exc(self, req)) {
+		goto err;
+	}
+
+	status = cli_smb2_splice_recv(req, &written);
+	if (!NT_STATUS_IS_OK(status)) {
+		PyErr_SetNTSTATUS(status);
+		goto err;
+	}
+
+	result = Py_BuildValue("K", written);
+
+err:
+	TALLOC_FREE(frame);
+	return result;
+}
+
 static PyMethodDef py_cli_state_methods[] = {
 	{ "settimeout", (PyCFunction)py_cli_settimeout, METH_VARARGS,
 	  "settimeout(new_timeout_msecs) => return old_timeout_msecs" },
@@ -2741,6 +3019,10 @@ static PyMethodDef py_cli_state_methods[] = {
 	{ "create", PY_DISCARD_FUNC_SIG(PyCFunction, py_cli_create),
 		METH_VARARGS|METH_KEYWORDS,
 	  "Open a file" },
+	{ "get_posix_fs_info",
+	  PY_DISCARD_FUNC_SIG(PyCFunction, py_cli_get_posix_fs_info),
+	  METH_NOARGS,
+	  "Get posix filesystem attribute information" },
 	{ "create_ex",
 	  PY_DISCARD_FUNC_SIG(PyCFunction, py_cli_create_ex),
 	  METH_VARARGS|METH_KEYWORDS,
@@ -2855,6 +3137,11 @@ static PyMethodDef py_cli_state_methods[] = {
 	  METH_VARARGS|METH_KEYWORDS,
 	  "mknod(path, mode | major, minor)",
 	},
+	{ "copy_chunk",
+	  PY_DISCARD_FUNC_SIG(PyCFunction, py_cli_copy_chunk),
+	  METH_VARARGS|METH_KEYWORDS,
+	  "copy_chunk(fnum_src, fnum_dst, size, src_offset, dst_offset) -> written",
+	},
 	{ NULL, NULL, 0, NULL }
 };
 
@@ -2871,6 +3158,18 @@ static PyTypeObject py_cli_state_type = {
 };
 
 static PyMethodDef py_libsmb_methods[] = {
+	{
+		"unix_mode_to_wire",
+		(PyCFunction)py_unix_mode_to_wire,
+		METH_VARARGS,
+		"Convert mode_t to posix extensions wire format",
+	},
+	{
+		"wire_mode_to_unix",
+		(PyCFunction)py_wire_mode_to_unix,
+		METH_VARARGS,
+		"Convert posix wire format mode to mode_t",
+	},
 	{0},
 };
 
@@ -2974,6 +3273,8 @@ MODULE_INIT_FUNC(libsmb_samba_cwrapper)
 	ADD_FLAGS(FILE_SHARE_WRITE);
 	ADD_FLAGS(FILE_SHARE_DELETE);
 
+	ADD_FLAGS(VFS_PWRITE_APPEND_OFFSET);
+
 	/* change notify completion filter flags */
 	ADD_FLAGS(FILE_NOTIFY_CHANGE_FILE_NAME);
 	ADD_FLAGS(FILE_NOTIFY_CHANGE_DIR_NAME);
@@ -3075,6 +3376,12 @@ MODULE_INIT_FUNC(libsmb_samba_cwrapper)
 	ADD_FLAGS(IO_REPARSE_TAG_DFS);
 	ADD_FLAGS(IO_REPARSE_TAG_NFS);
 
+	ADD_FLAGS(NFS_SPECFILE_LNK);
+	ADD_FLAGS(NFS_SPECFILE_CHR);
+	ADD_FLAGS(NFS_SPECFILE_BLK);
+	ADD_FLAGS(NFS_SPECFILE_FIFO);
+	ADD_FLAGS(NFS_SPECFILE_SOCK);
+
 	ADD_FLAGS(FSCC_FILE_DIRECTORY_INFORMATION);
 	ADD_FLAGS(FSCC_FILE_FULL_DIRECTORY_INFORMATION);
 	ADD_FLAGS(FSCC_FILE_BOTH_DIRECTORY_INFORMATION);
@@ -3122,6 +3429,7 @@ MODULE_INIT_FUNC(libsmb_samba_cwrapper)
 	ADD_FLAGS(FSCC_FILE_ID_GLOBAL_TX_DIRECTORY_INFORMATION);
 	ADD_FLAGS(FSCC_FILE_STANDARD_LINK_INFORMATION);
 	ADD_FLAGS(FSCC_FILE_MAXIMUM_INFORMATION);
+	ADD_FLAGS(FSCC_FILE_POSIX_INFORMATION);
 
 #define ADD_STRING(val) PyModule_AddObject(m, #val, PyBytes_FromString(val))
 

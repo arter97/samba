@@ -22,6 +22,7 @@
 
 #include "includes.h"
 #include "system/time.h"
+#include "librpc/gen_ndr/ndr_schannel.h"
 #include "libcli/auth/libcli_auth.h"
 #include "../libcli/security/dom_sid.h"
 #include "lib/util/util_str_escape.h"
@@ -29,6 +30,12 @@
 #include "lib/crypto/gnutls_helpers.h"
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
+
+#undef netlogon_creds_des_encrypt
+#undef netlogon_creds_des_decrypt
+#undef netlogon_creds_arcfour_crypt
+#undef netlogon_creds_aes_encrypt
+#undef netlogon_creds_aes_decrypt
 
 bool netlogon_creds_is_random_challenge(const struct netr_Credential *challenge)
 {
@@ -49,6 +56,78 @@ bool netlogon_creds_is_random_challenge(const struct netr_Credential *challenge)
 	return true;
 }
 
+static NTSTATUS netlogon_creds_no_step_check(struct netlogon_creds_CredentialState *creds,
+					     enum dcerpc_AuthType auth_type,
+					     enum dcerpc_AuthLevel auth_level,
+					     bool *skip)
+{
+	*skip = false;
+
+	if (creds == NULL) {
+		return NT_STATUS_ACCESS_DENIED;
+	}
+
+	/*
+	 * Only if ServerAuthenticateKerberos() was
+	 * used the content of the netr_Authenticator
+	 * values are not checked.
+	 *
+	 * It is independent from the
+	 * NETLOGON_NEG_SUPPORTS_KERBEROS_AUTH flag.
+	 */
+	if (creds->authenticate_kerberos) {
+		if (auth_type != DCERPC_AUTH_TYPE_KRB5) {
+			return NT_STATUS_ACCESS_DENIED;
+		}
+		if (auth_level != DCERPC_AUTH_LEVEL_PRIVACY) {
+			return NT_STATUS_ACCESS_DENIED;
+		}
+		*skip = true;
+	}
+
+	return NT_STATUS_OK;
+}
+
+static NTSTATUS netlogon_creds_no_buffer_crypt(struct netlogon_creds_CredentialState *creds,
+					       enum dcerpc_AuthType auth_type,
+					       enum dcerpc_AuthLevel auth_level,
+					       bool *skip)
+{
+	*skip = false;
+
+	if (creds == NULL) {
+		return NT_STATUS_ACCESS_DENIED;
+	}
+
+	if (creds->authenticate_kerberos) {
+		if (auth_type != DCERPC_AUTH_TYPE_KRB5) {
+			return NT_STATUS_ACCESS_DENIED;
+		}
+		if (auth_level != DCERPC_AUTH_LEVEL_PRIVACY) {
+			return NT_STATUS_ACCESS_DENIED;
+		}
+	}
+
+	/*
+	 * Even if NETLOGON_NEG_SUPPORTS_KERBEROS_AUTH is
+	 * negotiated within ServerAuthenticate3()
+	 * encryption on application buffers is skipped.
+	 *
+	 * Also ServerAuthenticateKerberos() without
+	 * NETLOGON_NEG_SUPPORTS_KERBEROS_AUTH uses
+	 * encryption with a random session key.
+	 */
+	if (creds->negotiate_flags & NETLOGON_NEG_SUPPORTS_KERBEROS_AUTH) {
+		if (auth_level != DCERPC_AUTH_LEVEL_PRIVACY) {
+			return NT_STATUS_ACCESS_DENIED;
+		}
+
+		*skip = true;
+	}
+
+	return NT_STATUS_OK;
+}
+
 void netlogon_creds_random_challenge(struct netr_Credential *challenge)
 {
 	ZERO_STRUCTP(challenge);
@@ -63,6 +142,13 @@ static NTSTATUS netlogon_creds_step_crypt(struct netlogon_creds_CredentialState 
 {
 	NTSTATUS status;
 	int rc;
+
+	if (creds->authenticate_kerberos) {
+		/*
+		 * The caller should have checked this already...
+		 */
+		return NT_STATUS_INVALID_PARAMETER_MIX;
+	}
 
 	if (creds->negotiate_flags & NETLOGON_NEG_SUPPORTS_AES) {
 		memcpy(out->data, in->data, sizeof(out->data));
@@ -249,6 +335,17 @@ static NTSTATUS netlogon_creds_step(struct netlogon_creds_CredentialState *creds
 {
 	struct netr_Credential time_cred;
 	NTSTATUS status;
+
+	if (creds->authenticate_kerberos) {
+		/* This is only called on the client side */
+		generate_nonce_buffer(creds->seed.data,
+				      ARRAY_SIZE(creds->seed.data));
+		generate_nonce_buffer(creds->client.data,
+				      ARRAY_SIZE(creds->client.data));
+		generate_nonce_buffer(creds->server.data,
+				      ARRAY_SIZE(creds->server.data));
+		return NT_STATUS_OK;
+	}
 
 	DEBUG(5,("\tseed        %08x:%08x\n",
 		 IVAL(creds->seed.data, 0), IVAL(creds->seed.data, 4)));
@@ -485,6 +582,7 @@ netlogon_creds_alloc(TALLOC_CTX *mem_ctx,
 	struct netlogon_creds_CredentialState *creds = NULL;
 	struct timeval tv = timeval_current();
 	NTTIME now = timeval_to_nttime(&tv);
+	const char *name = NULL;
 
 	creds = talloc_zero(mem_ctx, struct netlogon_creds_CredentialState);
 	if (creds == NULL) {
@@ -508,19 +606,73 @@ netlogon_creds_alloc(TALLOC_CTX *mem_ctx,
 		return NULL;
 	}
 
-	creds->ex = talloc_zero(creds,
-			struct netlogon_creds_CredentialState_extra_info);
-	if (creds->ex == NULL) {
-		talloc_free(creds);
+	creds->client_requested_flags = client_requested_flags;
+	creds->auth_time = now;
+	if (client_sid != NULL) {
+		creds->client_sid = *client_sid;
+	} else {
+		creds->client_sid = global_sid_NULL;
+	}
+
+	name = talloc_get_name(creds);
+	_talloc_keep_secret(creds, name);
+	return creds;
+}
+
+struct netlogon_creds_CredentialState *netlogon_creds_kerberos_init(TALLOC_CTX *mem_ctx,
+								    const char *client_account,
+								    const char *client_computer_name,
+								    uint16_t secure_channel_type,
+								    uint32_t client_requested_flags,
+								    const struct dom_sid *client_sid,
+								    uint32_t negotiate_flags)
+{
+	struct netlogon_creds_CredentialState *creds = NULL;
+
+	creds = netlogon_creds_alloc(mem_ctx,
+				     client_account,
+				     client_computer_name,
+				     secure_channel_type,
+				     client_requested_flags,
+				     client_sid,
+				     negotiate_flags);
+	if (creds == NULL) {
 		return NULL;
 	}
-	creds->ex->client_requested_flags = client_requested_flags;
-	creds->ex->auth_time = now;
-	if (client_sid != NULL) {
-		creds->ex->client_sid = *client_sid;
-	} else {
-		creds->ex->client_sid = global_sid_NULL;
-	}
+
+	/*
+	 * Some Windows versions used
+	 * NETLOGON_NEG_SUPPORTS_KERBEROS_AUTH
+	 * as a dummy flag in ServerAuthenticate3,
+	 * so we should not use
+	 * NETLOGON_NEG_SUPPORTS_KERBEROS_AUTH
+	 * for any logic decisions.
+	 *
+	 * So we use a dedicated bool that
+	 * is only set if ServerAuthenticateKerberos
+	 * was really used. And for that we assert
+	 * that NETLOGON_NEG_SUPPORTS_KERBEROS_AUTH
+	 * is set too.
+	 */
+	creds->authenticate_kerberos = true;
+
+	/*
+	 * This should not be required, but we better
+	 * make sure we would not use a zero session key...
+	 *
+	 * It seems that's what Windows is also doing...
+	 * as the values in netr_ServerPasswordGet() are
+	 * encrypted in random ways if NETLOGON_NEG_SUPPORTS_KERBEROS_AUTH
+	 * is missing in netr_ServerAuthenticateKerberos().
+	 */
+	generate_nonce_buffer(creds->session_key,
+			      ARRAY_SIZE(creds->session_key));
+	generate_nonce_buffer(creds->seed.data,
+			      ARRAY_SIZE(creds->seed.data));
+	generate_nonce_buffer(creds->client.data,
+			      ARRAY_SIZE(creds->client.data));
+	generate_nonce_buffer(creds->server.data,
+			      ARRAY_SIZE(creds->server.data));
 
 	return creds;
 }
@@ -662,6 +814,21 @@ NTSTATUS netlogon_creds_client_verify(struct netlogon_creds_CredentialState *cre
 			enum dcerpc_AuthType auth_type,
 			enum dcerpc_AuthLevel auth_level)
 {
+	NTSTATUS status;
+	bool skip_crypto = false;
+
+	status = netlogon_creds_no_step_check(creds,
+					      auth_type,
+					      auth_level,
+					      &skip_crypto);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
+	}
+
+	if (skip_crypto) {
+		return NT_STATUS_OK;
+	}
+
 	if (!received_credentials ||
 	    !mem_equal_const_time(received_credentials->data, creds->server.data, 8)) {
 		DEBUG(2,("credentials check failed\n"));
@@ -823,13 +990,23 @@ NTSTATUS netlogon_creds_server_step_check(struct netlogon_creds_CredentialState 
 				 enum dcerpc_AuthLevel auth_level)
 {
 	NTSTATUS status;
+	bool skip_crypto = false;
 
 	if (!received_authenticator || !return_authenticator) {
 		return NT_STATUS_INVALID_PARAMETER;
 	}
 
-	if (!creds) {
-		return NT_STATUS_ACCESS_DENIED;
+	status = netlogon_creds_no_step_check(creds,
+					      auth_type,
+					      auth_level,
+					      &skip_crypto);
+	if (!NT_STATUS_IS_OK(status)) {
+		ZERO_STRUCTP(return_authenticator);
+		return status;
+	}
+	if (skip_crypto) {
+		ZERO_STRUCTP(return_authenticator);
+		return NT_STATUS_OK;
 	}
 
 	creds->sequence = received_authenticator->timestamp;
@@ -858,6 +1035,7 @@ static NTSTATUS netlogon_creds_crypt_samlogon_validation(struct netlogon_creds_C
 {
 	struct netr_SamBaseInfo *base = NULL;
 	NTSTATUS status;
+	bool skip_crypto = false;
 
 	if (validation == NULL) {
 		return NT_STATUS_INVALID_PARAMETER;
@@ -874,11 +1052,41 @@ static NTSTATUS netlogon_creds_crypt_samlogon_validation(struct netlogon_creds_C
 			base = &validation->sam3->base;
 		}
 		break;
+	case 5:
+		/* NetlogonValidationGenericInfo2 */
+		if (validation->generic != NULL &&
+		    validation->generic->length == 0)
+		{
+			/*
+			 * For "Kerberos"
+			 * KERB_VERIFY_PAC_REQUEST there's
+			 * not response, so there's nothing
+			 * to encrypt.
+			 */
+			return NT_STATUS_OK;
+		}
+
+		/*
+		 * We don't know if encryption is
+		 * required or not yet.
+		 *
+		 * We would have to do tests
+		 * with DIGEST_VALIDATION_RESP
+		 *
+		 * But as we don't support that
+		 * yet, we just return an error
+		 * for now.
+		 */
+		log_stack_trace();
+		return NT_STATUS_INTERNAL_ERROR;
 	case 6:
 		if (validation->sam6) {
 			base = &validation->sam6->base;
 		}
 		break;
+	case 7:
+		/* NetlogonValidationTicketLogon */
+		return NT_STATUS_OK;
 	default:
 		/* If we can't find it, we can't very well decrypt it */
 		return NT_STATUS_INVALID_INFO_CLASS;
@@ -888,12 +1096,27 @@ static NTSTATUS netlogon_creds_crypt_samlogon_validation(struct netlogon_creds_C
 		return NT_STATUS_INVALID_INFO_CLASS;
 	}
 
+	status = netlogon_creds_no_buffer_crypt(creds,
+						auth_type,
+						auth_level,
+						&skip_crypto);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
+	}
+
 	/* find and decrypt the session keys, return in parameters above */
-	if (validation_level == 6) {
+	if (skip_crypto || validation_level == 6) {
 		/* they aren't encrypted! */
 	} else if (creds->negotiate_flags & NETLOGON_NEG_SUPPORTS_AES) {
-		/* Don't crypt an all-zero key, it would give away the NETLOGON pipe session key */
-		if (!all_zero(base->key.key, sizeof(base->key.key))) {
+		/*
+		 * Don't crypt an all-zero key, it would give away
+		 * the NETLOGON pipe session key
+		 *
+		 * But for ServerAuthenticateKerberos we don't care
+		 * as we use a random key
+		 */
+		if (creds->authenticate_kerberos ||
+		    !all_zero(base->key.key, sizeof(base->key.key))) {
 			if (do_encrypt) {
 				status = netlogon_creds_aes_encrypt(
 					creds,
@@ -910,7 +1133,8 @@ static NTSTATUS netlogon_creds_crypt_samlogon_validation(struct netlogon_creds_C
 			}
 		}
 
-		if (!all_zero(base->LMSessKey.key,
+		if (creds->authenticate_kerberos ||
+		    !all_zero(base->LMSessKey.key,
 			      sizeof(base->LMSessKey.key))) {
 			if (do_encrypt) {
 				status = netlogon_creds_aes_encrypt(
@@ -928,8 +1152,15 @@ static NTSTATUS netlogon_creds_crypt_samlogon_validation(struct netlogon_creds_C
 			}
 		}
 	} else if (creds->negotiate_flags & NETLOGON_NEG_ARCFOUR) {
-		/* Don't crypt an all-zero key, it would give away the NETLOGON pipe session key */
-		if (!all_zero(base->key.key, sizeof(base->key.key))) {
+		/*
+		 * Don't crypt an all-zero key, it would give away
+		 * the NETLOGON pipe session key
+		 *
+		 * But for ServerAuthenticateKerberos we don't care
+		 * as we use a random key
+		 */
+		if (creds->authenticate_kerberos ||
+		    !all_zero(base->key.key, sizeof(base->key.key))) {
 			status = netlogon_creds_arcfour_crypt(creds,
 							      base->key.key,
 							      sizeof(base->key.key));
@@ -938,7 +1169,8 @@ static NTSTATUS netlogon_creds_crypt_samlogon_validation(struct netlogon_creds_C
 			}
 		}
 
-		if (!all_zero(base->LMSessKey.key,
+		if (creds->authenticate_kerberos ||
+		    !all_zero(base->LMSessKey.key,
 			      sizeof(base->LMSessKey.key))) {
 			status = netlogon_creds_arcfour_crypt(creds,
 							      base->LMSessKey.key,
@@ -948,8 +1180,15 @@ static NTSTATUS netlogon_creds_crypt_samlogon_validation(struct netlogon_creds_C
 			}
 		}
 	} else {
-		/* Don't crypt an all-zero key, it would give away the NETLOGON pipe session key */
-		if (!all_zero(base->LMSessKey.key,
+		/*
+		 * Don't crypt an all-zero key, it would give away
+		 * the NETLOGON pipe session key
+		 *
+		 * But for ServerAuthenticateKerberos we don't care
+		 * as we use a random key
+		 */
+		if (creds->authenticate_kerberos ||
+		    !all_zero(base->LMSessKey.key,
 			      sizeof(base->LMSessKey.key))) {
 			if (do_encrypt) {
 				status = netlogon_creds_des_encrypt_LMKey(creds,
@@ -1003,6 +1242,15 @@ static NTSTATUS netlogon_creds_crypt_samlogon_logon(struct netlogon_creds_Creden
 						    bool do_encrypt)
 {
 	NTSTATUS status;
+	bool skip_crypto = false;
+
+	status = netlogon_creds_no_buffer_crypt(creds,
+						auth_type,
+						auth_level,
+						&skip_crypto);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
+	}
 
 	if (logon == NULL) {
 		return NT_STATUS_INVALID_PARAMETER;
@@ -1015,6 +1263,10 @@ static NTSTATUS netlogon_creds_crypt_samlogon_logon(struct netlogon_creds_Creden
 	case NetlogonServiceTransitiveInformation:
 		if (logon->password == NULL) {
 			return NT_STATUS_INVALID_PARAMETER;
+		}
+
+		if (skip_crypto) {
+			break;
 		}
 
 		if (creds->negotiate_flags & NETLOGON_NEG_SUPPORTS_AES) {
@@ -1112,6 +1364,10 @@ static NTSTATUS netlogon_creds_crypt_samlogon_logon(struct netlogon_creds_Creden
 			return NT_STATUS_INVALID_PARAMETER;
 		}
 
+		if (skip_crypto) {
+			break;
+		}
+
 		if (creds->negotiate_flags & NETLOGON_NEG_SUPPORTS_AES) {
 			if (do_encrypt) {
 				status = netlogon_creds_aes_encrypt(
@@ -1134,10 +1390,16 @@ static NTSTATUS netlogon_creds_crypt_samlogon_logon(struct netlogon_creds_Creden
 			if (!NT_STATUS_IS_OK(status)) {
 				return status;
 			}
-		} else {
-			/* Using DES to verify kerberos tickets makes no sense */
+		} else if (auth_level != DCERPC_AUTH_LEVEL_PRIVACY) {
+			/*
+			 * Using DES to verify kerberos tickets makes no sense,
+			 * but if the connection is encrypted we don't care...
+			 */
 			return NT_STATUS_INVALID_PARAMETER;
 		}
+		break;
+
+	case NetlogonTicketLogonInformation:
 		break;
 	}
 
@@ -1179,6 +1441,21 @@ static NTSTATUS netlogon_creds_crypt_samr_Password(
 		enum dcerpc_AuthLevel auth_level,
 		bool do_encrypt)
 {
+	NTSTATUS status;
+	bool skip_crypto = false;
+
+	status = netlogon_creds_no_buffer_crypt(creds,
+						auth_type,
+						auth_level,
+						&skip_crypto);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
+	}
+
+	if (skip_crypto) {
+		return NT_STATUS_OK;
+	}
+
 	if (all_zero(pass->hash, ARRAY_SIZE(pass->hash))) {
 		return NT_STATUS_OK;
 	}
@@ -1226,6 +1503,21 @@ static NTSTATUS netlogon_creds_crypt_samr_CryptPassword(
 		enum dcerpc_AuthLevel auth_level,
 		bool do_encrypt)
 {
+	NTSTATUS status;
+	bool skip_crypto = false;
+
+	status = netlogon_creds_no_buffer_crypt(creds,
+						auth_type,
+						auth_level,
+						&skip_crypto);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
+	}
+
+	if (skip_crypto) {
+		return NT_STATUS_OK;
+	}
+
 	if (creds->negotiate_flags & NETLOGON_NEG_SUPPORTS_AES) {
 		if (do_encrypt) {
 			return netlogon_creds_aes_encrypt(creds,
@@ -1238,9 +1530,21 @@ static NTSTATUS netlogon_creds_crypt_samr_CryptPassword(
 						  ARRAY_SIZE(pass->data));
 	}
 
-	return netlogon_creds_arcfour_crypt(creds,
-					    pass->data,
-					    ARRAY_SIZE(pass->data));
+	if (creds->negotiate_flags & NETLOGON_NEG_ARCFOUR) {
+		return netlogon_creds_arcfour_crypt(creds,
+						    pass->data,
+						    ARRAY_SIZE(pass->data));
+	}
+
+	/*
+	 * Using DES to verify to encrypt the password makes no sense,
+	 * but if the connection is encrypted we don't care...
+	 */
+	if (auth_level != DCERPC_AUTH_LEVEL_PRIVACY) {
+		return NT_STATUS_INVALID_PARAMETER;
+	}
+
+	return NT_STATUS_OK;
 }
 
 NTSTATUS netlogon_creds_decrypt_samr_CryptPassword(struct netlogon_creds_CredentialState *creds,
@@ -1275,6 +1579,21 @@ static NTSTATUS netlogon_creds_crypt_SendToSam(
 		enum dcerpc_AuthLevel auth_level,
 		bool do_encrypt)
 {
+	NTSTATUS status;
+	bool skip_crypto = false;
+
+	status = netlogon_creds_no_buffer_crypt(creds,
+						auth_type,
+						auth_level,
+						&skip_crypto);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
+	}
+
+	if (skip_crypto) {
+		return NT_STATUS_OK;
+	}
+
 	if (creds->negotiate_flags & NETLOGON_NEG_SUPPORTS_AES) {
 		if (do_encrypt) {
 			return netlogon_creds_aes_encrypt(creds,
@@ -1287,9 +1606,21 @@ static NTSTATUS netlogon_creds_crypt_SendToSam(
 						  opaque_length);
 	}
 
-	return netlogon_creds_arcfour_crypt(creds,
-					    opaque_data,
-					    opaque_length);
+	if (creds->negotiate_flags & NETLOGON_NEG_ARCFOUR) {
+		return netlogon_creds_arcfour_crypt(creds,
+						    opaque_data,
+						    opaque_length);
+	}
+
+	/*
+	 * Using DES to verify to encrypt the data makes no sense,
+	 * but if the connection is encrypted we don't care...
+	 */
+	if (auth_level != DCERPC_AUTH_LEVEL_PRIVACY) {
+		return NT_STATUS_INVALID_PARAMETER;
+	}
+
+	return NT_STATUS_OK;
 }
 
 NTSTATUS netlogon_creds_decrypt_SendToSam(struct netlogon_creds_CredentialState *creds,
@@ -1388,6 +1719,9 @@ union netr_LogonLevel *netlogon_creds_shallow_copy_logon(TALLOC_CTX *mem_ctx,
 		}
 
 		return out;
+
+	case NetlogonTicketLogonInformation:
+		break;
 	}
 
 	return out;
@@ -1402,32 +1736,17 @@ struct netlogon_creds_CredentialState *netlogon_creds_copy(
 	const struct netlogon_creds_CredentialState *creds_in)
 {
 	struct netlogon_creds_CredentialState *creds = talloc_zero(mem_ctx, struct netlogon_creds_CredentialState);
+	enum ndr_err_code ndr_err;
 
 	if (!creds) {
 		return NULL;
 	}
 
-	*creds = *creds_in;
-
-	creds->computer_name = talloc_strdup(creds, creds_in->computer_name);
-	if (!creds->computer_name) {
-		talloc_free(creds);
+	ndr_err = ndr_deepcopy_struct(netlogon_creds_CredentialState,
+				      creds_in, creds, creds);
+	if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
+		TALLOC_FREE(creds);
 		return NULL;
-	}
-	creds->account_name = talloc_strdup(creds, creds_in->account_name);
-	if (!creds->account_name) {
-		talloc_free(creds);
-		return NULL;
-	}
-
-	if (creds_in->ex != NULL) {
-		creds->ex = talloc_zero(creds,
-			struct netlogon_creds_CredentialState_extra_info);
-		if (creds->ex == NULL) {
-			talloc_free(creds);
-			return NULL;
-		}
-		*creds->ex = *creds_in->ex;
 	}
 
 	return creds;
