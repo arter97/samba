@@ -1,3 +1,24 @@
+samba (2:4.22.0~rc1+dfsg-1) experimental; urgency=medium
+
+  * d/control: remove vorlon@ from Uploaders.
+    Thank you, dear friend, for all the work you've done. RIP!
+  * new upstream release candidate
+    Closes: #1084559 (crypt module removal in python 3.13)
+  * remove patches which has been applied upstream
+  * fix-nfs-service-name-to-nfs-kernel-server.patch:
+    refresh, remove now-unneeded hunk
+  * revert-ldb-use-hexchars_upper-from-replace.h.patch
+    to avoid linking libldb2 with libreplace
+  * replace-xpg-strerror.patch
+    to avoid linking other libs with libreplace
+  * d/rules: fixup component versions
+  * libtalloc, libtevent, libtdb, libldb: symbols: add new versions
+  * libldb2.symbols: add new version
+  * samba-libs: libndr.so soname bump to 6, add new symbols
+  * samba-libs: add libutil-crypt-private-samba.so.0
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 07 Feb 2025 12:37:12 +0300
+
 samba (2:4.21.3+dfsg-6) unstable; urgency=medium
 
   * d/genshlibs: remove the special-case for libsmbclient0 since
