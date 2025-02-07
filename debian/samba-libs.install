@@ -128,6 +128,7 @@ usr/lib/*/samba/libsmbpasswdparser-private-samba.so.0
 usr/lib/*/samba/libtalloc-report-printf-private-samba.so.0
 usr/lib/*/samba/libtdb-wrap-private-samba.so.0
 usr/lib/*/samba/libtime-basic-private-samba.so.0
+usr/lib/*/samba/libutil-crypt-private-samba.so.0
 usr/lib/*/samba/libutil-reg-private-samba.so.0
 usr/lib/*/samba/libutil-setid-private-samba.so.0
 usr/lib/*/samba/libutil-tdb-private-samba.so.0
