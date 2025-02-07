@@ -1,5 +1,5 @@
 # libndrN is a virtual package provided by samba-libs
-libndr.so.5 libndr5 #MINVER#
+libndr.so.6 libndr6 #MINVER#
 * Build-Depends-Package: samba-dev
  GUID_all_zero@NDR_0.0.1 2:4.17.2
  GUID_buf_string@NDR_0.0.4 2:4.17.2
@@ -38,6 +38,8 @@ libndr.so.5 libndr5 #MINVER#
  NDR_3.0.2@NDR_3.0.2 2:4.20.0~rc1
  NDR_4.0.0@NDR_4.0.0 2:4.20.0~rc1
  NDR_5.0.0@NDR_5.0.0 2:4.21.0~rc1
+ NDR_6.0.0@NDR_6.0.0 2:4.22.0~rc1
+ _ndr_deepcopy_struct@NDR_6.0.0 2:4.22.0~rc1
  _ndr_pull_error@NDR_1.0.0 2:4.20.0~rc1
  _ndr_push_error@NDR_1.0.0 2:4.20.0~rc1
  ndr_align_size@NDR_0.0.1 2:4.17.2
@@ -58,7 +60,6 @@ libndr.so.5 libndr5 #MINVER#
  ndr_print_DATA_BLOB@NDR_0.0.1 2:4.17.2
  ndr_print_GUID@NDR_0.0.1 2:4.17.2
  ndr_print_HRESULT@NDR_0.0.5 2:4.17.2
- ndr_print_KRB5_EDATA_NTSTATUS@NDR_0.0.1 2:4.17.2
  ndr_print_NTSTATUS@NDR_0.0.1 2:4.17.2
  ndr_print_NTTIME@NDR_0.0.1 2:4.17.2
  ndr_print_NTTIME_1sec@NDR_0.0.1 2:4.17.2
@@ -76,6 +77,7 @@ libndr.so.5 libndr5 #MINVER#
  ndr_print_double@NDR_0.0.1 2:4.17.2
  ndr_print_enum@NDR_0.0.1 2:4.17.2
  ndr_print_function_debug@NDR_0.0.1 2:4.20.0~rc1
+ ndr_print_function_secret_string@NDR_6.0.0 2:4.22.0~rc1
  ndr_print_function_string@NDR_0.0.1 2:4.20.0~rc1
  ndr_print_gid_t@NDR_0.0.1 2:4.17.2
  ndr_print_hyper@NDR_0.0.1 2:4.17.2
@@ -102,6 +104,7 @@ libndr.so.5 libndr5 #MINVER#
  ndr_print_string_array@NDR_0.0.1 2:4.17.2
  ndr_print_string_helper@NDR_0.0.1 2:4.17.2
  ndr_print_struct@NDR_0.0.1 2:4.17.2
+ ndr_print_struct_secret_string@NDR_6.0.0 2:4.22.0~rc1
  ndr_print_struct_string@NDR_0.0.1 2:4.17.2
  ndr_print_svcctl_ServerType@NDR_0.0.1 2:4.17.2
  ndr_print_time_t@NDR_0.0.1 2:4.17.2
@@ -117,6 +120,7 @@ libndr.so.5 libndr5 #MINVER#
  ndr_print_uint8@NDR_0.0.1 2:4.17.2
  ndr_print_union@NDR_0.0.1 2:4.17.2
  ndr_print_union_debug@NDR_0.0.1 2:4.17.2
+ ndr_print_union_secret_string@NDR_6.0.0 2:4.22.0~rc1
  ndr_print_union_string@NDR_0.0.1 2:4.17.2
  ndr_print_winreg_Data@NDR_0.0.1 2:4.17.2
  ndr_print_winreg_Data_GPO@NDR_0.1.1 2:4.17.2
@@ -124,7 +128,6 @@ libndr.so.5 libndr5 #MINVER#
  ndr_pull_DATA_BLOB@NDR_0.0.1 2:4.20.0~rc1
  ndr_pull_GUID@NDR_0.0.1 2:4.20.0~rc1
  ndr_pull_HRESULT@NDR_0.0.5 2:4.20.0~rc1
- ndr_pull_KRB5_EDATA_NTSTATUS@NDR_0.0.1 2:4.20.0~rc1
  ndr_pull_NTSTATUS@NDR_0.0.1 2:4.20.0~rc1
  ndr_pull_NTTIME@NDR_0.0.1 2:4.20.0~rc1
  ndr_pull_NTTIME_1sec@NDR_0.0.1 2:4.20.0~rc1
@@ -202,7 +205,6 @@ libndr.so.5 libndr5 #MINVER#
  ndr_push_DATA_BLOB@NDR_0.0.1 2:4.20.0~rc1
  ndr_push_GUID@NDR_0.0.1 2:4.20.0~rc1
  ndr_push_HRESULT@NDR_0.0.5 2:4.20.0~rc1
- ndr_push_KRB5_EDATA_NTSTATUS@NDR_0.0.1 2:4.20.0~rc1
  ndr_push_NTSTATUS@NDR_0.0.1 2:4.20.0~rc1
  ndr_push_NTTIME@NDR_0.0.1 2:4.20.0~rc1
  ndr_push_NTTIME_1sec@NDR_0.0.1 2:4.20.0~rc1
@@ -296,8 +298,8 @@ libndr.so.5 libndr5 #MINVER#
  ndr_table_misc@NDR_0.2.1 2:4.17.2
  ndr_token_max_list_size@NDR_2.0.0 2:4.17.2
  ndr_token_peek@NDR_0.0.1 2:4.17.2
+ ndr_token_peek_cmp_fn@NDR_6.0.0 2:4.22.0~rc1
  ndr_token_retrieve@NDR_0.0.1 2:4.17.2
- ndr_token_retrieve_cmp_fn@NDR_0.0.1 2:4.17.2
  ndr_token_store@NDR_0.0.1 2:4.17.2
  ndr_transfer_syntax_ndr64@NDR_0.0.1 2:4.17.2
  ndr_transfer_syntax_ndr@NDR_0.0.1 2:4.17.2
