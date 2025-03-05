@@ -1,0 +1,2 @@
+# libndr5=>6 dropped 3 long-unused KRB5_EDATA_NTSTATUS symbols
+usr/lib/${DEB_HOST_MULTIARCH}/libndr.so.6 usr/lib/${DEB_HOST_MULTIARCH}/libndr.so.5

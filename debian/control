@@ -126,7 +126,10 @@ Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Architecture: any
 Section: libs
-Provides: libndr6 (= ${binary:Version}), libsmbldap2 (= ${binary:Version})
+Provides: libndr6 (= ${binary:Version}),
+# libndr5=>6 dropped 3 long-unused KRB5_EDATA_NTSTATUS symbols
+ libndr5 (= ${binary:Version}),
+ libsmbldap2 (= ${binary:Version})
 Depends: ${misc:Depends}, ${shlibs:Depends},
 # since libldb ABI is incorrectly versioned resulting in breakage like #1021371,
 # just require libldb version of the same build
