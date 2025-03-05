@@ -1,1 +1,1 @@
-usr/lib/*/libtevent.so.0*
+usr/lib/${DEB_HOST_MULTIARCH}/libtevent.so.0*
