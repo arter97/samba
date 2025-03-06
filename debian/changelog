@@ -1,4 +1,4 @@
-samba (2:4.22.0+dfsg-1) UNRELEASED; urgency=medium
+samba (2:4.22.0+dfsg-1) unstable; urgency=medium
 
   * new upstream release
   * samba-libs: provide libndr5 too (with a compat symlink)
@@ -9,7 +9,7 @@ samba (2:4.22.0+dfsg-1) UNRELEASED; urgency=medium
   * d/*.install: s@/*/@/${DEB_HOST_MULTIARCH}/@
   * d/source/lintian-overrides: add dh-exec-useless-usage *DEB_HOST_MULTIARCH*
 
- -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 06 Mar 2025 22:38:06 +0300
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 07 Mar 2025 00:02:26 +0300
 
 samba (2:4.22.0~rc1+dfsg-1) experimental; urgency=medium
 
