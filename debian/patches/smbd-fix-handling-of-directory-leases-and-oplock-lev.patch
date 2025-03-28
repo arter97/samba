@@ -1,0 +1,43 @@
+From 4b3f45e13f9c11920924c034a457ea2cb8e15e18 Mon Sep 17 00:00:00 2001
+From: Ralph Boehme <slow@samba.org>
+Date: Sat, 22 Mar 2025 16:59:07 +0100
+Subject: smbd: fix handling of directory leases and oplock levels
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Origin: upstream, https://bugzilla.samba.org/show_bug.cgi?id=15836
+Forwarded: yes
+Bug-Debian: https://bugs.debian.org/1100604
+
+BUG: https://bugzilla.samba.org/show_bug.cgi?id=15836
+
+Signed-off-by: Ralph Boehme <slow@samba.org>
+Reviewed-by: Stefan Metzmacher <metze@samba.org>
+
+Autobuild-User(master): Ralph Böhme <slow@samba.org>
+Autobuild-Date(master): Fri Mar 28 07:53:25 UTC 2025 on atb-devel-224
+---
+ source3/smbd/open.c                       | 7 +++++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/source3/smbd/open.c b/source3/smbd/open.c
+index a9e68bad468..25f54428bb1 100644
+--- a/source3/smbd/open.c
++++ b/source3/smbd/open.c
+@@ -5165,6 +5165,13 @@ static NTSTATUS open_directory(connection_struct *conn,
+ 		keep_locked = true;
+ 	}
+ 
++	if ((oplock_request != NO_OPLOCK) && (oplock_request != LEASE_OPLOCK)) {
++		/*
++		 * No oplocks on directories, only leases
++		 */
++		oplock_request = NO_OPLOCK;
++	}
++
+ 	lck_state = (struct open_ntcreate_lock_state) {
+ 		.fsp			= fsp,
+ 		.object_type		= "directory",
+-- 
+2.39.5
+
