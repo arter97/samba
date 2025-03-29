@@ -1,3 +1,10 @@
+samba (2:4.22.0+dfsg-2) unstable; urgency=medium
+
+  * smbd-fix-handling-of-directory-leases-and-oplock-lev.patch
+    (Closes: #1100604)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 29 Mar 2025 07:24:47 +0300
+
 samba (2:4.22.0+dfsg-1) unstable; urgency=medium
 
   * new upstream release
