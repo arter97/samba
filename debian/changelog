@@ -1,3 +1,10 @@
+samba (2:4.22.0+dfsg-3) unstable; urgency=medium
+
+  * widelinks-nofollow.patch (https://bugzilla.samba.org/show_bug.cgi?id=15841)
+    (Closes: #1101581)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 02 Apr 2025 14:34:31 +0300
+
 samba (2:4.22.0+dfsg-2) unstable; urgency=medium
 
   * smbd-fix-handling-of-directory-leases-and-oplock-lev.patch
