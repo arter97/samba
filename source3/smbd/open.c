@@ -4643,6 +4643,13 @@ mkdir_first:
 			      mode);
 	if (ret != 0) {
 		status = map_nt_error_from_unix(errno);
+		if (NT_STATUS_EQUAL(status, NT_STATUS_INVALID_PARAMETER)
+		    && need_tmpname)
+		{
+			need_tmpname = false;
+			first_atname = smb_fname_atname;
+			goto mkdir_first;
+		}
 		DBG_NOTICE("MKDIRAT failed for '%s': %s\n",
 			   smb_fname_str_dbg(smb_dname), nt_errstr(status));
 		goto restore_orig;
@@ -5189,6 +5196,13 @@ static NTSTATUS open_directory(connection_struct *conn,
 		keep_locked = true;
 	} else if (create_options & FILE_DELETE_ON_CLOSE) {
 		keep_locked = true;
+	}
+
+	if ((oplock_request != NO_OPLOCK) && (oplock_request != LEASE_OPLOCK)) {
+		/*
+		 * No oplocks on directories, only leases
+		 */
+		oplock_request = NO_OPLOCK;
 	}
 
 	lck_state = (struct open_ntcreate_lock_state) {
