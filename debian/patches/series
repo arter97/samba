@@ -23,5 +23,3 @@ meaningful-error-if-no-python3-markdown.patch
 ctdb-use-run-instead-of-var-run.patch
 revert-ldb-use-hexchars_upper-from-replace.h.patch
 replace-xpg-strerror.patch
-smbd-fix-handling-of-directory-leases-and-oplock-lev.patch
-widelinks-nofollow.patch
