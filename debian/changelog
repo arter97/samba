@@ -1,3 +1,47 @@
+samba (2:4.22.1+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15727:
+     net ad join fails with "Failed to join domain:
+     failed to create kerberos keytab"
+   - https://bugzilla.samba.org/show_bug.cgi?id=15767:
+     Deadlock between two smbd processes
+   - https://bugzilla.samba.org/show_bug.cgi?id=15774:
+     Running "gpo manage motd set" twice fails with backtrace
+   - https://bugzilla.samba.org/show_bug.cgi?id=15791:
+     Remove of file or directory not possible with vfs_acl_tdb
+   - https://bugzilla.samba.org/show_bug.cgi?id=15810:
+     Add async io API from libcephfs to ceph_new VFS module
+   - https://bugzilla.samba.org/show_bug.cgi?id=15818:
+     vfs_ceph_new module does not work with other modules
+     for snapshot management
+   - https://bugzilla.samba.org/show_bug.cgi?id=15822:
+     Enable support for cephfs case insensitive behavior
+   - https://bugzilla.samba.org/show_bug.cgi?id=15823:
+     Subnet based interfaces definition not listening
+     on all covered IP addresses
+   - https://bugzilla.samba.org/show_bug.cgi?id=15829:
+     samba-tool gpo backup creates entity backups it can't read
+   - https://bugzilla.samba.org/show_bug.cgi?id=15834:
+     vfs_ceph_new: Add path based fallback for SMB_VFS_FCHOWN,
+     SMB_VFS_FCHMOD and SMB_VFS_FNTIMES
+   - https://bugzilla.samba.org/show_bug.cgi?id=15836:
+     PANIC: assert failed at source3/smbd/smb2_oplock.c(156):
+     sconn->oplocks.exclusive_open>=0
+   - https://bugzilla.samba.org/show_bug.cgi?id=15839:
+     gp_cert_auto_enroll_ext.py has problem unpacking GUIDs with prepended 0's
+   - https://bugzilla.samba.org/show_bug.cgi?id=15841:
+     Wide link issue in samba 4.22
+   - https://bugzilla.samba.org/show_bug.cgi?id=15845:
+     NT_STATUS_INVALID_PARAMETER: Can't create folders
+     on share of an exfat file system
+   - https://bugzilla.samba.org/show_bug.cgi?id=15849:
+     Lease code is not endian-safe
+  * drop widelinks-nofollow.patch (included upstream)
+  * drop smbd-fix-handling-of-directory-leases-and-oplock-lev.patch (ditto)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 18 Apr 2025 13:02:55 +0300
+
 samba (2:4.22.0+dfsg-3) unstable; urgency=medium
 
   * widelinks-nofollow.patch (https://bugzilla.samba.org/show_bug.cgi?id=15841)
