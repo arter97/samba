@@ -102,6 +102,9 @@ static const struct enum_list enum_vfs_cephfs_proxy_vals[] = {
 #define CEPH_FN(_name) typeof(_name) *_name ## _fn
 
 struct vfs_ceph_config {
+#if HAVE_CEPH_ASYNCIO
+	struct tevent_threaded_context *tctx;
+#endif
 	const char *conf_file;
 	const char *user_id;
 	const char *fsname;
@@ -110,7 +113,15 @@ struct vfs_ceph_config {
 	enum vfs_cephfs_proxy_mode proxy;
 	void *libhandle;
 
-	CEPH_FN(ceph_ll_lookup_inode);
+	/*
+	* This field stores the Samba capabilities for the share represented
+	* by this struct. The share capabilities are computed once during the
+	* module startup and then cached here for future references.
+	*
+	* It's completely independent of the CephFS capabilities concept.
+	*/
+	uint32_t capabilities;
+
 	CEPH_FN(ceph_ll_walk);
 	CEPH_FN(ceph_ll_getattr);
 	CEPH_FN(ceph_ll_setattr);
@@ -157,6 +168,9 @@ struct vfs_ceph_config {
 	CEPH_FN(ceph_version);
 	CEPH_FN(ceph_rewinddir);
 	CEPH_FN(ceph_readdir_r);
+#if HAVE_CEPH_ASYNCIO
+	CEPH_FN(ceph_ll_nonblocking_readv_writev);
+#endif
 };
 
 /*
@@ -274,7 +288,6 @@ static struct ceph_mount_info *cephmount_mount_fs(
 	struct vfs_ceph_config *config)
 {
 	int ret;
-	char buf[256];
 	struct ceph_mount_info *mnt = NULL;
 	/* if config_file and/or user_id are NULL, ceph will use defaults */
 
@@ -291,12 +304,6 @@ static struct ceph_mount_info *cephmount_mount_fs(
 					      : config->conf_file);
 	ret = config->ceph_conf_read_file_fn(mnt, config->conf_file);
 	if (ret) {
-		goto out;
-	}
-
-	DBG_DEBUG("[CEPH] calling ceph_conf_get: option='%s'\n", "log_file");
-	ret = config->ceph_conf_get_fn(mnt, "log_file", buf, sizeof(buf));
-	if (ret < 0) {
 		goto out;
 	}
 
@@ -396,7 +403,6 @@ static bool vfs_cephfs_load_lib(struct vfs_ceph_config *config)
 		break;
 	}
 
-	CHECK_CEPH_FN(libhandle, ceph_ll_lookup_inode);
 	CHECK_CEPH_FN(libhandle, ceph_ll_walk);
 	CHECK_CEPH_FN(libhandle, ceph_ll_getattr);
 	CHECK_CEPH_FN(libhandle, ceph_ll_setattr);
@@ -443,6 +449,9 @@ static bool vfs_cephfs_load_lib(struct vfs_ceph_config *config)
 	CHECK_CEPH_FN(libhandle, ceph_version);
 	CHECK_CEPH_FN(libhandle, ceph_rewinddir);
 	CHECK_CEPH_FN(libhandle, ceph_readdir_r);
+#if HAVE_CEPH_ASYNCIO
+	CHECK_CEPH_FN(libhandle, ceph_ll_nonblocking_readv_writev);
+#endif
 
 	config->libhandle = libhandle;
 
@@ -698,10 +707,7 @@ static struct dirent *vfs_ceph_get_fh_dirent(struct vfs_ceph_fh *cfh)
 
 static void vfs_ceph_put_fh_dirent(struct vfs_ceph_fh *cfh)
 {
-	if (cfh->de != NULL) {
-		TALLOC_FREE(cfh->de);
-		cfh->de = NULL;
-	}
+	TALLOC_FREE(cfh->de);
 }
 
 static int vfs_ceph_release_fh(struct vfs_ceph_fh *cfh)
@@ -798,21 +804,6 @@ static void vfs_ceph_assign_fh_fd(struct vfs_ceph_fh *cfh)
 
 /* Ceph low-level wrappers */
 
-static int vfs_ceph_ll_lookup_inode(const struct vfs_handle_struct *handle,
-				    uint64_t inoval,
-				    Inode **pout)
-{
-	struct inodeno_t ino = {.val = inoval};
-	struct vfs_ceph_config *config = NULL;
-
-	SMB_VFS_HANDLE_GET_DATA(handle, config, struct vfs_ceph_config,
-				return -ENOMEM);
-
-	DBG_DEBUG("[CEPH] ceph_ll_lookup_inode: ino=%" PRIu64 "\n", inoval);
-
-	return config->ceph_ll_lookup_inode_fn(config->mount, ino, pout);
-}
-
 static int vfs_ceph_ll_walk(const struct vfs_handle_struct *handle,
 			    const char *name,
 			    struct Inode **pin,
@@ -823,9 +814,30 @@ static int vfs_ceph_ll_walk(const struct vfs_handle_struct *handle,
 	struct UserPerm *uperm = NULL;
 	int ret = -1;
 	struct vfs_ceph_config *config = NULL;
+	const char *cwd = NULL;
+	size_t cwdlen;
 
 	SMB_VFS_HANDLE_GET_DATA(handle, config, struct vfs_ceph_config,
 				return -ENOMEM);
+
+	cwd = config->ceph_getcwd_fn(config->mount);
+	cwdlen = strlen(cwd);
+
+	/*
+	 * ceph_ll_walk() always operate on "name" relative to current working
+	 * directory even if it starts with a '/' i.e, absolute path is never
+	 * honoured. But why?? For now stick to the current behaviour and ensure
+	 * that the "name" is always relative when it contains current working
+	 * directory path with an exception to "/".
+	 */
+	if ((strcmp(cwd, "/") != 0) &&
+	    (strncmp(name, cwd, cwdlen) == 0)) {
+		if (name[cwdlen] == '/') {
+			name += cwdlen + 1;
+		} else if (name[cwdlen] == '\0') {
+			name = ".";
+		}
+	}
 
 	DBG_DEBUG("[CEPH] ceph_ll_walk: name=%s\n", name);
 
@@ -961,6 +973,36 @@ static int vfs_ceph_ll_fchown(struct vfs_handle_struct *handle,
 					  cfh->uperm);
 }
 
+static int vfs_ceph_ll_chmod(const struct vfs_handle_struct *handle,
+			     const struct vfs_ceph_iref *iref,
+			     mode_t mode)
+{
+	struct ceph_statx stx = {.stx_mode = mode};
+	struct UserPerm *uperm = NULL;
+	int ret = -1;
+	struct vfs_ceph_config *config = NULL;
+
+	SMB_VFS_HANDLE_GET_DATA(handle, config, struct vfs_ceph_config,
+				return -ENOMEM);
+
+	DBG_DEBUG("[CEPH] ceph_ll_setattr: ino=%" PRIu64 " mode=%o\n", iref->ino, mode);
+
+	uperm = vfs_ceph_userperm_new(config, handle->conn);
+	if (uperm == NULL) {
+		return -ENOMEM;
+	}
+
+	ret = config->ceph_ll_setattr_fn(config->mount,
+					 iref->inode,
+					 &stx,
+					 CEPH_STATX_MODE,
+					 uperm);
+
+	vfs_ceph_userperm_del(config, uperm);
+	DBG_DEBUG("[CEPH] ceph_ll_setattr: ret=%d\n", ret);
+	return ret;
+}
+
 static int vfs_ceph_ll_fchmod(struct vfs_handle_struct *handle,
 			      const struct vfs_ceph_fh *cfh,
 			      mode_t mode)
@@ -981,6 +1023,67 @@ static int vfs_ceph_ll_fchmod(struct vfs_handle_struct *handle,
 					  cfh->uperm);
 }
 
+static void vfs_ceph_fill_statx_mask_from_ft(const struct smb_file_time *ft,
+					     struct ceph_statx *stx,
+					     int *mask)
+{
+	if (!is_omit_timespec(&ft->atime)) {
+		stx->stx_atime = ft->atime;
+		*mask |= CEPH_SETATTR_ATIME;
+	}
+	if (!is_omit_timespec(&ft->mtime)) {
+		stx->stx_mtime = ft->mtime;
+		*mask |= CEPH_SETATTR_MTIME;
+	}
+	if (!is_omit_timespec(&ft->ctime)) {
+		stx->stx_ctime = ft->ctime;
+		*mask |= CEPH_SETATTR_CTIME;
+	}
+	if (!is_omit_timespec(&ft->create_time)) {
+		stx->stx_btime = ft->create_time;
+		*mask |= CEPH_SETATTR_BTIME;
+	}
+}
+
+static int vfs_ceph_ll_utimes(struct vfs_handle_struct *handle,
+			      const struct vfs_ceph_iref *iref,
+			      const struct smb_file_time *ft)
+{
+	struct ceph_statx stx = {0};
+	struct UserPerm *uperm = NULL;
+	int ret = -1;
+	int mask = 0;
+	struct vfs_ceph_config *config = NULL;
+
+	SMB_VFS_HANDLE_GET_DATA(handle, config, struct vfs_ceph_config,
+				return -ENOMEM);
+
+	vfs_ceph_fill_statx_mask_from_ft(ft, &stx, &mask);
+	if (!mask) {
+		return 0;
+	}
+
+	DBG_DEBUG("[CEPH] ceph_ll_setattr: ino=%" PRIu64 " mtime=%" PRIu64
+		  " atime=%" PRIu64 " ctime=%" PRIu64 " btime=%" PRIu64 "\n",
+		  iref->ino,
+		  full_timespec_to_nt_time(&stx.stx_mtime),
+		  full_timespec_to_nt_time(&stx.stx_atime),
+		  full_timespec_to_nt_time(&stx.stx_ctime),
+		  full_timespec_to_nt_time(&stx.stx_btime));
+
+	uperm = vfs_ceph_userperm_new(config, handle->conn);
+	if (uperm == NULL) {
+		return -ENOMEM;
+	}
+	ret = config->ceph_ll_setattr_fn(config->mount,
+					 iref->inode,
+					 &stx,
+					 mask,
+					 uperm);
+	vfs_ceph_userperm_del(config, uperm);
+	return ret;
+}
+
 static int vfs_ceph_ll_futimes(struct vfs_handle_struct *handle,
 			       const struct vfs_ceph_fh *cfh,
 			       const struct smb_file_time *ft)
@@ -992,22 +1095,7 @@ static int vfs_ceph_ll_futimes(struct vfs_handle_struct *handle,
 	SMB_VFS_HANDLE_GET_DATA(handle, config, struct vfs_ceph_config,
 				return -ENOMEM);
 
-	if (!is_omit_timespec(&ft->atime)) {
-		stx.stx_atime = ft->atime;
-		mask |= CEPH_SETATTR_ATIME;
-	}
-	if (!is_omit_timespec(&ft->mtime)) {
-		stx.stx_mtime = ft->mtime;
-		mask |= CEPH_SETATTR_MTIME;
-	}
-	if (!is_omit_timespec(&ft->ctime)) {
-		stx.stx_ctime = ft->ctime;
-		mask |= CEPH_SETATTR_CTIME;
-	}
-	if (!is_omit_timespec(&ft->create_time)) {
-		stx.stx_btime = ft->create_time;
-		mask |= CEPH_SETATTR_BTIME;
-	}
+	vfs_ceph_fill_statx_mask_from_ft(ft, &stx, &mask);
 	if (!mask) {
 		return 0;
 	}
@@ -1795,74 +1883,54 @@ static int vfs_ceph_ll_fremovexattr(const struct vfs_handle_struct *handle,
 					      cfh->uperm);
 }
 
+#if HAVE_CEPH_ASYNCIO
+static int64_t vfs_ceph_ll_nonblocking_readv_writev(
+	const struct vfs_handle_struct *handle,
+	const struct vfs_ceph_fh *cfh,
+	struct ceph_ll_io_info *io_info)
+{
+	struct vfs_ceph_config *config = NULL;
+
+	SMB_VFS_HANDLE_GET_DATA(handle,
+				config,
+				struct vfs_ceph_config,
+				return -EINVAL);
+
+	DBG_DEBUG("[CEPH] ceph_ll_nonblocking_readv_writev: ino=%" PRIu64
+		  " fd=%d off=%jd\n",
+		  cfh->iref.ino,
+		  cfh->fd,
+		  io_info->off);
+
+	return config->ceph_ll_nonblocking_readv_writev_fn(config->mount,
+							   io_info);
+}
+#endif
+
 /* Ceph Inode-refernce get/put wrappers */
 static int vfs_ceph_iget(const struct vfs_handle_struct *handle,
-			 uint64_t ino,
 			 const char *name,
 			 unsigned int flags,
 			 struct vfs_ceph_iref *iref)
 {
 	struct Inode *inode = NULL;
 	int ret = -1;
+	struct ceph_statx stx = {.stx_ino = 0};
 
-	if (ino > CEPH_INO_ROOT) {
-		/* get-by-ino */
-		ret = vfs_ceph_ll_lookup_inode(handle, ino, &inode);
-		if (ret != 0) {
-			return ret;
-		}
-	} else {
-		/* get-by-path */
-		struct ceph_statx stx = {.stx_ino = 0};
-
-		ret = vfs_ceph_ll_walk(handle,
-				       name,
-				       &inode,
-				       &stx,
-				       CEPH_STATX_INO,
-				       flags);
-		if (ret != 0) {
-			return ret;
-		}
-		ino = stx.stx_ino;
+	ret = vfs_ceph_ll_walk(handle,
+			       name,
+			       &inode,
+			       &stx,
+			       CEPH_STATX_INO,
+			       flags);
+	if (ret != 0) {
+		return ret;
 	}
 	iref->inode = inode;
-	iref->ino = ino;
+	iref->ino = stx.stx_ino;
 	iref->owner = true;
 	DBG_DEBUG("[CEPH] iget: %s ino=%" PRIu64 "\n", name, iref->ino);
 	return 0;
-}
-
-static int vfs_ceph_iget_by_fname(const struct vfs_handle_struct *handle,
-				  const struct smb_filename *smb_fname,
-				  struct vfs_ceph_iref *iref)
-{
-	const char *name = smb_fname->base_name;
-	const char *cwd = NULL;
-	int ret = -1;
-	struct vfs_ceph_config *config = NULL;
-
-	SMB_VFS_HANDLE_GET_DATA(handle, config, struct vfs_ceph_config,
-				return -ENOMEM);
-
-	cwd = config->ceph_getcwd_fn(config->mount);
-	if (!strcmp(name, cwd)) {
-		ret = vfs_ceph_iget(handle, 0, "./", 0, iref);
-	} else {
-		ret = vfs_ceph_iget(handle, 0, name, 0, iref);
-	}
-	return ret;
-}
-
-static int vfs_ceph_igetl(const struct vfs_handle_struct *handle,
-			  const struct smb_filename *smb_fname,
-			  struct vfs_ceph_iref *iref)
-{
-	return vfs_ceph_iget(handle,
-			     0,
-			     smb_fname->base_name,
-			     AT_SYMLINK_NOFOLLOW,
-			     iref);
 }
 
 static int vfs_ceph_igetd(struct vfs_handle_struct *handle,
@@ -1883,23 +1951,14 @@ static int vfs_ceph_igetd(struct vfs_handle_struct *handle,
 
 	/* case-2: resolve by current work-dir */
 	if (fsp_get_pathref_fd(dirfsp) == AT_FDCWD) {
-		return vfs_ceph_iget(handle, 0, ".", 0, iref);
+		return vfs_ceph_iget(handle, ".", 0, iref);
 	}
 
 	/* case-3: resolve by parent dir and name */
 	return vfs_ceph_iget(handle,
-			     dirfsp->file_id.inode,
 			     dirfsp->fsp_name->base_name,
 			     AT_SYMLINK_NOFOLLOW,
 			     iref);
-}
-
-static int vfs_ceph_igetf(struct vfs_handle_struct *handle,
-			  const struct files_struct *fsp,
-			  struct vfs_ceph_iref *iref)
-{
-	return vfs_ceph_iget(
-		handle, fsp->file_id.inode, fsp->fsp_name->base_name, 0, iref);
 }
 
 static void vfs_ceph_iput(const struct vfs_handle_struct *handle,
@@ -1958,21 +2017,93 @@ static uint64_t vfs_ceph_disk_free(struct vfs_handle_struct *handle,
 	return *dfree;
 }
 
+static int vfs_ceph_check_case_sensitivity(struct vfs_handle_struct *handle,
+					   uint32_t *capabilities)
+{
+	struct vfs_ceph_iref iref = {0};
+	char value[8] = {0};
+	struct vfs_ceph_config *config = NULL;
+	uint32_t caps;
+	int ret;
+
+	SMB_VFS_HANDLE_GET_DATA(handle, config, struct vfs_ceph_config,
+				return -ENOMEM);
+
+	if (config->capabilities != 0) {
+		*capabilities = config->capabilities;
+		return 0;
+	}
+
+	/*
+	 * In CephFS, case sensitivity configuration is inherited by default,
+	 * but it can be manually overridden by an administrator. Samba assumes
+	 * that all directories inherit the configuration from the root of the
+	 * share and the administrator doesn't change it manually.
+	 */
+	ret = vfs_ceph_iget(handle, handle->conn->connectpath, 0, &iref);
+	if (ret != 0) {
+		return ret;
+	}
+
+	caps = FILE_CASE_PRESERVED_NAMES;
+
+	ret = vfs_ceph_ll_getxattr(handle, &iref, "ceph.dir.casesensitive",
+				   value, sizeof(value) - 1);
+	if (ret < 0) {
+		if (ret != -ENODATA) {
+			DBG_ERR("[CEPH] failed to get case sensitivity "
+				"settings: path='%s' %s",
+				handle->conn->connectpath, strerror(-ret));
+			goto out;
+		}
+
+		/*
+		 * The xattr is not defined, so the filesystem is case sensitive
+		 * by default.
+		 */
+		caps |= FILE_CASE_SENSITIVE_SEARCH;
+	} else {
+		/*
+		 * We only accept "0" as 'false' (as defined in the CephFS
+		 * documentation). All other values are interpreted as 'true'
+		 */
+		if (strcmp(value, "0") != 0) {
+			caps |= FILE_CASE_SENSITIVE_SEARCH;
+		}
+	}
+
+	config->capabilities = caps;
+	*capabilities = caps;
+
+	ret = 0;
+
+out:
+	vfs_ceph_iput(handle, &iref);
+
+	return ret;
+}
+
 static int vfs_ceph_statvfs(struct vfs_handle_struct *handle,
 			    const struct smb_filename *smb_fname,
 			    struct vfs_statvfs_struct *statbuf)
 {
 	struct statvfs statvfs_buf = { 0 };
 	struct vfs_ceph_iref iref = {0};
+	uint32_t caps = 0;
 	int ret;
 
-	ret = vfs_ceph_iget_by_fname(handle, smb_fname, &iref);
+	ret = vfs_ceph_iget(handle, smb_fname->base_name, 0, &iref);
 	if (ret != 0) {
 		goto out;
 	}
 
 	ret = vfs_ceph_ll_statfs(handle, &iref, &statvfs_buf);
 	if (ret != 0) {
+		goto out;
+	}
+
+	ret = vfs_ceph_check_case_sensitivity(handle, &caps);
+	if (ret < 0) {
 		goto out;
 	}
 
@@ -1984,8 +2115,7 @@ static int vfs_ceph_statvfs(struct vfs_handle_struct *handle,
 	statbuf->TotalFileNodes = statvfs_buf.f_files;
 	statbuf->FreeFileNodes = statvfs_buf.f_ffree;
 	statbuf->FsIdentifier = statvfs_buf.f_fsid;
-	statbuf->FsCapabilities =
-		FILE_CASE_SENSITIVE_SEARCH | FILE_CASE_PRESERVED_NAMES;
+	statbuf->FsCapabilities = caps;
 
 	DBG_DEBUG("[CEPH] f_bsize: %ld, f_blocks: %ld, f_bfree: %ld, "
 		  "f_bavail: %ld\n",
@@ -2272,15 +2402,26 @@ out:
 }
 
 struct vfs_ceph_aio_state {
+	struct vfs_ceph_config *config;
+	struct vfs_ceph_fh *cfh;
+#if HAVE_CEPH_ASYNCIO
+	struct tevent_req *req;
+	bool orphaned;
+	struct tevent_immediate *im;
+	void *data;
+	size_t len;
+	off_t off;
+	bool write;
+	bool fsync;
+
+	struct ceph_ll_io_info io_info;
+	struct iovec iov;
+#endif
 	struct timespec start_time;
 	struct timespec finish_time;
+	ssize_t result;
 	struct vfs_aio_state vfs_aio_state;
 	SMBPROFILE_BYTES_ASYNC_STATE(profile_bytes);
-};
-
-struct vfs_ceph_pread_state {
-	ssize_t bytes_read;
-	struct vfs_ceph_aio_state ceph_aio_state;
 };
 
 static void vfs_ceph_aio_start(struct vfs_ceph_aio_state *state)
@@ -2298,22 +2439,218 @@ static void vfs_ceph_aio_finish(struct vfs_ceph_aio_state *state,
 	if (result < 0) {
 		state->vfs_aio_state.error = (int)result;
 	}
+
+	state->result = result;
 	SMBPROFILE_BYTES_ASYNC_SET_IDLE(state->profile_bytes);
 }
 
-/*
- * Fake up an async ceph read by calling the synchronous API.
- */
+#if HAVE_CEPH_ASYNCIO
+
+static void vfs_ceph_aio_done(struct tevent_context *ev,
+			      struct tevent_immediate *im,
+			      void *private_data);
+
+static int vfs_ceph_require_tctx(struct vfs_ceph_aio_state *state,
+				 struct tevent_context *ev)
+{
+	struct vfs_ceph_config *config = state->config;
+
+	if (config->tctx != NULL) {
+		return 0;
+	}
+
+	config->tctx = tevent_threaded_context_create(config, ev);
+	if (config->tctx == NULL) {
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void vfs_ceph_aio_complete(struct ceph_ll_io_info *io_info)
+{
+	struct vfs_ceph_aio_state *state = io_info->priv;
+
+	if (state->orphaned) {
+		return;
+	}
+
+	DBG_DEBUG("[CEPH] aio_complete: ino=%" PRIu64
+		  " fd=%d off=%jd len=%ju result=%jd\n",
+		  state->cfh->iref.ino,
+		  state->cfh->fd,
+		  state->off,
+		  state->len,
+		  state->io_info.result);
+
+	tevent_threaded_schedule_immediate(state->config->tctx,
+					   state->im,
+					   vfs_ceph_aio_done,
+					   state->req);
+}
+
+static void vfs_ceph_aio_cleanup(struct tevent_req *req,
+				 enum tevent_req_state req_state)
+{
+	struct vfs_ceph_aio_state *state = tevent_req_data(
+		req, struct vfs_ceph_aio_state);
+
+	if (req_state == TEVENT_REQ_IN_PROGRESS) {
+		/*
+		 * The job thread is still running, we need to protect the
+		 * memory used by the job completion function.
+		 */
+		(void)talloc_reparent(req, NULL, state);
+		state->orphaned = true;
+	}
+}
+
+static void vfs_ceph_aio_submit(struct vfs_handle_struct *handle,
+				struct tevent_req *req,
+				struct tevent_context *ev)
+{
+	struct vfs_ceph_aio_state *state = tevent_req_data(
+		req, struct vfs_ceph_aio_state);
+	int64_t res;
+
+	DBG_DEBUG("[CEPH] aio_send: ino=%" PRIu64 "fd=%d off=%jd len=%ju\n",
+		  state->cfh->iref.ino,
+		  state->cfh->fd,
+		  state->off,
+		  state->len);
+
+	state->io_info.callback = vfs_ceph_aio_complete;
+	state->iov.iov_base = state->data;
+	state->iov.iov_len = state->len;
+	state->io_info.priv = state;
+	state->io_info.fh = state->cfh->fh;
+	state->io_info.iov = &state->iov;
+	state->io_info.iovcnt = 1;
+	state->io_info.off = state->off;
+	state->io_info.write = state->write;
+	state->io_info.fsync = state->fsync;
+	state->io_info.result = 0;
+
+	vfs_ceph_aio_start(state);
+
+	res = vfs_ceph_ll_nonblocking_readv_writev(handle,
+						   state->cfh,
+						   &state->io_info);
+	if (res < 0) {
+		state->result = (int)res;
+		tevent_req_error(req, -((int)res));
+		tevent_req_post(req, ev);
+		return;
+	}
+
+	tevent_req_set_cleanup_fn(req, vfs_ceph_aio_cleanup);
+	return;
+}
+
+static void vfs_ceph_aio_done(struct tevent_context *ev,
+			      struct tevent_immediate *im,
+			      void *private_data)
+{
+	struct tevent_req *req = private_data;
+	struct vfs_ceph_aio_state *state = tevent_req_data(
+		req, struct vfs_ceph_aio_state);
+
+	DBG_DEBUG("[CEPH] aio_done: ino=%" PRIu64
+		  " fd=%d off=%jd len=%ju result=%jd\n",
+		  state->cfh->iref.ino,
+		  state->cfh->fd,
+		  state->off,
+		  state->len,
+		  state->io_info.result);
+
+	vfs_ceph_aio_finish(state, state->io_info.result);
+	if (state->result < 0) {
+		tevent_req_error(req, -((int)state->result));
+		return;
+	}
+
+	tevent_req_done(req);
+}
+
+static ssize_t vfs_ceph_aio_recv(struct tevent_req *req,
+				 struct vfs_aio_state *vfs_aio_state)
+{
+	struct vfs_ceph_aio_state *state = tevent_req_data(
+		req, struct vfs_ceph_aio_state);
+	ssize_t res = -1;
+
+	DBG_DEBUG("[CEPH] aio_recv: ino=%" PRIu64
+		  " fd=%d off=%jd len=%ju result=%ld\n",
+		  state->cfh->iref.ino,
+		  state->cfh->fd,
+		  state->off,
+		  state->len,
+		  state->result);
+
+	if (tevent_req_is_unix_error(req, &vfs_aio_state->error)) {
+		goto out;
+	}
+
+	*vfs_aio_state = state->vfs_aio_state;
+	res = state->result;
+out:
+	tevent_req_received(req);
+	return res;
+}
+
+#endif /* HAVE_CEPH_ASYNCIO */
+
+static void vfs_ceph_aio_prepare(struct vfs_handle_struct *handle,
+				 struct tevent_req *req,
+				 struct tevent_context *ev,
+				 struct files_struct *fsp)
+{
+	struct vfs_ceph_config *config = NULL;
+	struct vfs_ceph_aio_state *state = NULL;
+	int ret = -1;
+
+	SMB_VFS_HANDLE_GET_DATA(handle,
+				config,
+				struct vfs_ceph_config,
+				(void)0);
+	if (config == NULL) {
+		tevent_req_error(req, EINVAL);
+		return;
+	}
+
+	state = tevent_req_data(req, struct vfs_ceph_aio_state);
+	state->config = config;
+
+#if HAVE_CEPH_ASYNCIO
+	ret = vfs_ceph_require_tctx(state, ev);
+	if (ret != 0) {
+		tevent_req_error(req, -ret);
+		return;
+	}
+
+	state->im = tevent_create_immediate(state);
+	if (state->im == NULL) {
+		tevent_req_error(req, ENOMEM);
+		return;
+	}
+#endif
+
+	ret = vfs_ceph_fetch_io_fh(handle, fsp, &state->cfh);
+	if (ret != 0) {
+		tevent_req_error(req, -ret);
+	}
+}
+
 static struct tevent_req *vfs_ceph_pread_send(struct vfs_handle_struct *handle,
 					      TALLOC_CTX *mem_ctx,
 					      struct tevent_context *ev,
 					      struct files_struct *fsp,
 					      void *data,
-					      size_t n, off_t offset)
+					      size_t n,
+					      off_t offset)
 {
-	struct vfs_ceph_fh *cfh = NULL;
 	struct tevent_req *req = NULL;
-	struct vfs_ceph_pread_state *state = NULL;
+	struct vfs_ceph_aio_state *state = NULL;
 	int ret = -1;
 
 	DBG_DEBUG("[CEPH] pread_send(%p, %p, %p, %zu, %zd)\n",
@@ -2322,33 +2659,40 @@ static struct tevent_req *vfs_ceph_pread_send(struct vfs_handle_struct *handle,
 		  data,
 		  n,
 		  offset);
-	req = tevent_req_create(mem_ctx, &state, struct vfs_ceph_pread_state);
+
+	req = tevent_req_create(mem_ctx, &state, struct vfs_ceph_aio_state);
 	if (req == NULL) {
 		return NULL;
 	}
 
-	ret = vfs_ceph_fetch_io_fh(handle, fsp, &cfh);
-	if (ret != 0) {
-		tevent_req_error(req, -ret);
+	vfs_ceph_aio_prepare(handle, req, ev, fsp);
+	if (!tevent_req_is_in_progress(req)) {
 		return tevent_req_post(req, ev);
 	}
 
 	SMBPROFILE_BYTES_ASYNC_START(syscall_asys_pread,
 				     profile_p,
-				     state->ceph_aio_state.profile_bytes,
+				     state->profile_bytes,
 				     n);
-	SMBPROFILE_BYTES_ASYNC_SET_IDLE(state->ceph_aio_state.profile_bytes);
+	SMBPROFILE_BYTES_ASYNC_SET_IDLE(state->profile_bytes);
 
-	vfs_ceph_aio_start(&state->ceph_aio_state);
-	ret = vfs_ceph_ll_read(handle, cfh, offset, n, data);
-	vfs_ceph_aio_finish(&state->ceph_aio_state, ret);
+#if HAVE_CEPH_ASYNCIO
+	state->req = req;
+	state->data = data;
+	state->len = n;
+	state->off = offset;
+	vfs_ceph_aio_submit(handle, req, ev);
+	return req;
+#endif
+	vfs_ceph_aio_start(state);
+	ret = vfs_ceph_ll_read(handle, state->cfh, offset, n, data);
+	vfs_ceph_aio_finish(state, ret);
 	if (ret < 0) {
 		/* ceph returns -errno on error. */
 		tevent_req_error(req, -ret);
 		return tevent_req_post(req, ev);
 	}
 
-	state->bytes_read = ret;
 	tevent_req_done(req);
 	/* Return and schedule the completion of the call. */
 	return tevent_req_post(req, ev);
@@ -2357,18 +2701,22 @@ static struct tevent_req *vfs_ceph_pread_send(struct vfs_handle_struct *handle,
 static ssize_t vfs_ceph_pread_recv(struct tevent_req *req,
 				   struct vfs_aio_state *vfs_aio_state)
 {
-	struct vfs_ceph_pread_state *state =
-		tevent_req_data(req, struct vfs_ceph_pread_state);
+	struct vfs_ceph_aio_state *state = tevent_req_data(
+		req, struct vfs_ceph_aio_state);
 
-	DBG_DEBUG("[CEPH] pread_recv: bytes_read=%zd\n", state->bytes_read);
+	DBG_DEBUG("[CEPH] pread_recv: bytes_read=%zd\n", state->result);
 
-	SMBPROFILE_BYTES_ASYNC_END(state->ceph_aio_state.profile_bytes);
+	SMBPROFILE_BYTES_ASYNC_END(state->profile_bytes);
 
+#if HAVE_CEPH_ASYNCIO
+	return vfs_ceph_aio_recv(req, vfs_aio_state);
+#endif
 	if (tevent_req_is_unix_error(req, &vfs_aio_state->error)) {
 		return -1;
 	}
-	*vfs_aio_state = state->ceph_aio_state.vfs_aio_state;
-	return state->bytes_read;
+
+	*vfs_aio_state = state->vfs_aio_state;
+	return state->result;
 }
 
 static ssize_t vfs_ceph_pwrite(struct vfs_handle_struct *handle,
@@ -2399,24 +2747,16 @@ out:
 	return lstatus_code(result);
 }
 
-struct vfs_ceph_pwrite_state {
-	ssize_t bytes_written;
-	struct vfs_ceph_aio_state ceph_aio_state;
-};
-
-/*
- * Fake up an async ceph write by calling the synchronous API.
- */
 static struct tevent_req *vfs_ceph_pwrite_send(struct vfs_handle_struct *handle,
 					       TALLOC_CTX *mem_ctx,
 					       struct tevent_context *ev,
 					       struct files_struct *fsp,
 					       const void *data,
-					       size_t n, off_t offset)
+					       size_t n,
+					       off_t offset)
 {
-	struct vfs_ceph_fh *cfh = NULL;
 	struct tevent_req *req = NULL;
-	struct vfs_ceph_pwrite_state *state = NULL;
+	struct vfs_ceph_aio_state *state = NULL;
 	int ret = -1;
 
 	DBG_DEBUG("[CEPH] pwrite_send(%p, %p, %p, %zu, %zd)\n",
@@ -2425,33 +2765,42 @@ static struct tevent_req *vfs_ceph_pwrite_send(struct vfs_handle_struct *handle,
 		  data,
 		  n,
 		  offset);
-	req = tevent_req_create(mem_ctx, &state, struct vfs_ceph_pwrite_state);
+
+	req = tevent_req_create(mem_ctx, &state, struct vfs_ceph_aio_state);
 	if (req == NULL) {
 		return NULL;
 	}
 
-	ret = vfs_ceph_fetch_io_fh(handle, fsp, &cfh);
-	if (ret != 0) {
-		tevent_req_error(req, -ret);
+	vfs_ceph_aio_prepare(handle, req, ev, fsp);
+	if (!tevent_req_is_in_progress(req)) {
 		return tevent_req_post(req, ev);
 	}
 
 	SMBPROFILE_BYTES_ASYNC_START(syscall_asys_pwrite,
 				     profile_p,
-				     state->ceph_aio_state.profile_bytes,
+				     state->profile_bytes,
 				     n);
-	SMBPROFILE_BYTES_ASYNC_SET_IDLE(state->ceph_aio_state.profile_bytes);
+	SMBPROFILE_BYTES_ASYNC_SET_IDLE(state->profile_bytes);
 
-	vfs_ceph_aio_start(&state->ceph_aio_state);
-	ret = vfs_ceph_ll_write(handle, cfh, offset, n, data);
-	vfs_ceph_aio_finish(&state->ceph_aio_state, ret);
+#if HAVE_CEPH_ASYNCIO
+	state->req = req;
+	state->data = discard_const(data);
+	state->len = n;
+	state->off = offset;
+	state->write = true;
+	vfs_ceph_aio_submit(handle, req, ev);
+	return req;
+#endif
+
+	vfs_ceph_aio_start(state);
+	ret = vfs_ceph_ll_write(handle, state->cfh, offset, n, data);
+	vfs_ceph_aio_finish(state, ret);
 	if (ret < 0) {
 		/* ceph returns -errno on error. */
 		tevent_req_error(req, -ret);
 		return tevent_req_post(req, ev);
 	}
 
-	state->bytes_written = ret;
 	tevent_req_done(req);
 	/* Return and schedule the completion of the call. */
 	return tevent_req_post(req, ev);
@@ -2460,19 +2809,23 @@ static struct tevent_req *vfs_ceph_pwrite_send(struct vfs_handle_struct *handle,
 static ssize_t vfs_ceph_pwrite_recv(struct tevent_req *req,
 				    struct vfs_aio_state *vfs_aio_state)
 {
-	struct vfs_ceph_pwrite_state *state =
-		tevent_req_data(req, struct vfs_ceph_pwrite_state);
+	struct vfs_ceph_aio_state *state = tevent_req_data(
+		req, struct vfs_ceph_aio_state);
 
-	DBG_DEBUG("[CEPH] pwrite_recv: bytes_written=%zd\n",
-		  state->bytes_written);
+	DBG_DEBUG("[CEPH] pwrite_recv: bytes_written=%zd\n", state->result);
 
-	SMBPROFILE_BYTES_ASYNC_END(state->ceph_aio_state.profile_bytes);
+	SMBPROFILE_BYTES_ASYNC_END(state->profile_bytes);
+
+#if HAVE_CEPH_ASYNCIO
+	return vfs_ceph_aio_recv(req, vfs_aio_state);
+#endif
 
 	if (tevent_req_is_unix_error(req, &vfs_aio_state->error)) {
 		return -1;
 	}
-	*vfs_aio_state = state->ceph_aio_state.vfs_aio_state;
-	return state->bytes_written;
+
+	*vfs_aio_state = state->vfs_aio_state;
+	return state->result;
 }
 
 static off_t vfs_ceph_lseek(struct vfs_handle_struct *handle,
@@ -2592,47 +2945,46 @@ out:
 	return status_code(result);
 }
 
-/*
- * Fake up an async ceph fsync by calling the synchronous API.
- */
-
-struct vfs_ceph_fsync_state {
-	struct vfs_ceph_aio_state ceph_aio_state;
-};
-
 static struct tevent_req *vfs_ceph_fsync_send(struct vfs_handle_struct *handle,
-					TALLOC_CTX *mem_ctx,
-					struct tevent_context *ev,
-					files_struct *fsp)
+					      TALLOC_CTX *mem_ctx,
+					      struct tevent_context *ev,
+					      files_struct *fsp)
 {
-	struct vfs_ceph_fh *cfh = NULL;
 	struct tevent_req *req = NULL;
-	struct vfs_ceph_fsync_state *state = NULL;
+	struct vfs_ceph_aio_state *state = NULL;
 	int ret = -1;
 
 	DBG_DEBUG("[CEPH] fsync_send(%p, %p)\n", handle, fsp);
 
-	req = tevent_req_create(mem_ctx, &state, struct vfs_ceph_fsync_state);
+	req = tevent_req_create(mem_ctx, &state, struct vfs_ceph_aio_state);
 	if (req == NULL) {
 		return NULL;
 	}
 
-	ret = vfs_ceph_fetch_io_fh(handle, fsp, &cfh);
-	if (ret != 0) {
-		tevent_req_error(req, -ret);
+	vfs_ceph_aio_prepare(handle, req, ev, fsp);
+	if (!tevent_req_is_in_progress(req)) {
 		return tevent_req_post(req, ev);
 	}
 
 	SMBPROFILE_BYTES_ASYNC_START(syscall_asys_fsync,
 				     profile_p,
-				     state->ceph_aio_state.profile_bytes,
+				     state->profile_bytes,
 				     0);
-	SMBPROFILE_BYTES_ASYNC_SET_IDLE(state->ceph_aio_state.profile_bytes);
+	SMBPROFILE_BYTES_ASYNC_SET_IDLE(state->profile_bytes);
 
-	/* Make sync call. */
-	vfs_ceph_aio_start(&state->ceph_aio_state);
-	ret = vfs_ceph_ll_fsync(handle, cfh, false);
-	vfs_ceph_aio_finish(&state->ceph_aio_state, ret);
+#if HAVE_CEPH_ASYNCIO
+	state->req = req;
+	state->data = NULL;
+	state->len = 0;
+	state->off = 0;
+	state->fsync = true;
+	vfs_ceph_aio_submit(handle, req, ev);
+	return req;
+#endif
+
+	vfs_ceph_aio_start(state);
+	ret = vfs_ceph_ll_fsync(handle, state->cfh, false);
+	vfs_ceph_aio_finish(state, ret);
 	if (ret != 0) {
 		/* ceph_fsync returns -errno on error. */
 		tevent_req_error(req, -ret);
@@ -2646,21 +2998,26 @@ static struct tevent_req *vfs_ceph_fsync_send(struct vfs_handle_struct *handle,
 }
 
 static int vfs_ceph_fsync_recv(struct tevent_req *req,
-				struct vfs_aio_state *vfs_aio_state)
+			       struct vfs_aio_state *vfs_aio_state)
 {
-	struct vfs_ceph_fsync_state *state = tevent_req_data(
-		req, struct vfs_ceph_fsync_state);
+	struct vfs_ceph_aio_state *state = tevent_req_data(
+		req, struct vfs_ceph_aio_state);
 
 	DBG_DEBUG("[CEPH] fsync_recv: error=%d duration=%" PRIu64 "\n",
-		  state->ceph_aio_state.vfs_aio_state.error,
-		  state->ceph_aio_state.vfs_aio_state.duration);
+		  state->vfs_aio_state.error,
+		  state->vfs_aio_state.duration);
 
-	SMBPROFILE_BYTES_ASYNC_END(state->ceph_aio_state.profile_bytes);
+	SMBPROFILE_BYTES_ASYNC_END(state->profile_bytes);
+
+#if HAVE_CEPH_ASYNCIO
+	return vfs_ceph_aio_recv(req, vfs_aio_state);
+#endif
 
 	if (tevent_req_is_unix_error(req, &vfs_aio_state->error)) {
 		return -1;
 	}
-	*vfs_aio_state = state->ceph_aio_state.vfs_aio_state;
+
+	*vfs_aio_state = state->vfs_aio_state;
 	return 0;
 }
 
@@ -2680,7 +3037,7 @@ static int vfs_ceph_stat(struct vfs_handle_struct *handle,
 		goto out;
 	}
 
-	result = vfs_ceph_iget_by_fname(handle, smb_fname, &iref);
+	result = vfs_ceph_iget(handle, smb_fname->base_name, 0, &iref);
 	if (result != 0) {
 		goto out;
 	}
@@ -2776,7 +3133,10 @@ static int vfs_ceph_lstat(struct vfs_handle_struct *handle,
 		goto out;
 	}
 
-	result = vfs_ceph_igetl(handle, smb_fname, &iref);
+	result = vfs_ceph_iget(handle,
+			       smb_fname->base_name,
+			       AT_SYMLINK_NOFOLLOW,
+			       &iref);
 	if (result != 0) {
 		goto out;
 	}
@@ -2796,18 +3156,32 @@ static int vfs_ceph_fntimes(struct vfs_handle_struct *handle,
 			    files_struct *fsp,
 			    struct smb_file_time *ft)
 {
-	struct vfs_ceph_fh *cfh = NULL;
 	int result;
 
 	START_PROFILE(syscall_fntimes);
-	result = vfs_ceph_fetch_fh(handle, fsp, &cfh);
-	if (result != 0) {
-		goto out;
-	}
 
-	result = vfs_ceph_ll_futimes(handle, cfh, ft);
-	if (result != 0) {
-		goto out;
+	if (!fsp->fsp_flags.is_pathref) {
+		struct vfs_ceph_fh *cfh = NULL;
+
+		result = vfs_ceph_fetch_io_fh(handle, fsp, &cfh);
+		if (result != 0) {
+			goto out;
+		}
+
+		result = vfs_ceph_ll_futimes(handle, cfh, ft);
+	} else {
+		struct vfs_ceph_iref iref = {0};
+
+		result = vfs_ceph_iget(handle,
+				       fsp->fsp_name->base_name,
+				       0,
+				       &iref);
+		if (result != 0) {
+			goto out;
+		}
+
+		result = vfs_ceph_ll_utimes(handle, &iref, ft);
+		vfs_ceph_iput(handle, &iref);
 	}
 
 	if (!is_omit_timespec(&ft->create_time)) {
@@ -2862,16 +3236,30 @@ static int vfs_ceph_fchmod(struct vfs_handle_struct *handle,
 			   mode_t mode)
 {
 	int result;
-	struct vfs_ceph_fh *cfh = NULL;
 
 	START_PROFILE(syscall_fchmod);
 	DBG_DEBUG("[CEPH] fchmod(%p, %p, %d)\n", handle, fsp, mode);
-	result = vfs_ceph_fetch_io_fh(handle, fsp, &cfh);
-	if (result != 0) {
-		goto out;
-	}
 
-	result = vfs_ceph_ll_fchmod(handle, cfh, mode);
+	if (!fsp->fsp_flags.is_pathref) {
+		struct vfs_ceph_fh *cfh = NULL;
+
+		result = vfs_ceph_fetch_io_fh(handle, fsp, &cfh);
+		if (result != 0) {
+			goto out;
+		}
+
+		result = vfs_ceph_ll_fchmod(handle, cfh, mode);
+	} else {
+		struct vfs_ceph_iref iref = {0};
+
+		result = vfs_ceph_iget(handle, fsp->fsp_name->base_name, 0, &iref);
+		if (result != 0) {
+			goto out;
+		}
+
+		result = vfs_ceph_ll_chmod(handle, &iref, mode);
+		vfs_ceph_iput(handle, &iref);
+	}
 out:
 	DBG_DEBUG("[CEPH] fchmod(...) = %d\n", result);
 	END_PROFILE(syscall_fchmod);
@@ -2884,15 +3272,33 @@ static int vfs_ceph_fchown(struct vfs_handle_struct *handle,
 			   gid_t gid)
 {
 	int result;
-	struct vfs_ceph_fh *cfh = NULL;
 
 	START_PROFILE(syscall_fchown);
 	DBG_DEBUG("[CEPH] fchown(%p, %p, %d, %d)\n", handle, fsp, uid, gid);
-	result = vfs_ceph_fetch_io_fh(handle, fsp, &cfh);
-	if (result != 0) {
-		goto out;
+
+	if (!fsp->fsp_flags.is_pathref) {
+		struct vfs_ceph_fh *cfh = NULL;
+
+		result = vfs_ceph_fetch_io_fh(handle, fsp, &cfh);
+		if (result != 0) {
+			goto out;
+		}
+
+		result = vfs_ceph_ll_fchown(handle, cfh, uid, gid);
+	} else {
+		struct vfs_ceph_iref iref = {0};
+
+		result = vfs_ceph_iget(handle,
+				       fsp->fsp_name->base_name,
+				       0,
+				       &iref);
+		if (result != 0) {
+			goto out;
+		}
+
+		result = vfs_ceph_ll_chown(handle, &iref, uid, gid);
+		vfs_ceph_iput(handle, &iref);
 	}
-	result = vfs_ceph_ll_fchown(handle, cfh, uid, gid);
 out:
 	DBG_DEBUG("[CEPH] fchown(...) = %d\n", result);
 	END_PROFILE(syscall_fchown);
@@ -2914,7 +3320,10 @@ static int vfs_ceph_lchown(struct vfs_handle_struct *handle,
 		  uid,
 		  gid);
 
-	result = vfs_ceph_igetl(handle, smb_fname, &iref);
+	result = vfs_ceph_iget(handle,
+			       smb_fname->base_name,
+			       AT_SYMLINK_NOFOLLOW,
+			       &iref);
 	if (result != 0) {
 		goto out;
 	}
@@ -3427,7 +3836,7 @@ static ssize_t vfs_ceph_fgetxattr(struct vfs_handle_struct *handle,
 	} else {
 		struct vfs_ceph_iref iref = {0};
 
-		ret = vfs_ceph_igetf(handle, fsp, &iref);
+		ret = vfs_ceph_iget(handle, fsp->fsp_name->base_name, 0, &iref);
 		if (ret != 0) {
 			goto out;
 		}
@@ -3470,7 +3879,7 @@ static ssize_t vfs_ceph_flistxattr(struct vfs_handle_struct *handle,
 	} else {
 		struct vfs_ceph_iref iref = {0};
 
-		ret = vfs_ceph_igetf(handle, fsp, &iref);
+		ret = vfs_ceph_iget(handle, fsp->fsp_name->base_name, 0, &iref);
 		if (ret != 0) {
 			goto out;
 		}
@@ -3509,7 +3918,7 @@ static int vfs_ceph_fremovexattr(struct vfs_handle_struct *handle,
 	} else {
 		struct vfs_ceph_iref iref = {0};
 
-		ret = vfs_ceph_igetf(handle, fsp, &iref);
+		ret = vfs_ceph_iget(handle, fsp->fsp_name->base_name, 0, &iref);
 		if (ret != 0) {
 			goto out;
 		}
@@ -3555,7 +3964,7 @@ static int vfs_ceph_fsetxattr(struct vfs_handle_struct *handle,
 	} else {
 		struct vfs_ceph_iref iref = {0};
 
-		ret = vfs_ceph_igetf(handle, fsp, &iref);
+		ret = vfs_ceph_iget(handle, fsp->fsp_name->base_name, 0, &iref);
 		if (ret != 0) {
 			goto out;
 		}
