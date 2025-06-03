@@ -37,6 +37,7 @@ Build-Depends-Arch:
 	libcephfs-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
 	librados-dev  [amd64 arm64 mips64el ppc64el riscv64 s390x],
 	libcmocka-dev,
+	libcrypt-dev,
 	libcups2-dev,
 	libdbus-1-dev,
 	libglusterfs-dev [amd64 arm64 loong64 mips64el ppc64 ppc64el riscv64 s390x sparc64],
