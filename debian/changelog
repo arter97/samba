@@ -1,3 +1,27 @@
+samba (2:4.22.2+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15707:
+     CVE-2025-0620: smbd doesn't pick up group membership changes when
+     re-authenticating an expired SMB session
+     Closes: #1107248
+   - https://bugzilla.samba.org/show_bug.cgi?id=15727:
+     net ad join fails with
+    "Failed to join domain: failed to create kerberos keytab"
+   - https://bugzilla.samba.org/show_bug.cgi?id=15819:
+     vfs_ceph_snapshots fails to list snapshots for entries at any level
+     beyond share root
+   - https://bugzilla.samba.org/show_bug.cgi?id=15851:
+     dcerpcd not able to bind to listening port
+   - https://bugzilla.samba.org/show_bug.cgi?id=15858:
+     CTDB does not put nodes running NFS into grace on graceful shutdown
+   - https://bugzilla.samba.org/show_bug.cgi?id=15861:
+     Profile sync fails due to Directory Leases
+  * d/control: add libcrypt-dev build-dependency (Closes: #1106959)
+  * add-support-for-bind-9.20.patch (Closes: #1107139)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 05 Jun 2025 19:12:34 +0300
+
 samba (2:4.22.1+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
