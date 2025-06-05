@@ -145,6 +145,10 @@ NTSTATUS recursive_rmdir(TALLOC_CTX *ctx,
 bool has_other_nonposix_opens(struct share_mode_lock *lck,
 			      struct files_struct *fsp);
 bool has_nonposix_opens(struct share_mode_lock *lck);
+bool has_delete_opens(struct files_struct *fsp,
+		      struct share_mode_lock *lck,
+		      bool *delete_access,
+		      bool *delete_pending);
 
 /* The following definitions come from smbd/conn.c  */
 
@@ -1243,6 +1247,7 @@ struct tevent_req *delay_for_handle_lease_break_send(
 	struct tevent_context *ev,
 	struct timeval timeout,
 	struct files_struct *fsp,
+	uint32_t access_mask,
 	bool recursive,
 	struct share_mode_lock **lck);
 
