@@ -84,7 +84,7 @@ Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
 Depends: passwd,
          procps,
-         samba-common (= ${source:Version}),
+         samba-common,
          samba-common-bin (=${binary:Version}),
          ${misc:Depends},
          ${python3:Depends},
@@ -176,7 +176,7 @@ Description: common files used by both the Samba server and client
 
 Package: samba-common-bin
 Architecture: any
-Depends: samba-common (= ${source:Version}),
+Depends: samba-common,
          ${misc:Depends},
          ${python3:Depends},
          ${shlibs:Depends}
@@ -258,7 +258,7 @@ Description: Samba files needed for AD domain provision
 
 Package: smbclient
 Architecture: any
-Depends: samba-common (= ${source:Version}),
+Depends: samba-common,
          samba-libs (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
@@ -476,7 +476,7 @@ Package: winbind
 Pre-Depends: ${misc:Pre-Depends}
 Architecture: any
 Multi-Arch: allowed
-Depends: samba-common (= ${source:Version}),
+Depends: samba-common,
          samba-common-bin (=${binary:Version}),
 # wbinfo (linked with libwbclient) which should use the same protocol
          libwbclient0 (=${binary:Version}),
