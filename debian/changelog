@@ -1,3 +1,21 @@
+samba (2:4.22.3+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release, mostly targetting the Jul-08 update
+    for Active Directory Domain Controllers
+    (https://bugzilla.samba.org/show_bug.cgi?id=15876, Closes: #1108904):
+   - https://bugzilla.samba.org/show_bug.cgi?id=15854:
+     samba-tool cannot add user to group whose name
+     is exactly 16 characters long
+   - https://bugzilla.samba.org/show_bug.cgi?id=15869:
+     Startup messages of rpc daemons fills /var/log/messages
+   - https://bugzilla.samba.org/show_bug.cgi?id=15876:
+     Windows security hardening locks out schannel'ed netlogon
+     dc calls like netr_DsRGetDCName
+  * update d/copyright to point to https://www.gnu.org/licenses/
+    instead of FSF postal address
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Mon, 07 Jul 2025 23:16:23 +0300
+
 samba (2:4.22.2+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
