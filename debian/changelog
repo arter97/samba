@@ -1,3 +1,19 @@
+samba (2:4.22.3+dfsg-2) unstable; urgency=medium
+
+  * Revert "d/control,d/rules: ensure we use the most recent talloc/tevent/tdb"
+    There's no need for samba-libs to depend on exact versions of support libs
+    anymore, since 4.21.3+dfsg-5 (where the mistake has been made) is long gone
+  * Revert "d/control: add conflicts/breaks for libtevent0t64 on mjt repo"
+    This Breaks was special and temporary, and not useful for debian archive at
+    all (it was only needed for mjt's own repository where the wrong package
+    name slipped out once).  Remove this cruft for trixie
+  * python3-talloc.symbols[.in] -- provide long-forgotten symbols file, so that
+    versioned dependency on python3-talloc (mostly for python3-samba) will be
+    less strict.  For smoother upgrades
+  * document forgotten change in previous changelog entry
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 09 Jul 2025 17:08:31 +0300
+
 samba (2:4.22.3+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release, mostly targetting the Jul-08 update
