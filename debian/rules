@@ -366,6 +366,15 @@ execute_after_dh_fixperms-arch:
 	$(call ifpkg, smbclient, chmod 0700 debian/smbclient/usr/libexec/samba/smbspool_krb5_wrapper)
 
 override_dh_makeshlibs:
+	# generate symbols file with correct cpython suffix in there
+	{ \
+	   suff=$$(${DEB_HOST_MULTIARCH}-python3-config --extension-suffix | tr _ -); \
+	   SUFF=$$(echo "$${suff%.so}" | tr a-z- A-Z_); \
+	   echo "libpytalloc-util$${suff}.2 #PACKAGE# #MINVER#"; \
+	   echo " PYTALLOC_UTIL$${SUFF}_${talloc-upstream-version}@PYTALLOC_UTIL$${SUFF}_${talloc-upstream-version} ${talloc-version}"; \
+	   cat debian/python3-talloc.symbols.in; \
+	} > debian/python3-talloc.symbols
+
 	# create symbols and shlibs files in separate wrapper script
 	# to deal with private libraries
 	debian/genshlibs \
@@ -374,6 +383,8 @@ override_dh_makeshlibs:
 		$(addsuffix =${tevent-version},${tevent-packages}) \
 		$(addsuffix =${tdb-version},${tdb-packages}) \
 		$(addsuffix =${mitkrb5-samba-ver}, ${mitkrb5-dep-pkgs})
+
+	rm -f debian/python3-talloc.symbols
 
 # depcheck package, dep1|dep2... -- dependencies which should NOT be there
 depcheck = if egrep '^shlibs.Depends=.* ($(strip $2)) ' debian/$(strip $1).substvars; \
