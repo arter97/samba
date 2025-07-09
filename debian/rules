@@ -80,9 +80,6 @@ tdb-packages := libtdb1 tdb-tools libtdb-dev python3-tdb
 
 extra-version-vars = \
 	-Vldb:Version=${ldb-version} \
-	-Vtalloc:Version=${talloc-version} \
-	-Vtevent:Version=${tevent-version} \
-	-Vtdb:Version=${tdb-version} \
 
 omit-pkgs =
 

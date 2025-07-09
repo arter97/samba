@@ -136,12 +136,6 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
 # just require libldb version of the same build
 # https://lists.samba.org/archive/samba-technical/2023-September/138422.html
  libldb2 (= ${ldb:Version}),
-# other libs built from samba sources (it'd be nice to have dpkg-shlibdeps generate these).
-# this helps to overcome the wrong version mishap (4.21.3+dfsg-5), can be dropped for trixie
- libtalloc2 (>= ${talloc:Version}),
- libtevent0t64 (>= ${tevent:Version}) <!pkg.samba.before-trixie>,
- libtevent0    (>= ${tevent:Version}) < pkg.samba.before-trixie>,
- libtdb1 (>= ${tdb:Version}),
 Replaces:
 # libsamba-util.so &deps moved from libwbclient0 to samba-libs in 4.16.1+dfsg-7
  libwbclient0 (<< 2:4.16.1+dfsg-7~),
