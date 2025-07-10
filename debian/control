@@ -478,7 +478,9 @@ Depends: samba-common,
          passwd,
          ${misc:Depends},
          ${shlibs:Depends}
-Enhances: libkrb5-26-heimdal <!pkg.samba.mitkrb5>
+Enhances:
+         libkrb5-26t64-heimdal <!pkg.samba.mitkrb5 !pkg.samba.before-trixie>,
+         libkrb5-26-heimdal    <!pkg.samba.mitkrb5  pkg.samba.before-trixie>,
 Suggests: libnss-winbind, libpam-winbind
 # 4.16.6+dfsg-5 idmap_{script,rfc2307}.8 moved samba{,-libs} => winbind
 Breaks:   samba (<< 2:4.16.6+dfsg-5~), samba-libs (<< 2:4.16.6+dfsg-5~),
