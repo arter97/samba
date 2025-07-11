@@ -1,3 +1,25 @@
+samba (2:4.22.3+dfsg-3) UNRELEASED; urgency=medium
+
+  [ Sascha Lucas ]
+  * winbind pam-config: fix account section to actually execute pam_winbind
+    entries after usually successful cal to pam_unix, in a way how it's done
+    in sssd (Closes: #907318)
+
+  [ Douglas Bagnall ]
+  * debian/panic-action: make the wording more user-friendly and steer users
+    towards configuration and logs (Closes: #1089853)
+
+  [ Michael Tokarev ]
+  * d/python3-talloc.symbols.in: add forgotten epoch number for recent versions
+    (this doesn't actually affect anything since there were no new symbols with
+    these versions, but it's better to stay correct)
+  * d/control: fix winbind:Enhances for libkrb5-26-heimdal which
+    is libkrb5-26t64-heimdal in trixie and up, keeping in mind possible
+    backporting to older debian/ubuntu versions (before-trixie build profile)
+  * libads-fix-get_kdc_ip_string.patch (upstream fix for #1109005)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 15 Jul 2025 12:40:40 +0300
+
 samba (2:4.22.3+dfsg-2) unstable; urgency=medium
 
   * Revert "d/control,d/rules: ensure we use the most recent talloc/tevent/tdb"
