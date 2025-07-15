@@ -370,8 +370,10 @@ override_dh_makeshlibs:
 	{ \
 	   suff=$$(${DEB_HOST_MULTIARCH}-python3-config --extension-suffix | tr _ -); \
 	   SUFF=$$(echo "$${suff%.so}" | tr a-z- A-Z_); \
+	   SYM="PYTALLOC_UTIL$${SUFF}_${talloc-upstream-version}"; \
+	   deb_ver="${talloc-version}"; \
 	   echo "libpytalloc-util$${suff}.2 #PACKAGE# #MINVER#"; \
-	   echo " PYTALLOC_UTIL$${SUFF}_${talloc-upstream-version}@PYTALLOC_UTIL$${SUFF}_${talloc-upstream-version} ${talloc-version}"; \
+	   echo " $${SYM}@$${SYM} $${deb_ver%%[-+]*}"; \
 	   cat debian/python3-talloc.symbols.in; \
 	} > debian/python3-talloc.symbols
 
