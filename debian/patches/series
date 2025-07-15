@@ -24,3 +24,4 @@ ctdb-use-run-instead-of-var-run.patch
 revert-ldb-use-hexchars_upper-from-replace.h.patch
 replace-xpg-strerror.patch
 add-support-for-bind-9.20.patch
+libads-fix-get_kdc_ip_string.patch
