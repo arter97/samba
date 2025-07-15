@@ -1,4 +1,4 @@
-samba (2:4.22.3+dfsg-3) UNRELEASED; urgency=medium
+samba (2:4.22.3+dfsg-3) unstable; urgency=medium
 
   [ Sascha Lucas ]
   * winbind pam-config: fix account section to actually execute pam_winbind
@@ -18,7 +18,7 @@ samba (2:4.22.3+dfsg-3) UNRELEASED; urgency=medium
     backporting to older debian/ubuntu versions (before-trixie build profile)
   * libads-fix-get_kdc_ip_string.patch (upstream fix for #1109005)
 
- -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 15 Jul 2025 12:40:40 +0300
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 15 Jul 2025 12:42:04 +0300
 
 samba (2:4.22.3+dfsg-2) unstable; urgency=medium
 
