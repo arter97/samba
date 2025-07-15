@@ -17,6 +17,7 @@ samba (2:4.22.3+dfsg-3) unstable; urgency=medium
     is libkrb5-26t64-heimdal in trixie and up, keeping in mind possible
     backporting to older debian/ubuntu versions (before-trixie build profile)
   * libads-fix-get_kdc_ip_string.patch (upstream fix for #1109005)
+    (Closes: #1109005)
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 15 Jul 2025 12:42:04 +0300
 
