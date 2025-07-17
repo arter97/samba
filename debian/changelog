@@ -1,3 +1,11 @@
+samba (2:4.22.3+dfsg-4) unstable; urgency=medium
+
+  * fix python3-talloc.symbols generation to not have -debian_revision
+    or +dfsg/+samba suffix in the version number - just the epoch if any
+    and the upstream version (fix lintian error)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 17 Jul 2025 13:52:35 +0300
+
 samba (2:4.22.3+dfsg-3) unstable; urgency=medium
 
   [ Sascha Lucas ]
