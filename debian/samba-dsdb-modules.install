@@ -41,6 +41,7 @@ usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/show_deleted.so
 usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/subtree_delete.so
 usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/subtree_rename.so
 usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/tombstone_reanimate.so
+usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/trust_notify.so
 usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/unique_object_sids.so
 usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/update_keytab.so
 usr/lib/${DEB_HOST_MULTIARCH}/samba/ldb/vlv.so
