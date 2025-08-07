@@ -51,6 +51,8 @@ export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__${DEB_HOST_ARCH_OS}_${DEB_HOST
 endif
 endif
 
+PYTHONDIR = /usr/lib/python3/dist-packages
+
 DESTDIR = ${CURDIR}/debian/tmp
 
 before-trixie := $(filter pkg.samba.before-trixie, ${DEB_BUILD_PROFILES})
@@ -115,6 +117,8 @@ config-args = \
 	--disable-rpath --disable-rpath-install \
 	--private-libraries=!ldb \
 	--bundled-libraries=talloc,tevent,tdb \
+	--pythondir=${PYTHONDIR} \
+	--pythonarchdir=${PYTHONDIR} \
 	\
 	--with-cluster-support \
 	--enable-etcd-reclock \
@@ -261,10 +265,9 @@ override_dh_auto_install-arch:
 	# get list of files in build log
 	find debian/tmp
 	# Included in python-tevent?
-	rm debian/tmp/usr/lib/python*/*-packages/_tevent.*
-	rm debian/tmp/usr/lib/python*/*-packages/tevent.py
+	rm debian/tmp${PYTHONDIR}/_tevent.* debian/tmp/${PYTHONDIR}/tevent.py
 	# selftests: either not needed or should go to -testsuite
-	rm -rf debian/tmp/usr/lib/python3/dist-packages/samba/tests/
+	rm -rf debian/tmp${PYTHONDIR}/samba/tests/
 	# pam stuff
 	install -Dp -m0644 debian/winbind.pam-config debian/tmp/usr/share/pam-configs/winbind
 	mv debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/libnss_* debian/tmp/lib/$(DEB_HOST_MULTIARCH)/
