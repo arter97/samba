@@ -44,6 +44,8 @@ libtevent.so.0 #PACKAGE# #MINVER#
  TEVENT_0.16.0@TEVENT_0.16.0 0.16.0
  TEVENT_0.16.1@TEVENT_0.16.1 2:0.16.1
  TEVENT_0.16.2@TEVENT_0.16.2 2:0.16.2
+ TEVENT_0.17.0@TEVENT_0.17.0 2:0.17.0
+ TEVENT_0.17.1@TEVENT_0.17.1 2:0.17.1
  __tevent_req_create@TEVENT_0.15.0 0.15.0
  _tevent_add_fd@TEVENT_0.9.9 0.9.9
  _tevent_add_signal@TEVENT_0.9.9 0.9.9
@@ -90,6 +92,7 @@ libtevent.so.0 #PACKAGE# #MINVER#
  tevent_common_fd_set_close_fn@TEVENT_0.9.9 0.9.9
  tevent_common_fd_set_flags@TEVENT_0.9.9 0.9.9
  tevent_common_have_events@TEVENT_0.9.30 0.9.30
+ tevent_common_immediate_cancel@TEVENT_0.17.0 2:0.17.1
  tevent_common_invoke_fd_handler@TEVENT_0.9.37 0.9.37
  tevent_common_invoke_immediate_handler@TEVENT_0.9.37 0.9.37
  tevent_common_invoke_signal_handler@TEVENT_0.9.37 0.9.37
@@ -107,6 +110,7 @@ libtevent.so.0 #PACKAGE# #MINVER#
  tevent_context_init_ops@TEVENT_0.9.16 0.9.16
  tevent_context_is_wrapper@TEVENT_0.9.37 0.9.37
  tevent_context_same_loop@TEVENT_0.9.37 0.9.37
+ tevent_context_set_wait_timeout@TEVENT_0.17.0 2:0.17.1
  tevent_debug@TEVENT_0.9.9 0.9.9
  tevent_fd_get_flags@TEVENT_0.9.9 0.9.9
  tevent_fd_get_tag@TEVENT_0.11.0 0.11.0
@@ -169,6 +173,7 @@ libtevent.so.0 #PACKAGE# #MINVER#
  tevent_req_set_endtime@TEVENT_0.9.9 0.9.9
  tevent_req_set_print_fn@TEVENT_0.9.9 0.9.9
  tevent_req_set_profile@TEVENT_0.9.37 0.9.37
+ tevent_reset_immediate@TEVENT_0.17.0 2:0.17.1
  tevent_sa_info_queue_count@TEVENT_0.9.20 0.9.25
  tevent_set_abort_fn@TEVENT_0.9.9 0.9.9
  tevent_set_debug@TEVENT_0.9.9 0.9.9
