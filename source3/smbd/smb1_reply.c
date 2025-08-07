@@ -803,7 +803,6 @@ void reply_getatr(struct smb_request *req)
 		struct files_struct *dirfsp = NULL;
 		uint32_t ucf_flags = ucf_flags_from_smb_request(req);
 		NTTIME twrp = 0;
-		bool ask_sharemode;
 
 		if (ucf_flags & UCF_GMT_PATHNAME) {
 			extract_snapshot_token(fname, &twrp);
@@ -838,19 +837,6 @@ void reply_getatr(struct smb_request *req)
 
 		mode = fdos_mode(smb_fname->fsp);
 		size = smb_fname->st.st_ex_size;
-
-		ask_sharemode = fsp_search_ask_sharemode(smb_fname->fsp);
-		if (ask_sharemode) {
-			struct timespec write_time_ts;
-			struct file_id fileid;
-
-			ZERO_STRUCT(write_time_ts);
-			fileid = vfs_file_id_from_sbuf(conn, &smb_fname->st);
-			get_file_infos(fileid, 0, NULL, &write_time_ts);
-			if (!is_omit_timespec(&write_time_ts)) {
-				update_stat_ex_mtime(&smb_fname->st, write_time_ts);
-			}
-		}
 
 		mtime = convert_timespec_to_time_t(smb_fname->st.st_ex_mtime);
 		if (mode & FILE_ATTRIBUTE_DIRECTORY) {
@@ -1227,8 +1213,7 @@ static bool get_dir_entry(TALLOC_CTX *ctx,
 			  off_t *_size,
 			  uint32_t *_mode,
 			  struct timespec *_date,
-			  bool check_descend,
-			  bool ask_sharemode)
+			  bool check_descend)
 {
 	char *fname = NULL;
 	struct smb_filename *smb_fname = NULL;
@@ -1241,7 +1226,6 @@ again:
 				   mask,
 				   dirtype,
 				   check_descend,
-				   ask_sharemode,
 				   true,
 				   smbd_dirptr_8_3_match_fn,
 				   conn,
@@ -1491,8 +1475,7 @@ void reply_search(struct smb_request *req)
 					&size,
 					&mode,
 					&date,
-					check_descend,
-					false);
+					check_descend);
 				TALLOC_FREE(fname);
 				if (!ok) {
 					goto SearchEmpty;
@@ -1542,7 +1525,6 @@ void reply_search(struct smb_request *req)
 		unsigned int i;
 		size_t hdr_size = ((uint8_t *)smb_buf(req->outbuf) + 3 - req->outbuf);
 		size_t available_space = xconn->smb1.sessions.max_send - hdr_size;
-		bool ask_sharemode;
 
 		maxentries = MIN(maxentries, available_space/DIR_STRUCT_SIZE);
 
@@ -1551,8 +1533,6 @@ void reply_search(struct smb_request *req)
 		if (in_list(directory, lp_dont_descend(ctx, lp_sub, SNUM(conn)),True)) {
 			check_descend = True;
 		}
-
-		ask_sharemode = fsp_search_ask_sharemode(fsp);
 
 		for (i=numentries;(i<maxentries) && !finished;i++) {
 			finished = !get_dir_entry(ctx,
@@ -1564,8 +1544,7 @@ void reply_search(struct smb_request *req)
 						  &size,
 						  &mode,
 						  &date,
-						  check_descend,
-						  ask_sharemode);
+						  check_descend);
 			if (!finished) {
 				char buf[DIR_STRUCT_SIZE];
 				memcpy(buf,status,21);
@@ -1928,7 +1907,7 @@ void reply_open_and_X(struct smb_request *req)
 #endif
 	int smb_ofun;
 	uint32_t fattr=0;
-	int mtime=0;
+	time_t mtime=0;
 	int smb_action = 0;
 	struct files_struct *dirfsp = NULL;
 	files_struct *fsp;
@@ -3098,7 +3077,6 @@ void reply_readbraw(struct smb_request *req)
 			(uint64_t)startpos,
 			(uint64_t)maxcount,
 			READ_LOCK,
-			lp_posix_cifsu_locktype(fsp),
 			&lock);
 
 	if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &lock)) {
@@ -3368,7 +3346,6 @@ Returning short read of maximum allowed for compatibility with Windows 2000.\n",
 			(uint64_t)startpos,
 			(uint64_t)numtoread,
 			READ_LOCK,
-			lp_posix_cifsu_locktype(fsp),
 			&lock);
 
 	if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &lock)) {
@@ -3449,7 +3426,6 @@ static void send_file_readX(connection_struct *conn, struct smb_request *req,
 			(uint64_t)startpos,
 			(uint64_t)smb_maxcnt,
 			READ_LOCK,
-			lp_posix_cifsu_locktype(fsp),
 			&lock);
 
 	if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &lock)) {
@@ -3836,7 +3812,7 @@ void error_to_writebrawerr(struct smb_request *req)
 
 	reply_smb1_outbuf(req, 1, 0);
 
-	memcpy(req->outbuf, old_outbuf, smb_size);
+	memmove(req->outbuf, old_outbuf, smb_size);
 	TALLOC_FREE(old_outbuf);
 }
 
@@ -3975,7 +3951,6 @@ void reply_writebraw(struct smb_request *req)
 				(uint64_t)startpos,
 				(uint64_t)tcount,
 				WRITE_LOCK,
-				lp_posix_cifsu_locktype(fsp),
 				&lock);
 
 		if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &lock)) {
@@ -4195,7 +4170,6 @@ void reply_writeunlock(struct smb_request *req)
 				(uint64_t)startpos,
 				(uint64_t)numtowrite,
 				WRITE_LOCK,
-				lp_posix_cifsu_locktype(fsp),
 				&lock);
 
 		if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &lock)) {
@@ -4331,7 +4305,6 @@ void reply_write(struct smb_request *req)
 				(uint64_t)startpos,
 				(uint64_t)numtowrite,
 				WRITE_LOCK,
-				lp_posix_cifsu_locktype(fsp),
 				&lock);
 
 		if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &lock)) {
@@ -4348,9 +4321,12 @@ void reply_write(struct smb_request *req)
 	 */
 
 	if(numtowrite == 0) {
+		struct file_modified_state state;
+
 		/*
 		 * This is actually an allocate call, and set EOF. JRA.
 		 */
+		prepare_file_modified(fsp, &state);
 		nwritten = vfs_allocate_file_space(fsp, (off_t)startpos);
 		if (nwritten < 0) {
 			reply_nterror(req, NT_STATUS_DISK_FULL);
@@ -4361,7 +4337,7 @@ void reply_write(struct smb_request *req)
 			reply_nterror(req, NT_STATUS_DISK_FULL);
 			goto out;
 		}
-		trigger_write_time_update_immediate(fsp);
+		mark_file_modified(fsp, true, &state);
 	} else {
 		nwritten = write_file(req,fsp,data,startpos,numtowrite);
 	}
@@ -4632,7 +4608,6 @@ void reply_write_and_X(struct smb_request *req)
 				(uint64_t)startpos,
 				(uint64_t)numtowrite,
 				WRITE_LOCK,
-				lp_posix_cifsu_locktype(fsp),
 				&lock);
 
 		if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &lock)) {
@@ -4788,10 +4763,6 @@ static struct files_struct *file_sync_one_fn(struct files_struct *fsp,
 	}
 	sync_file(conn, fsp, True /* write through */);
 
-	if (fsp->fsp_flags.modified) {
-		trigger_write_time_update_immediate(fsp);
-	}
-
 	return NULL;
 }
 
@@ -4829,9 +4800,6 @@ void reply_flush(struct smb_request *req)
 			reply_nterror(req, status);
 			END_PROFILE(SMBflush);
 			return;
-		}
-		if (fsp->fsp_flags.modified) {
-			trigger_write_time_update_immediate(fsp);
 		}
 	}
 
@@ -5341,7 +5309,6 @@ void reply_writeclose(struct smb_request *req)
 				(uint64_t)startpos,
 				(uint64_t)numtowrite,
 				WRITE_LOCK,
-				lp_posix_cifsu_locktype(fsp),
 				&lock);
 
 		if (!SMB_VFS_STRICT_LOCK_CHECK(conn, fsp, &lock)) {
@@ -6983,10 +6950,6 @@ void reply_setattrE(struct smb_request *req)
 	if (!NT_STATUS_IS_OK(status)) {
 		reply_nterror(req, status);
 		goto out;
-	}
-
-	if (fsp->fsp_flags.modified) {
-		trigger_write_time_update_immediate(fsp);
 	}
 
 	DEBUG( 3, ( "reply_setattrE %s actime=%u modtime=%u "

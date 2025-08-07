@@ -124,7 +124,6 @@ NTSTATUS smbd_do_qfilepathinfo(connection_struct *conn,
 			       files_struct *fsp,
 			       struct smb_filename *smb_fname,
 			       bool delete_pending,
-			       struct timespec write_time_ts,
 			       struct ea_list *ea_list,
 			       uint16_t flags2,
 			       unsigned int max_data_bytes,
@@ -163,15 +162,13 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 			 int *ret_data_len);
 
 NTSTATUS smbd_dirptr_lanman2_entry(TALLOC_CTX *ctx,
-			       connection_struct *conn,
-			       struct dptr_struct *dirptr,
+			       struct files_struct *dirfsp,
 			       uint16_t flags2,
 			       const char *path_mask,
 			       uint32_t dirtype,
 			       int info_level,
 			       int requires_resume_key,
 			       bool dont_descend,
-			       bool ask_sharemode,
 			       bool get_dosmode,
 			       uint8_t align,
 			       bool do_pad,
@@ -213,6 +210,7 @@ bool smbd_smb2_is_compound(const struct smbd_smb2_request *req);
 bool smbd_smb2_is_last_in_compound(const struct smbd_smb2_request *req);
 
 NTSTATUS smbd_add_connection(struct smbXsrv_client *client, int sock_fd,
+			     enum smb_transport_type transport_type,
 			     NTTIME now, struct smbXsrv_connection **_xconn);
 
 NTSTATUS reply_smb2002(struct smb_request *req, uint16_t choice);
@@ -347,6 +345,7 @@ struct smbXsrv_connection {
 		struct tevent_queue *shutdown_wait_queue;
 		int sock;
 		struct tevent_fd *fde;
+		enum smb_transport_type type;
 
 		struct {
 			bool got_session;
@@ -657,6 +656,7 @@ struct smbd_smb2_request {
 	struct timeval request_time;
 
 	SMBPROFILE_IOBYTES_ASYNC_STATE(profile);
+	SMBPROFILE_IOBYTES_ASYNC_STATE(profile_x);
 
 	/* fake smb1 request. */
 	struct smb_request *smb1req;
@@ -834,6 +834,11 @@ void smbd_init_globals(void);
  The buffer we keep around whilst an aio request is in process.
 *****************************************************************************/
 
+struct file_modified_state {
+	bool valid;
+	struct stat_ex st;
+};
+
 struct aio_extra {
 	files_struct *fsp;
 	struct smb_request *smbreq;
@@ -842,6 +847,7 @@ struct aio_extra {
 	size_t nbyte;
 	off_t offset;
 	bool write_through;
+	struct file_modified_state modified_state;
 };
 
 #define SMBD_TMPNAME_PREFIX ".::TMPNAME:"

@@ -47,11 +47,17 @@
 #include "lib/socket/netif.h"
 #include "lib/util/util_str_escape.h"
 #include "lib/param/loadparm.h"
+#include "libcli/lsarpc/util_lsarpc.h"
 
 #define DCESRV_INTERFACE_NETLOGON_BIND(context, iface) \
        dcesrv_interface_netlogon_bind(context, iface)
 
 #undef strcasecmp
+
+static bool sam_rodc_access_check(struct ldb_context *sam_ctx,
+				  TALLOC_CTX *mem_ctx,
+				  const struct dom_sid *user_sid,
+				  struct ldb_dn *obj_dn);
 
 /*
  * This #define allows the netlogon interface to accept invalid
@@ -1414,6 +1420,250 @@ static void dcesrv_netr_LogonSamLogon_base_krb5_done(struct tevent_req *subreq);
 static void dcesrv_netr_LogonSamLogon_base_reply(
 	struct dcesrv_netr_LogonSamLogon_base_state *state);
 
+static NTSTATUS dcesrv_netr_NTLMv2_RESPONSE_verify(
+			struct dcesrv_call_state *dce_call,
+			const struct auth_usersupplied_info *user_info,
+			const struct netlogon_creds_CredentialState *creds)
+{
+	TALLOC_CTX *frame = talloc_stackframe();
+	struct loadparm_context *lp_ctx = dce_call->conn->dce_ctx->lp_ctx;
+	const char *workgroup = lpcfg_workgroup(lp_ctx);
+	NTSTATUS status;
+	size_t num_trusts = 0;
+	struct trust_forest_domain_info *trusts = NULL;
+	char *computer_name = NULL;
+
+	if (creds->secure_channel_type == SEC_CHAN_DNS_DOMAIN ||
+	    creds->secure_channel_type == SEC_CHAN_DOMAIN)
+	{
+		static const char * const trust_attrs[] = {
+			"objectGUID",
+			"securityIdentifier",
+			"flatName",
+			"trustPartner",
+			"trustType",
+			"trustAttributes",
+			"trustDirection",
+			"msDS-TrustForestTrustInfo",
+			NULL
+		};
+		struct trust_forest_domain_info *remote_d = NULL;
+		struct ldb_result *trusts_res = NULL;
+		struct ldb_context *sam_ctx = NULL;
+		size_t ti;
+
+		sam_ctx = dcesrv_samdb_connect_as_system(frame,
+							 dce_call);
+		if (sam_ctx == NULL) {
+			TALLOC_FREE(frame);
+			return NT_STATUS_DS_UNAVAILABLE;
+		}
+
+		/* fetch all trusted domain objects */
+		status = dsdb_trust_search_tdos(sam_ctx,
+						NULL,
+						trust_attrs,
+						frame,
+						&trusts_res);
+		if (!NT_STATUS_IS_OK(status)) {
+			TALLOC_FREE(frame);
+			return status;
+		}
+
+		trusts = talloc_zero_array(frame,
+					   struct trust_forest_domain_info,
+					   trusts_res->count + 1);
+		if (trusts == NULL) {
+			TALLOC_FREE(frame);
+			return NT_STATUS_NO_MEMORY;
+		}
+
+		/*
+		 * information about our own forest/domain
+		 */
+		status = dsdb_trust_local_tdo_info(trusts,
+						   sam_ctx,
+						   &trusts[0].tdo);
+		if (!NT_STATUS_IS_OK(status)) {
+			TALLOC_FREE(frame);
+			return status;
+		}
+		status = dsdb_trust_xref_forest_info(trusts,
+						     sam_ctx,
+						     &trusts[0].fti);
+		if (!NT_STATUS_IS_OK(status)) {
+			TALLOC_FREE(frame);
+			return status;
+		}
+		trusts[0].is_local_forest = true;
+
+		for (ti = 0; ti < trusts_res->count; ti++) {
+			struct trust_forest_domain_info *d =
+				&trusts[ti+1];
+			struct ldb_message *msg = trusts_res->msgs[ti];
+			struct ForestTrustInfo *fti = NULL;
+			struct GUID tdo_guid;
+
+			tdo_guid = samdb_result_guid(msg, "objectGUID");
+
+			status = dsdb_trust_parse_tdo_info(trusts,
+							   msg,
+							   &d->tdo);
+			if (!NT_STATUS_IS_OK(status)) {
+				TALLOC_FREE(frame);
+				return status;
+			}
+
+			status = dsdb_trust_parse_forest_info(trusts,
+							      msg,
+							      &fti);
+			if (NT_STATUS_EQUAL(status, NT_STATUS_NOT_FOUND)) {
+				fti = NULL;
+				status = NT_STATUS_OK;
+			}
+			if (!NT_STATUS_IS_OK(status)) {
+				TALLOC_FREE(frame);
+				return status;
+			}
+
+			if (fti != NULL) {
+				status = trust_forest_info_to_lsa2(trusts,
+								   fti,
+								   &d->fti);
+				if (!NT_STATUS_IS_OK(status)) {
+					TALLOC_FREE(frame);
+					return status;
+				}
+			}
+
+			if (GUID_equal(&creds->tdo_guid, &tdo_guid)) {
+				d->is_checked_trust = true;
+				remote_d = d;
+			}
+		}
+
+		if (remote_d == NULL) {
+			/*
+			 * We should at least find the tdo
+			 * of the remote domain
+			 */
+			TALLOC_FREE(frame);
+			return NT_STATUS_TRUSTED_DOMAIN_FAILURE;
+		}
+
+		num_trusts = trusts_res->count + 1;
+	}
+
+	status = NTLMv2_RESPONSE_verify_netlogon_creds(
+					user_info->client.account_name,
+					user_info->client.domain_name,
+					user_info->password.response.nt,
+					creds,
+					workgroup,
+					num_trusts,
+					trusts,
+					frame,
+					&computer_name);
+	if (!NT_STATUS_IS_OK(status)) {
+		TALLOC_FREE(frame);
+		return status;
+	}
+
+	/*
+	 * MS-NRPC 3.5.4.5.1.2 RODC server cachability validation
+	 */
+	if (creds->secure_channel_type == SEC_CHAN_RODC &&
+	    computer_name != NULL)
+	{
+		static const char * const no_attrs[] = {
+			NULL
+		};
+		struct ldb_context *sam_ctx = NULL;
+		struct ldb_dn *domain_dn = NULL;
+		struct ldb_result *res = NULL;
+		const char *computer_str = NULL;
+		int ret;
+		bool ok;
+
+		sam_ctx = dcesrv_samdb_connect_as_system(frame,
+							 dce_call);
+		if (sam_ctx == NULL) {
+			TALLOC_FREE(frame);
+			return NT_STATUS_DS_UNAVAILABLE;
+		}
+
+		domain_dn = ldb_get_default_basedn(sam_ctx);
+		if (domain_dn == NULL) {
+			TALLOC_FREE(frame);
+			return NT_STATUS_DS_UNAVAILABLE;
+		}
+
+		computer_str = ldb_binary_encode_string(frame,
+							computer_name);
+		if (computer_str == NULL) {
+			TALLOC_FREE(frame);
+			return NT_STATUS_NO_MEMORY;
+		}
+
+		ret = dsdb_search(sam_ctx,
+				  frame,
+				  &res,
+				  domain_dn,
+				  LDB_SCOPE_SUBTREE,
+				  no_attrs,
+				  DSDB_SEARCH_ONE_ONLY |
+				  DSDB_SEARCH_SHOW_EXTENDED_DN,
+				  "(&(sAMAccountName=%s$)(objectclass=computer))",
+				  computer_str);
+		if (ret != LDB_SUCCESS) {
+			const char *account_name =
+				user_info->client.account_name;
+			const char *account_domain =
+				user_info->client.domain_name;
+
+			DEBUG(2,("%s: NTLMv2_RESPONSE with "
+				 "NbComputerName[%s] rejected "
+				 "for user[%s\\%s] "
+				 "against SEC_CHAN_RODC[%s/%s] "
+				 "computer account not found\n",
+				 __func__, computer_str,
+				 account_domain,
+				 account_name,
+				 creds->computer_name,
+				 creds->account_name));
+			TALLOC_FREE(frame);
+			return NT_STATUS_LOGON_FAILURE;
+		}
+
+		ok = sam_rodc_access_check(sam_ctx,
+					   frame,
+					   &creds->client_sid,
+					   res->msgs[0]->dn);
+		if (!ok) {
+			const char *account_name =
+				user_info->client.account_name;
+			const char *account_domain =
+				user_info->client.domain_name;
+
+			DEBUG(2,("%s: NTLMv2_RESPONSE with "
+				 "NbComputerName[%s] rejected "
+				 "for user[%s\\%s] "
+				 "against SEC_CHAN_RODC[%s/%s] "
+				 "not allowed to cache computer on RODC\n",
+				 __func__, computer_str,
+				 account_domain,
+				 account_name,
+				 creds->computer_name,
+				 creds->account_name));
+			TALLOC_FREE(frame);
+			return NT_STATUS_LOGON_FAILURE;
+		}
+	}
+
+	TALLOC_FREE(frame);
+	return NT_STATUS_OK;
+}
+
 /*
   netr_LogonSamLogon_base
 
@@ -1430,8 +1680,6 @@ static NTSTATUS dcesrv_netr_LogonSamLogon_base_call(struct dcesrv_netr_LogonSamL
 	TALLOC_CTX *mem_ctx = state->mem_ctx;
 	struct netr_LogonSamLogonEx *r = &state->r;
 	struct netlogon_creds_CredentialState *creds = state->creds;
-	struct loadparm_context *lp_ctx = dce_call->conn->dce_ctx->lp_ctx;
-	const char *workgroup = lpcfg_workgroup(lp_ctx);
 	struct auth4_context *auth_context = NULL;
 	struct auth_usersupplied_info *user_info = NULL;
 	NTSTATUS nt_status;
@@ -1595,11 +1843,9 @@ static NTSTATUS dcesrv_netr_LogonSamLogon_base_call(struct dcesrv_netr_LogonSamL
 		user_info->logon_id
 		    = r->in.logon->network->identity_info.logon_id;
 
-		nt_status = NTLMv2_RESPONSE_verify_netlogon_creds(
-					user_info->client.account_name,
-					user_info->client.domain_name,
-					user_info->password.response.nt,
-					creds, workgroup);
+		nt_status = dcesrv_netr_NTLMv2_RESPONSE_verify(dce_call,
+							       user_info,
+							       creds);
 		NT_STATUS_NOT_OK_RETURN(nt_status);
 
 		break;
@@ -4522,13 +4768,20 @@ static WERROR dcesrv_netr_DsRGetForestTrustInformation(struct dcesrv_call_state 
 	}
 
 	if (r->in.trusted_domain_name == NULL) {
+		struct lsa_ForestTrustInformation2 *lfti2 = NULL;
 		NTSTATUS status;
 
 		/*
 		 * information about our own domain
 		 */
-		status = dsdb_trust_xref_forest_info(mem_ctx, sam_ctx,
-						r->out.forest_trust_info);
+		status = dsdb_trust_xref_forest_info(mem_ctx, sam_ctx, &lfti2);
+		if (!NT_STATUS_IS_OK(status)) {
+			return ntstatus_to_werror(status);
+		}
+
+		status = trust_forest_info_lsa_2to1(r->out.forest_trust_info,
+						    lfti2,
+						    r->out.forest_trust_info);
 		if (!NT_STATUS_IS_OK(status)) {
 			return ntstatus_to_werror(status);
 		}
@@ -4614,6 +4867,7 @@ static NTSTATUS dcesrv_netr_GetForestTrustInformation(struct dcesrv_call_state *
 	struct ldb_context *sam_ctx = NULL;
 	struct ldb_dn *domain_dn = NULL;
 	struct ldb_dn *forest_dn = NULL;
+	struct lsa_ForestTrustInformation2 *lfti2 = NULL;
 	int cmp;
 	int forest_level;
 	NTSTATUS status;
@@ -4660,8 +4914,17 @@ static NTSTATUS dcesrv_netr_GetForestTrustInformation(struct dcesrv_call_state *
 		return NT_STATUS_INVALID_DOMAIN_STATE;
 	}
 
-	status = dsdb_trust_xref_forest_info(mem_ctx, sam_ctx,
-					     r->out.forest_trust_info);
+	/*
+	 * information about our own domain
+	 */
+	status = dsdb_trust_xref_forest_info(mem_ctx, sam_ctx, &lfti2);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
+	}
+
+	status = trust_forest_info_lsa_2to1(r->out.forest_trust_info,
+					    lfti2,
+					    r->out.forest_trust_info);
 	if (!NT_STATUS_IS_OK(status)) {
 		return status;
 	}

@@ -39,6 +39,7 @@
 #include "rpc_client/util_netlogon.h"
 #include "libsmb/dsgetdcname.h"
 #include "lib/global_contexts.h"
+#include "libcli/lsarpc/util_lsarpc.h"
 
 NTSTATUS _wbint_Ping(struct pipes_struct *p, struct wbint_Ping *r)
 {
@@ -966,6 +967,7 @@ NTSTATUS _winbind_SamLogon(struct pipes_struct *p,
 	uint16_t validation_level;
 	union netr_Validation *validation = NULL;
 	bool interactive = false;
+	bool for_netlogon = false;
 
 	/*
 	 * Make sure we start with authoritative=true,
@@ -985,6 +987,10 @@ NTSTATUS _winbind_SamLogon(struct pipes_struct *p,
 		break;
 	default:
 		return NT_STATUS_REQUEST_NOT_ACCEPTED;
+	}
+
+	if (r->in.internal_flags & WB_SAMLOGON_FOR_NETLOGON) {
+		for_netlogon = true;
 	}
 
 	switch (r->in.logon_level) {
@@ -1044,6 +1050,7 @@ NTSTATUS _winbind_SamLogon(struct pipes_struct *p,
 	}
 
 	status = winbind_dual_SamLogon(domain, p->mem_ctx,
+				       for_netlogon,
 				       interactive,
 				       identity_info->parameter_control,
 				       identity_info->account_name.string,
@@ -1336,15 +1343,15 @@ static WERROR _winbind_LogonControl_TC_VERIFY(struct pipes_struct *p,
 	}
 
 	if (trust_attributes & LSA_TRUST_ATTRIBUTE_FOREST_TRANSITIVE) {
-		struct lsa_ForestTrustInformation *old_fti = NULL;
+		struct lsa_ForestTrustInformation2 *old_fti = NULL;
 
-		status = dcerpc_lsa_lsaRQueryForestTrustInformation(local_lsa, frame,
+		status = dcerpc_lsa_lsaRQueryForestTrustInformation2(local_lsa, frame,
 							&local_lsa_policy,
 							&trusted_domain_name,
-							LSA_FOREST_TRUST_DOMAIN_INFO,
+							LSA_FOREST_TRUST_SCANNER_INFO,
 							&old_fti, &result);
 		if (!NT_STATUS_IS_OK(status)) {
-			DEBUG(0,("%s:%s: local_lsa.lsaRQueryForestTrustInformation(%s) failed %s\n",
+			DEBUG(0,("%s:%s: local_lsa.lsaRQueryForestTrustInformation2(%s) failed %s\n",
 				 __location__, __func__, domain->name, nt_errstr(status)));
 			TALLOC_FREE(frame);
 			return WERR_INTERNAL_ERROR;
@@ -1424,12 +1431,23 @@ reconnect:
 	}
 
 	if (new_fti != NULL) {
-		struct lsa_ForestTrustInformation old_fti = {};
-		struct lsa_ForestTrustInformation *merged_fti = NULL;
+		struct lsa_ForestTrustInformation2 old_fti = {};
+		struct lsa_ForestTrustInformation2 *new_fti2 = NULL;
+		struct lsa_ForestTrustInformation2 *merged_fti = NULL;
 		struct lsa_ForestTrustCollisionInfo *collision_info = NULL;
 
-		status = dsdb_trust_merge_forest_info(frame, local_tdo,
-						      &old_fti, new_fti,
+		status = trust_forest_info_lsa_1to2(frame,
+						    new_fti,
+						    &new_fti2);
+		if (!NT_STATUS_IS_OK(status)) {
+			TALLOC_FREE(frame);
+			return ntstatus_to_werror(status);
+		}
+
+		status = dsdb_trust_merge_forest_info(frame,
+						      local_tdo,
+						      &old_fti,
+						      new_fti2,
 						      &merged_fti);
 		if (!NT_STATUS_IS_OK(status)) {
 			DEBUG(0,("%s:%s: dsdb_trust_merge_forest_info(%s) failed %s\n",
@@ -1439,10 +1457,10 @@ reconnect:
 			return ntstatus_to_werror(status);
 		}
 
-		status = dcerpc_lsa_lsaRSetForestTrustInformation(local_lsa, frame,
+		status = dcerpc_lsa_lsaRSetForestTrustInformation2(local_lsa, frame,
 						&local_lsa_policy,
 						&trusted_domain_name_l,
-						LSA_FOREST_TRUST_DOMAIN_INFO,
+						LSA_FOREST_TRUST_SCANNER_INFO,
 						merged_fti,
 						0, /* check_only=0 => store it! */
 						&collision_info,
@@ -1716,10 +1734,11 @@ WERROR _winbind_GetForestTrustInformation(struct pipes_struct *p,
 	struct lsa_StringLarge trusted_domain_name_l = {};
 	union lsa_TrustedDomainInfo *tdi = NULL;
 	const struct lsa_TrustDomainInfoInfoEx *tdo = NULL;
-	struct lsa_ForestTrustInformation _old_fti = {};
-	struct lsa_ForestTrustInformation *old_fti = NULL;
+	struct lsa_ForestTrustInformation2 _old_fti = {};
+	struct lsa_ForestTrustInformation2 *old_fti = NULL;
 	struct lsa_ForestTrustInformation *new_fti = NULL;
-	struct lsa_ForestTrustInformation *merged_fti = NULL;
+	struct lsa_ForestTrustInformation2 *new_fti2 = NULL;
+	struct lsa_ForestTrustInformation2 *merged_fti = NULL;
 	struct lsa_ForestTrustCollisionInfo *collision_info = NULL;
 	bool update_fti = false;
 	struct rpc_pipe_client *local_lsa_pipe;
@@ -1843,13 +1862,13 @@ reconnect:
 		update_fti = true;
 	}
 
-	status = dcerpc_lsa_lsaRQueryForestTrustInformation(local_lsa, frame,
+	status = dcerpc_lsa_lsaRQueryForestTrustInformation2(local_lsa, frame,
 						&local_lsa_policy,
 						&trusted_domain_name,
-						LSA_FOREST_TRUST_DOMAIN_INFO,
+						LSA_FOREST_TRUST_SCANNER_INFO,
 						&old_fti, &result);
 	if (!NT_STATUS_IS_OK(status)) {
-		DEBUG(0,("%s:%s: local_lsa.lsaRQueryForestTrustInformation(%s) failed %s\n",
+		DEBUG(0,("%s:%s: local_lsa.lsaRQueryForestTrustInformation2(%s) failed %s\n",
 			 __location__, __func__, domain->name, nt_errstr(status)));
 		TALLOC_FREE(frame);
 		return WERR_INTERNAL_ERROR;
@@ -1880,7 +1899,18 @@ reconnect:
 		goto done;
 	}
 
-	status = dsdb_trust_merge_forest_info(frame, tdo, old_fti, new_fti,
+	status = trust_forest_info_lsa_1to2(frame,
+					    new_fti,
+					    &new_fti2);
+	if (!NT_STATUS_IS_OK(status)) {
+		TALLOC_FREE(frame);
+		return ntstatus_to_werror(status);
+	}
+
+	status = dsdb_trust_merge_forest_info(frame,
+					      tdo,
+					      old_fti,
+					      new_fti2,
 					      &merged_fti);
 	if (!NT_STATUS_IS_OK(status)) {
 		DEBUG(0,("%s:%s: dsdb_trust_merge_forest_info(%s) failed %s\n",
@@ -1889,10 +1919,10 @@ reconnect:
 		return ntstatus_to_werror(status);
 	}
 
-	status = dcerpc_lsa_lsaRSetForestTrustInformation(local_lsa, frame,
+	status = dcerpc_lsa_lsaRSetForestTrustInformation2(local_lsa, frame,
 						&local_lsa_policy,
 						&trusted_domain_name_l,
-						LSA_FOREST_TRUST_DOMAIN_INFO,
+						LSA_FOREST_TRUST_SCANNER_INFO,
 						merged_fti,
 						0, /* check_only=0 => store it! */
 						&collision_info,
@@ -2025,6 +2055,33 @@ NTSTATUS _wbint_ListTrustedDomains(struct pipes_struct *p,
 	r->out.domains->array = array;
 	r->out.domains->count = count;
 	return NT_STATUS_OK;
+}
+
+NTSTATUS _wbint_NormalizeNameMap(struct pipes_struct *p,
+				 struct wbint_NormalizeNameMap *r)
+{
+	char *mapped = NULL;
+	NTSTATUS status;
+
+	status = normalize_name_map(p->mem_ctx,
+				    r->in.domain_name,
+				    r->in.name,
+				    &mapped);
+	*r->out.mapped_name = mapped;
+
+	return status;
+}
+
+NTSTATUS _wbint_NormalizeNameUnmap(struct pipes_struct *p,
+				   struct wbint_NormalizeNameUnmap *r)
+{
+	char *unmapped = NULL;
+	NTSTATUS status;
+
+	status = normalize_name_unmap(p->mem_ctx, r->in.name, &unmapped);
+	*r->out.unmapped_name = unmapped;
+
+	return status;
 }
 
 #include "librpc/gen_ndr/ndr_winbind_scompat.c"

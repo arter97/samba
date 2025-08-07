@@ -445,6 +445,8 @@ static bool test_ipc_max_async_credits(struct torture_context *tctx,
 				       size_t max_data)
 {
 	struct test_ipc_async_credits_state *states[num_trees];
+	struct timeval timeout_tv = { .tv_sec = 0, };
+	struct tevent_req *timeout_req = NULL;
 	bool stop_loop = false;
 	NTSTATUS status;
 	size_t i, t;
@@ -571,6 +573,15 @@ static bool test_ipc_max_async_credits(struct torture_context *tctx,
 				ok,
 				out,
 				"FSCTL_NAMED_PIPE_READ_WRITE failed");
+		}
+	}
+
+	for (i = 0; i < num_loops; i++) {
+		for (t = 0; t < num_trees; t++) {
+			struct test_ipc_async_credits_state
+				*state = states[t];
+			struct test_ipc_async_credits_loop
+				*loop = &state->loops[i];
 
 			tevent_schedule_immediate(
 				loop->im,
@@ -580,6 +591,10 @@ static bool test_ipc_max_async_credits(struct torture_context *tctx,
 		}
 	}
 
+	timeout_tv = timeval_current_ofs(10, 0);
+	timeout_req = tevent_wakeup_send(tctx, tctx->ev, timeout_tv);
+	torture_assert_goto(tctx, timeout_req, ok, out, "tevent_wakeup_send");
+
 	/* Loop to send and receive packets */
 	while (!stop_loop) {
 		size_t loops_ready = 0;
@@ -588,6 +603,9 @@ static bool test_ipc_max_async_credits(struct torture_context *tctx,
 		rc = tevent_loop_once(tctx->ev);
 		torture_assert_int_equal_goto(
 			tctx, rc, 0, ok, out, "tevent_loop_once");
+
+		ok = tevent_req_is_in_progress(timeout_req);
+		torture_assert_goto(tctx, ok, ok, out, "timeout_req");
 
 		for (i = 0; i < num_trees; i++) {
 			struct test_ipc_async_credits_state
@@ -713,8 +731,8 @@ static bool test_ipc_max_data_zero(struct torture_context *tctx,
 	/* Create connection to IPC$ */
 	status = smb2_connect(tctx,
 			      host,
-			      lpcfg_smb_ports(tctx->lp_ctx),
 			      share,
+			      tctx->lp_ctx,
 			      lpcfg_resolve_context(tctx->lp_ctx),
 			      samba_cmdline_get_creds(),
 			      &tree1,
@@ -732,7 +750,12 @@ static bool test_ipc_max_data_zero(struct torture_context *tctx,
 					max_credits,
 					0);
 out:
-	TALLOC_FREE(tree1);
+	if (tree1 != NULL) {
+		smbXcli_conn_disconnect(tree1->session->transport->conn,
+					NT_STATUS_LOCAL_DISCONNECT);
+	}
+	smbXcli_conn_disconnect(tree0->session->transport->conn,
+				NT_STATUS_LOCAL_DISCONNECT);
 
 	return ok;
 }
@@ -761,8 +784,8 @@ static bool test_1conn_ipc_max_async_credits(struct torture_context *tctx,
 	/* Create connection to IPC$ */
 	status = smb2_connect(tctx,
 			      host,
-			      lpcfg_smb_ports(tctx->lp_ctx),
 			      share,
+			      tctx->lp_ctx,
 			      lpcfg_resolve_context(tctx->lp_ctx),
 			      samba_cmdline_get_creds(),
 			      &tree1,
@@ -780,7 +803,12 @@ static bool test_1conn_ipc_max_async_credits(struct torture_context *tctx,
 					max_credits,
 					1024); /* max_data */
 out:
-	TALLOC_FREE(tree1);
+	if (tree1 != NULL) {
+		smbXcli_conn_disconnect(tree1->session->transport->conn,
+					NT_STATUS_LOCAL_DISCONNECT);
+	}
+	smbXcli_conn_disconnect(transport0->conn,
+				NT_STATUS_LOCAL_DISCONNECT);
 
 	return ok;
 }
@@ -820,8 +848,8 @@ static bool test_2conn_ipc_max_async_credits(struct torture_context *tctx,
 	/* Create connection to IPC$ */
 	status = smb2_connect(tctx,
 			      host,
-			      lpcfg_smb_ports(tctx->lp_ctx),
 			      share,
+			      tctx->lp_ctx,
 			      lpcfg_resolve_context(tctx->lp_ctx),
 			      samba_cmdline_get_creds(),
 			      &tree1,
@@ -838,8 +866,8 @@ static bool test_2conn_ipc_max_async_credits(struct torture_context *tctx,
 	/* Create connection to IPC$ */
 	status = smb2_connect(tctx,
 			      host,
-			      lpcfg_smb_ports(tctx->lp_ctx),
 			      share,
+			      tctx->lp_ctx,
 			      lpcfg_resolve_context(tctx->lp_ctx),
 			      samba_cmdline_get_creds(),
 			      &tree2,
@@ -859,8 +887,16 @@ static bool test_2conn_ipc_max_async_credits(struct torture_context *tctx,
 					max_credits,
 					1024); /* max_data */
 out:
-	TALLOC_FREE(tree2);
-	TALLOC_FREE(tree1);
+	if (tree2 != NULL) {
+		smbXcli_conn_disconnect(tree2->session->transport->conn,
+					NT_STATUS_LOCAL_DISCONNECT);
+	}
+	if (tree1 != NULL) {
+		smbXcli_conn_disconnect(tree1->session->transport->conn,
+					NT_STATUS_LOCAL_DISCONNECT);
+	}
+	smbXcli_conn_disconnect(transport0->conn,
+				NT_STATUS_LOCAL_DISCONNECT);
 
 	return ok;
 }
@@ -902,8 +938,8 @@ static bool test_multichannel_ipc_max_async_credits(
 	/* Create connection to IPC$ */
 	status = smb2_connect(tctx,
 			      host,
-			      lpcfg_smb_ports(tctx->lp_ctx),
 			      share,
+			      tctx->lp_ctx,
 			      lpcfg_resolve_context(tctx->lp_ctx),
 			      samba_cmdline_get_creds(),
 			      &tree1a,
@@ -920,8 +956,8 @@ static bool test_multichannel_ipc_max_async_credits(
 
 	status = smb2_connect(tree1a,
 			      host,
-			      lpcfg_smb_ports(tctx->lp_ctx),
 			      share,
+			      tctx->lp_ctx,
 			      lpcfg_resolve_context(tctx->lp_ctx),
 			      samba_cmdline_get_creds(),
 			      &tree1b_base,
@@ -960,6 +996,16 @@ static bool test_multichannel_ipc_max_async_credits(
 					max_credits,
 					1024); /* max_data */
 out:
+	if (tree1a != NULL) {
+		smbXcli_conn_disconnect(tree1a->session->transport->conn,
+					NT_STATUS_LOCAL_DISCONNECT);
+	}
+	if (transport1b != NULL) {
+		smbXcli_conn_disconnect(transport1b->conn,
+					NT_STATUS_LOCAL_DISCONNECT);
+	}
+	smbXcli_conn_disconnect(tree0->session->transport->conn,
+				NT_STATUS_LOCAL_DISCONNECT);
 
 	return ok;
 }
@@ -1134,6 +1180,8 @@ static bool test_notify_max_async_credits(struct torture_context *tctx,
 				   size_t num_loops)
 {
 	struct test_notify_async_credit_state *states[num_trees];
+	struct timeval timeout_tv = { .tv_sec = 0, };
+	struct tevent_req *timeout_req = NULL;
 	bool stop_loop = false;
 	NTSTATUS status;
 	size_t i, t;
@@ -1232,6 +1280,15 @@ static bool test_notify_max_async_credits(struct torture_context *tctx,
 				NULL); /* psymlink */
 			torture_assert_ntstatus_ok_goto(
 				tctx, status, ok, out, "smb2cli_create failed");
+		}
+	}
+
+	for (i = 0; i < num_loops; i++) {
+		for (t = 0; t < num_trees; t++) {
+			struct test_notify_async_credit_state
+				*state = states[t];
+			struct test_notify_async_credit_loop
+				*loop = &state->loops[i];
 
 			tevent_schedule_immediate(loop->im,
 						  tctx->ev,
@@ -1239,6 +1296,10 @@ static bool test_notify_max_async_credits(struct torture_context *tctx,
 						  loop);
 		}
 	}
+
+	timeout_tv = timeval_current_ofs(10, 0);
+	timeout_req = tevent_wakeup_send(tctx, tctx->ev, timeout_tv);
+	torture_assert_goto(tctx, timeout_req, ok, out, "tevent_wakeup_send");
 
 	/* Loop to send and receive packets */
 	while (!stop_loop) {
@@ -1248,6 +1309,9 @@ static bool test_notify_max_async_credits(struct torture_context *tctx,
 		rc = tevent_loop_once(tctx->ev);
 		torture_assert_int_equal_goto(
 			tctx, rc, 0, ok, out, "tevent_loop_once");
+
+		ok = tevent_req_is_in_progress(timeout_req);
+		torture_assert_goto(tctx, ok, ok, out, "timeout_req");
 
 		for (i = 0; i < num_trees; i++) {
 			struct test_notify_async_credit_state
@@ -1388,6 +1452,8 @@ out:
 	/* Cleanup TESTDIR */
 	smb2_deltree(tree0, TESTDIR);
 
+	smbXcli_conn_disconnect(tree0->session->transport->conn,
+				NT_STATUS_LOCAL_DISCONNECT);
 	return ok;
 }
 
@@ -1428,6 +1494,10 @@ out:
 	/* Cleanup TESTDIR */
 	smb2_deltree(tree1, TESTDIR);
 
+	smbXcli_conn_disconnect(tree1->session->transport->conn,
+				NT_STATUS_LOCAL_DISCONNECT);
+	smbXcli_conn_disconnect(tree2->session->transport->conn,
+				NT_STATUS_LOCAL_DISCONNECT);
 	return ok;
 }
 
@@ -1474,8 +1544,8 @@ static bool test_multichannel_notify_max_async_credits(
 
 	status = smb2_connect(tree1a,
 			      host,
-			      lpcfg_smb_ports(tctx->lp_ctx),
 			      share,
+			      tctx->lp_ctx,
 			      lpcfg_resolve_context(tctx->lp_ctx),
 			      samba_cmdline_get_creds(),
 			      &tree1b_base,
@@ -1515,6 +1585,13 @@ static bool test_multichannel_notify_max_async_credits(
 out:
 	/* Cleanup TESTDIR */
 	smb2_deltree(tree1a, TESTDIR);
+
+	smbXcli_conn_disconnect(transport1a->conn,
+				NT_STATUS_LOCAL_DISCONNECT);
+	if (transport1b != NULL) {
+		smbXcli_conn_disconnect(transport1b->conn,
+					NT_STATUS_LOCAL_DISCONNECT);
+	}
 
 	return ok;
 }

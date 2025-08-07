@@ -120,7 +120,8 @@ NTSTATUS fsp_bind_smb(struct files_struct *fsp, struct smb_request *req)
 	now = timeval_to_nttime(&fsp->open_time);
 
 	status = smbXsrv_open_create(req->xconn,
-				     fsp->conn->session_info,
+				     req->session,
+				     fsp->conn->tcon,
 				     now,
 				     &op);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -2203,7 +2204,9 @@ bool file_find_subpath(files_struct *dir_fsp)
 		if (fsp == dir_fsp) {
 			continue;
 		}
-		if (fsp->fsp_flags.posix_open) {
+		if (dir_fsp->fsp_flags.posix_open &&
+		    fsp->fsp_flags.posix_open)
+		{
 			continue;
 		}
 
@@ -2302,9 +2305,6 @@ void fsp_unbind_smb(struct smb_request *req, files_struct *fsp)
 		notify_remove(fsp->conn->sconn->notify_ctx, fsp, fullpath);
 		TALLOC_FREE(fsp->notify);
 	}
-
-	/* Ensure this event will never fire. */
-	TALLOC_FREE(fsp->update_write_time_event);
 
 	if (fsp->op != NULL) {
 		fsp->op->compat = NULL;
@@ -2663,4 +2663,31 @@ bool fsp_getinfo_ask_sharemode(struct files_struct *fsp)
 	}
 
 	return lp_smbd_getinfo_ask_sharemode(SNUM(fsp->conn));
+}
+
+void fsp_apply_private_ntcreatex_flags(struct files_struct *fsp,
+				       uint32_t flags)
+{
+	/*
+	 * This might be called twice when first trying to open something as a
+	 * file, which fails for directories, triggering a second open-directory
+	 * attempt via open_directory(). To handle this case make sure to reset
+	 * fsp_flags if the corresponding flag is not set, as we might get passed
+	 * different flags in pass one and pass two.
+	 */
+	if (flags & NTCREATEX_FLAG_DENY_DOS) {
+		fsp->fsp_flags.ntcreatex_deny_dos = true;
+	} else {
+		fsp->fsp_flags.ntcreatex_deny_dos = false;
+	}
+	if (flags & NTCREATEX_FLAG_DENY_FCB) {
+		fsp->fsp_flags.ntcreatex_deny_fcb = true;
+	} else {
+		fsp->fsp_flags.ntcreatex_deny_fcb = false;
+	}
+	if (flags & NTCREATEX_FLAG_STREAM_BASEOPEN) {
+		fsp->fsp_flags.ntcreatex_stream_baseopen = true;
+	} else {
+		fsp->fsp_flags.ntcreatex_stream_baseopen = false;
+	}
 }

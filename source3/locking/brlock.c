@@ -256,10 +256,8 @@ static bool brl_conflict(const struct lock_struct *lck1,
 static bool brl_conflict_posix(const struct lock_struct *lck1,
 			 	const struct lock_struct *lck2)
 {
-#if defined(DEVELOPER)
 	SMB_ASSERT(lck1->lock_flav == POSIX_LOCK);
 	SMB_ASSERT(lck2->lock_flav == POSIX_LOCK);
-#endif
 
 	/* Read locks never conflict. */
 	if (lck1->lock_type == READ_LOCK && lck2->lock_type == READ_LOCK) {
@@ -767,6 +765,8 @@ static NTSTATUS brl_lock_posix(struct byte_range_lock *br_lck,
 	bool break_oplocks = false;
 	NTSTATUS status;
 
+	SMB_ASSERT(plock->lock_flav == POSIX_LOCK);
+
 	/* No zero-zero locks for POSIX. */
 	if (plock->start == 0 && plock->size == 0) {
 		return NT_STATUS_INVALID_PARAMETER;
@@ -1034,6 +1034,8 @@ static bool brl_unlock_posix(struct byte_range_lock *br_lck,
 	struct lock_struct *locks = br_lck->lock_data;
 	bool overlap_found = False;
 
+	SMB_ASSERT(plock->lock_flav == POSIX_LOCK);
+
 	/* No zero-zero locks for POSIX. */
 	if (plock->start == 0 && plock->size == 0) {
 		return False;
@@ -1283,10 +1285,10 @@ NTSTATUS brl_lockquery(struct byte_range_lock *br_lck,
 		const struct lock_struct *exlock = &locks[i];
 		bool conflict = False;
 
-		if (exlock->lock_flav == WINDOWS_LOCK) {
-			conflict = brl_conflict(exlock, &lock);
-		} else {
+		if (lock_flav == POSIX_LOCK && exlock->lock_flav == POSIX_LOCK) {
 			conflict = brl_conflict_posix(exlock, &lock);
+		} else {
+			conflict = brl_conflict(exlock, &lock);
 		}
 
 		if (conflict) {

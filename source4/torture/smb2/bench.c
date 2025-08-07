@@ -442,6 +442,14 @@ static bool test_smb2_bench_echo(struct torture_context *tctx,
 			loop->conn = &state->conns[i];
 			loop->im = tevent_create_immediate(state->loops);
 			torture_assert(tctx, loop->im != NULL, __location__);
+		}
+	}
+
+	for (li = 0, i = 0; i <state->num_conns; i++) {
+		size_t pcli;
+
+		for (pcli = 0; pcli < torture_qdepth; pcli++) {
+			struct test_smb2_bench_echo_loop *loop = &state->loops[li];
 
 			tevent_schedule_immediate(loop->im,
 						  tctx->ev,
@@ -916,6 +924,14 @@ bool test_smb2_bench_path_contention_shared(struct torture_context *tctx,
 			torture_assert(tctx, loop->im != NULL, __location__);
 			loop->opens.io = open_io;
 			loop->closes.io = close_io;
+		}
+	}
+
+	for (li = 0, i = 0; i <state->num_conns; i++) {
+		size_t pcli;
+
+		for (pcli = 0; pcli < torture_qdepth; pcli++) {
+			struct test_smb2_bench_path_contention_shared_loop *loop = &state->loops[li];
 
 			tevent_schedule_immediate(loop->im,
 						  tctx->ev,
@@ -1328,6 +1344,14 @@ static bool test_smb2_bench_read(struct torture_context *tctx,
 			sfinfo.end_of_file_info.in.size = state->io_size;
 			status = smb2_setinfo_file(state->conns[i].tree, &sfinfo);
 			CHECK_STATUS(status, NT_STATUS_OK);
+		}
+	}
+
+	for (li = 0, i = 0; i <state->num_conns; i++) {
+		size_t pcli;
+
+		for (pcli = 0; pcli < torture_qdepth; pcli++) {
+			struct test_smb2_bench_read_loop *loop = &state->loops[li];
 
 			tevent_schedule_immediate(loop->im,
 						  tctx->ev,
@@ -1451,6 +1475,7 @@ static void test_smb2_bench_session_setup_loop_do_setup(
 	struct test_smb2_bench_session_setup_shared_state *state = loop->state;
 
 	loop->session = smb2_session_init(loop->conn->transport,
+					  state->tctx->lp_ctx,
 					  state->gensec_settings,
 					  loop->conn->transport);
 	torture_assert_goto(state->tctx, loop->session != NULL,
@@ -1805,6 +1830,14 @@ static bool test_smb2_bench_session_setup(struct torture_context *tctx,
 			loop->conn = &state->conns[i];
 			loop->im = tevent_create_immediate(state->loops);
 			torture_assert(tctx, loop->im != NULL, __location__);
+		}
+	}
+
+	for (li = 0, i = 0; i <state->num_conns; i++) {
+		size_t pcli;
+
+		for (pcli = 0; pcli < torture_qdepth; pcli++) {
+			struct test_smb2_bench_session_setup_shared_loop *loop = &state->loops[li];
 
 			tevent_schedule_immediate(loop->im,
 						  tctx->ev,

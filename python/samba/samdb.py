@@ -339,7 +339,7 @@ lockoutTime: 0
         if 'group' in member_types:
             filter += ('(&(sAMAccountName=%s)'
                        '(objectClass=group)'
-                       '(!(groupType:1.2.840.113556.1.4.803:=1)))' %
+                       f'(!(groupType:{ldb.OID_COMPARATOR_AND}:=1)))' %
                        ldb.binary_encode(member))
         if 'computer' in member_types:
             samaccountname = member
@@ -1107,6 +1107,10 @@ accountExpires: %u
         """return the syntax OID for a LDAP attribute as a string"""
         return dsdb._dsdb_get_syntax_oid_from_lDAPDisplayName(self, ldap_display_name)
 
+    def get_searchFlags_from_lDAPDisplayName(self, ldap_display_name):
+        """return the searchFlags for a LDAP attribute as a integer"""
+        return dsdb._dsdb_get_searchFlags_from_lDAPDisplayName(self, ldap_display_name)
+
     def get_systemFlags_from_lDAPDisplayName(self, ldap_display_name):
         """return the systemFlags for a LDAP attribute as a integer"""
         return dsdb._dsdb_get_systemFlags_from_lDAPDisplayName(self, ldap_display_name)
@@ -1123,6 +1127,14 @@ accountExpires: %u
         """return the attribute name of the corresponding backlink from the name
         of a forward link attribute. If there is no backlink return None"""
         return dsdb._dsdb_get_backlink_from_lDAPDisplayName(self, ldap_display_name)
+
+    def get_lDAPDisplayName_by_governsID_id(self, governs_idns_id):
+        """return the lDAPDisplayName from an integer DRS governsID"""
+        return dsdb._dsdb_get_lDAPDisplayName_by_governsID_id(self, governs_idns_id)
+
+    def get_must_contain_from_lDAPDisplayName(self, ldap_display_name):
+        """return the mandatory attributes for a LDAP class as a set of strings"""
+        return dsdb._dsdb_get_must_contain_from_lDAPDisplayName(self, ldap_display_name)
 
     def set_ntds_settings_dn(self, ntds_settings_dn):
         """Set the NTDS Settings DN, as would be returned on the dsServiceName

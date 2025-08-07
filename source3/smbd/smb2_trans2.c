@@ -920,6 +920,7 @@ struct smbd_dirptr_lanman2_state {
 	uint32_t info_level;
 	bool check_mangled_names;
 	bool case_sensitive;
+	bool posix_paths;
 };
 
 static bool smbd_dirptr_lanman2_match_fn(TALLOC_CTX *ctx,
@@ -936,7 +937,9 @@ static bool smbd_dirptr_lanman2_match_fn(TALLOC_CTX *ctx,
 	const char *fname;
 
 	/* Mangle fname if it's an illegal name. */
-	if (mangle_must_mangle(dname, state->conn->params)) {
+	if (!state->posix_paths &&
+	    mangle_must_mangle(dname, state->conn->params))
+	{
 		/*
 		 * Slow path - ensure we can push the original name as UCS2. If
 		 * not, then just don't return this name.
@@ -1083,7 +1086,7 @@ static NTSTATUS smbd_marshall_dir_entry(TALLOC_CTX *ctx,
 	mdate_ts = smb_fname->st.st_ex_mtime;
 	adate_ts = smb_fname->st.st_ex_atime;
 	create_date_ts = get_create_timespec(conn, NULL, smb_fname);
-	cdate_ts = get_change_timespec(conn, NULL, smb_fname);
+	cdate_ts = smb_fname->st.st_ex_ctime;
 
 	if (lp_dos_filetime_resolution(SNUM(conn))) {
 		dos_filetime_timespec(&create_date_ts);
@@ -1758,15 +1761,13 @@ static NTSTATUS smbd_marshall_dir_entry(TALLOC_CTX *ctx,
 }
 
 NTSTATUS smbd_dirptr_lanman2_entry(TALLOC_CTX *ctx,
-			       connection_struct *conn,
-			       struct dptr_struct *dirptr,
+			       struct files_struct *dirfsp,
 			       uint16_t flags2,
 			       const char *path_mask,
 			       uint32_t dirtype,
 			       int info_level,
 			       int requires_resume_key,
 			       bool dont_descend,
-			       bool ask_sharemode,
 			       bool get_dosmode,
 			       uint8_t align,
 			       bool do_pad,
@@ -1779,12 +1780,17 @@ NTSTATUS smbd_dirptr_lanman2_entry(TALLOC_CTX *ctx,
 			       struct ea_list *name_list,
 			       struct file_id *file_id)
 {
+	struct connection_struct *conn = dirfsp->conn;
+	struct dptr_struct *dirptr = dirfsp->dptr;
 	const char *p;
 	const char *mask = NULL;
 	uint32_t mode = 0;
 	char *fname = NULL;
 	struct smb_filename *smb_fname = NULL;
-	struct smbd_dirptr_lanman2_state state;
+	struct smbd_dirptr_lanman2_state state = {
+		.conn = conn,
+		.info_level = info_level,
+	};
 	bool ok;
 	uint64_t last_entry_off = 0;
 	NTSTATUS status;
@@ -1793,13 +1799,13 @@ NTSTATUS smbd_dirptr_lanman2_entry(TALLOC_CTX *ctx,
 
 	mangled_names = lp_mangled_names(conn->params);
 
-	ZERO_STRUCT(state);
-	state.conn = conn;
-	state.info_level = info_level;
 	if (mangled_names != MANGLED_NAMES_NO) {
 		state.check_mangled_names = true;
 	}
 	state.case_sensitive = dptr_case_sensitive(dirptr);
+	if (dirfsp->fsp_name->flags & SMB_FILENAME_POSIX_PATH) {
+		state.posix_paths = true;
+	}
 
 	p = strrchr_m(path_mask,'/');
 	if(p != NULL) {
@@ -1817,7 +1823,6 @@ NTSTATUS smbd_dirptr_lanman2_entry(TALLOC_CTX *ctx,
 				   mask,
 				   dirtype,
 				   dont_descend,
-				   ask_sharemode,
 				   get_dosmode,
 				   smbd_dirptr_lanman2_match_fn,
 				   &state,
@@ -2002,14 +2007,13 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 
 	if (IS_IPC(conn)) {
 		if (info_level != SMB_QUERY_CIFS_UNIX_INFO) {
-			DEBUG(0,("smbd_do_qfsinfo: not an allowed "
-				"info level (0x%x) on IPC$.\n",
-				(unsigned int)info_level));
+			DBG_ERR("not an allowed info level (0x%x) on IPC$.\n",
+				(unsigned int)info_level);
 			return NT_STATUS_ACCESS_DENIED;
 		}
 	}
 
-	DEBUG(3,("smbd_do_qfsinfo: level = %d\n", info_level));
+	DBG_NOTICE("level = %d\n", info_level);
 
 	smb_fname = (struct smb_filename) {
 		.base_name = discard_const_p(char, filename),
@@ -2964,7 +2968,6 @@ NTSTATUS smbd_do_qfilepathinfo(connection_struct *conn,
 			       files_struct *fsp,
 			       struct smb_filename *smb_fname,
 			       bool delete_pending,
-			       struct timespec write_time_ts,
 			       struct ea_list *ea_list,
 			       uint16_t flags2,
 			       unsigned int max_data_bytes,
@@ -3046,16 +3049,10 @@ NTSTATUS smbd_do_qfilepathinfo(connection_struct *conn,
 	dstart = pdata;
 	dend = dstart + data_size - 1;
 
-	if (!is_omit_timespec(&write_time_ts) &&
-	    !INFO_LEVEL_IS_UNIX(info_level))
-	{
-		update_stat_ex_mtime(psbuf, write_time_ts);
-	}
-
 	create_time_ts = get_create_timespec(conn, fsp, smb_fname);
 	mtime_ts = psbuf->st_ex_mtime;
 	atime_ts = psbuf->st_ex_atime;
-	ctime_ts = get_change_timespec(conn, fsp, smb_fname);
+	ctime_ts = psbuf->st_ex_ctime;
 
 	if (lp_dos_filetime_resolution(SNUM(conn))) {
 		dos_filetime_timespec(&create_time_ts);
@@ -3978,6 +3975,7 @@ NTSTATUS smb_set_file_size(connection_struct *conn,
 			   bool fail_after_createfile)
 {
 	NTSTATUS status = NT_STATUS_OK;
+	struct file_modified_state state;
 	files_struct *new_fsp = NULL;
 
 	if (!VALID_STAT(*psbuf)) {
@@ -3989,13 +3987,11 @@ NTSTATUS smb_set_file_size(connection_struct *conn,
 		 get_file_size_stat(psbuf));
 
 	if (size == get_file_size_stat(psbuf)) {
-		if (fsp == NULL) {
-			return NT_STATUS_OK;
-		}
-		if (!fsp->fsp_flags.modified) {
-			return NT_STATUS_OK;
-		}
-		trigger_write_time_update_immediate(fsp);
+		/*
+		 * MS-FSA 2.1.5.15.4 FileEndOfFileInformation tells us not to
+		 * update the timestamps, but Windows Server 2022 does it.
+		 */
+		trigger_write_time_update_immediate(fsp, true, false);
 		return NT_STATUS_OK;
 	}
 
@@ -4012,10 +4008,11 @@ NTSTATUS smb_set_file_size(connection_struct *conn,
 			return status;
 		}
 
+		prepare_file_modified(fsp, &state);
 		if (vfs_set_filelen(fsp, size) == -1) {
 			return map_nt_error_from_unix(errno);
 		}
-		trigger_write_time_update_immediate(fsp);
+		mark_file_modified(fsp, false, &state);
 		return NT_STATUS_OK;
 	}
 
@@ -4051,13 +4048,14 @@ NTSTATUS smb_set_file_size(connection_struct *conn,
 		return NT_STATUS_INVALID_LEVEL;
 	}
 
+	prepare_file_modified(fsp, &state);
 	if (vfs_set_filelen(new_fsp, size) == -1) {
 		status = map_nt_error_from_unix(errno);
 		close_file_free(req, &new_fsp, NORMAL_CLOSE);
 		return status;
 	}
+	mark_file_modified(fsp, false, &state);
 
-	trigger_write_time_update_immediate(new_fsp);
 	close_file_free(req, &new_fsp, NORMAL_CLOSE);
 	return NT_STATUS_OK;
 }
@@ -4885,9 +4883,6 @@ static NTSTATUS smb_set_file_basic_info(connection_struct *conn,
 		return status;
 	}
 
-	if (fsp->fsp_flags.modified) {
-		trigger_write_time_update_immediate(fsp);
-	}
 	return NT_STATUS_OK;
 }
 
@@ -4929,9 +4924,6 @@ static NTSTATUS smb_set_info_standard(connection_struct *conn,
 		return status;
 	}
 
-	if (fsp->fsp_flags.modified) {
-		trigger_write_time_update_immediate(fsp);
-	}
 	return NT_STATUS_OK;
 }
 
@@ -4979,17 +4971,14 @@ static NTSTATUS smb_set_file_allocation_info(connection_struct *conn,
 		}
 
 		/* Only change if needed. */
-		if (allocation_size != get_file_size_stat(&smb_fname->st)) {
+		if (allocation_size !=
+		    SMB_VFS_GET_ALLOC_SIZE(conn, fsp, &fsp->fsp_name->st))
+		{
 			if (vfs_allocate_file_space(fsp, allocation_size) == -1) {
 				return map_nt_error_from_unix(errno);
 			}
 		}
-		/* But always update the time. */
-		/*
-		 * This is equivalent to a write. Ensure it's seen immediately
-		 * if there are no pending writes.
-		 */
-		trigger_write_time_update_immediate(fsp);
+		trigger_write_time_update_immediate(fsp, false, true);
 		return NT_STATUS_OK;
 	}
 
@@ -5021,7 +5010,9 @@ static NTSTATUS smb_set_file_allocation_info(connection_struct *conn,
 	}
 
 	/* Only change if needed. */
-	if (allocation_size != get_file_size_stat(&smb_fname->st)) {
+	if (allocation_size !=
+	    SMB_VFS_GET_ALLOC_SIZE(conn, new_fsp, &new_fsp->fsp_name->st))
+	{
 		if (vfs_allocate_file_space(new_fsp, allocation_size) == -1) {
 			status = map_nt_error_from_unix(errno);
 			close_file_free(req, &new_fsp, NORMAL_CLOSE);
@@ -5029,12 +5020,7 @@ static NTSTATUS smb_set_file_allocation_info(connection_struct *conn,
 		}
 	}
 
-	/* Changing the allocation size should set the last mod time. */
-	/*
-	 * This is equivalent to a write. Ensure it's seen immediately
-	 * if there are no pending writes.
-	 */
-	trigger_write_time_update_immediate(new_fsp);
+	trigger_write_time_update_immediate(new_fsp, false, true);
 	close_file_free(req, &new_fsp, NORMAL_CLOSE);
 	return NT_STATUS_OK;
 }

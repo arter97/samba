@@ -61,7 +61,7 @@ static bool test_lm_ntlm_broken(enum ntlm_break break_which,
 	uchar lm_hash[16];
 	uchar nt_hash[16];
 	DATA_BLOB chall = get_challenge();
-	char *error_string;
+	char *error_string = NULL;
 
 	ZERO_STRUCT(lm_key);
 	ZERO_STRUCT(user_session_key);
@@ -104,18 +104,13 @@ static bool test_lm_ntlm_broken(enum ntlm_break break_which,
 					      user_session_key,
 					      &authoritative,
 					      &error_string, NULL);
-
-	data_blob_free(&lm_response);
-	data_blob_free(&nt_response);
-
 	if (!NT_STATUS_IS_OK(nt_status)) {
 		d_printf("%s (0x%x)\n",
 			 error_string,
 			 NT_STATUS_V(nt_status));
-		SAFE_FREE(error_string);
-		data_blob_free(&session_key);
 
-		return break_which == BREAK_NT;
+		pass = (break_which == BREAK_NT);
+		goto done;
 	}
 
 	/* If we are told the DC is Samba4, expect an LM key of zeros */
@@ -161,7 +156,12 @@ static bool test_lm_ntlm_broken(enum ntlm_break break_which,
 			pass = False;
 		}
 	}
+
+done:
+	data_blob_free(&lm_response);
+	data_blob_free(&nt_response);
 	data_blob_free(&session_key);
+	SAFE_FREE(error_string);
 
         return pass;
 }
@@ -221,15 +221,12 @@ static bool test_ntlm_in_lm(bool lanman_support_expected)
 					      user_session_key,
 					      &authoritative,
 					      &error_string, NULL);
-
-	data_blob_free(&nt_response);
-
 	if (!NT_STATUS_IS_OK(nt_status)) {
 		d_printf("%s (0x%x)\n",
 			 error_string,
 			 NT_STATUS_V(nt_status));
-		SAFE_FREE(error_string);
-		return False;
+		pass = false;
+		goto done;
 	}
 	SAFE_FREE(error_string);
 
@@ -270,6 +267,11 @@ static bool test_ntlm_in_lm(bool lanman_support_expected)
 			pass = False;
 		}
 	}
+
+done:
+	data_blob_free(&nt_response);
+	SAFE_FREE(error_string);
+
         return pass;
 }
 
@@ -314,15 +316,12 @@ static bool test_ntlm_in_both(bool lanman_support_expected)
 					      user_session_key,
 					      &authoritative,
 					      &error_string, NULL);
-
-	data_blob_free(&nt_response);
-
 	if (!NT_STATUS_IS_OK(nt_status)) {
 		d_printf("%s (0x%x)\n",
 			 error_string,
 			 NT_STATUS_V(nt_status));
-		SAFE_FREE(error_string);
-		return False;
+		pass = false;
+		goto done;
 	}
 	SAFE_FREE(error_string);
 
@@ -358,6 +357,11 @@ static bool test_ntlm_in_both(bool lanman_support_expected)
 	}
 
 
+done:
+	SAFE_FREE(error_string);
+	data_blob_free(&nt_response);
+	data_blob_free(&session_key);
+
         return pass;
 }
 
@@ -387,10 +391,9 @@ static bool test_lmv2_ntlmv2_broken(enum ntlm_break break_which)
 			      &names_blob,
 			      &lmv2_response, &ntlmv2_response, NULL,
 			      &ntlmv2_session_key)) {
-		data_blob_free(&names_blob);
-		return False;
+		pass = false;
+		goto done;
 	}
-	data_blob_free(&names_blob);
 
 	switch (break_which) {
 	case BREAK_NONE:
@@ -420,15 +423,12 @@ static bool test_lmv2_ntlmv2_broken(enum ntlm_break break_which)
 					      &authoritative,
 					      &error_string, NULL);
 
-	data_blob_free(&lmv2_response);
-	data_blob_free(&ntlmv2_response);
-
 	if (!NT_STATUS_IS_OK(nt_status)) {
 		d_printf("%s (0x%x)\n",
 			 error_string,
 			 NT_STATUS_V(nt_status));
-		SAFE_FREE(error_string);
-		return break_which == BREAK_NT;
+		pass = (break_which == BREAK_NT);
+		goto done;
 	}
 
 	SAFE_FREE(error_string);
@@ -443,7 +443,13 @@ static bool test_lmv2_ntlmv2_broken(enum ntlm_break break_which)
 		pass = False;
 	}
 
+done:
+	data_blob_free(&names_blob);
+	data_blob_free(&lmv2_response);
+	data_blob_free(&ntlmv2_response);
 	data_blob_free(&ntlmv2_session_key);
+	SAFE_FREE(error_string);
+
         return pass;
 }
 

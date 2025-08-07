@@ -53,6 +53,7 @@ COMMON = [
     'jq',
     'lcov',
     'make',
+    'mold',
     'patch',
     'perl',
     'psmisc',  # for pstree in test
@@ -77,6 +78,7 @@ PKGS = [
     ('lmdb-utils', 'lmdb'),
     ('mingw-w64', 'mingw64-gcc'),
     ('zlib1g-dev', 'zlib-devel'),
+    ('landscape-common', ''), # for landscape/lib/os_release.py
     ('libbsd-dev', 'libbsd-devel'),
     ('liburing-dev', 'liburing-devel'),
     ('libarchive-dev', 'libarchive-devel'),
@@ -116,6 +118,7 @@ PKGS = [
     ('libglib2.0-dev', 'glib2-devel'),
     ('libicu-dev', 'libicu-devel'),
     ('heimdal-multidev', ''),
+    ('libevent-dev', 'libevent-devel'),
 
     # NAME1, NAME2
     # for debian, locales provide locale support with language packs
@@ -139,19 +142,17 @@ PKGS = [
     ('', 'libtirpc-devel'),  # for <rpc/rpc.h> header on fedora
     ('', 'rpcsvc-proto-devel'), # for <rpcsvc/rquota.h> header
     ('mawk', 'gawk'),
-    ('', 'mold'),
     ('shellcheck', 'ShellCheck'),
     ('', 'crypto-policies-scripts'),
 
     ('python3', 'python3'),
-    ('python3-cryptography', 'python3-cryptography'), # for krb5 tests
+    ('python3-cryptography', 'python3-cryptography'),
     ('python3-dev', 'python3-devel'),
     ('python3-dbg', ''),
     ('python3-iso8601', 'python3-iso8601'),
     ('python3-gpg', 'python3-gpg'),  # defaults to ubuntu/fedora latest
     ('python3-markdown', 'python3-markdown'),
     ('python3-dnspython', 'python3-dns'),
-    ('python3-pexpect', ''),  # for wintest only
     ('python3-pyasn1', 'python3-pyasn1'), # for krb5 tests
     ('python3-setproctitle', 'python3-setproctitle'),
     ('python3-requests', 'python3-requests'), # for cert auto enroll
@@ -177,6 +178,10 @@ PKGS = [
 
     # spotlight
     ('libtracker-sparql-2.0-dev', 'tracker-devel'),
+
+    # systemd userdb
+    ('', 'libvarlink-devel'),
+    ('', 'python3-varlink'),
 
     # misc
     # @ means group for rpm, use fedora as rpm default
@@ -454,6 +459,8 @@ DEB_DISTS = {
             'language-pack-en': '',   # included in locales
             'shfmt': '',
             'cargo': '', # included cargo is broken
+            'landscape-common': '',
+            'mold': '',
         }
     },
     'debian11-32bit': {
@@ -463,6 +470,8 @@ DEB_DISTS = {
             'language-pack-en': '',   # included in locales
             'shfmt': '',
             'cargo': '', # included cargo is broken
+            'landscape-common': '',
+            'mold': '',
         }
     },
     'debian12': {
@@ -472,6 +481,7 @@ DEB_DISTS = {
             'language-pack-en': '',   # included in locales
             'libtracker-sparql-2.0-dev': '',  # only tracker 3.x is available
             'cargo': '', # included cargo is broken
+            'landscape-common': '',
         }
     },
     'debian12-32bit': {
@@ -481,6 +491,7 @@ DEB_DISTS = {
             'language-pack-en': '',   # included in locales
             'libtracker-sparql-2.0-dev': '',  # only tracker 3.x is available
             'cargo': '', # included cargo is broken
+            'landscape-common': '',
         }
     },
     'ubuntu1804': {
@@ -489,6 +500,8 @@ DEB_DISTS = {
         'replace': {
             'liburing-dev': '',   # not available
             'shfmt': '',
+            'landscape-common': '',
+            'mold': '',
         }
     },
     'ubuntu1804-32bit': {
@@ -497,6 +510,8 @@ DEB_DISTS = {
         'replace': {
             'liburing-dev': '',   # not available
             'shfmt': '',
+            'landscape-common': '',
+            'mold': '',
         }
     },
     'ubuntu2004': {
@@ -505,6 +520,7 @@ DEB_DISTS = {
         'replace': {
             'liburing-dev': '',   # not available
             'shfmt': '',
+            'mold': '',
         }
     },
     'ubuntu2204': {
@@ -513,7 +529,14 @@ DEB_DISTS = {
         'replace': {
             'libtracker-sparql-2.0-dev': '',  # only tracker 3.x is available
         },
-    }
+    },
+    'ubuntu2404': {
+        'docker_image': 'ubuntu:24.04',
+        'vagrant_box': 'ubuntu/noble64',
+        'replace': {
+            'libtracker-sparql-2.0-dev': '',  # only tracker 3.x is available
+        },
+    },
 }
 
 
@@ -534,6 +557,7 @@ RPM_DISTS = {
             'ShellCheck': '',
             'shfmt': '',
             'codespell': '',
+            'libvarlink-devel': '', # not available
         }
     },
     'centos9s': {
@@ -553,11 +577,13 @@ RPM_DISTS = {
             'codespell': '',
             'libcephfs-devel': '',  # not available anymore
             'curl': '',  # Use installed curl-minimal
+            'libvarlink-devel': '', # not available
+            'python3-varlink': '', # not available
         }
     },
-    'fedora41': {
-        'docker_image': 'quay.io/fedora/fedora:41',
-        'vagrant_box': 'fedora/41-cloud-base',
+    'fedora42': {
+        'docker_image': 'quay.io/fedora/fedora:42',
+        'vagrant_box': 'fedora/42-cloud-base',
         'bootstrap': DNF_BOOTSTRAP,
         'replace': {
             'lsb-release': 'redhat-lsb',
@@ -598,6 +624,7 @@ RPM_DISTS = {
             'mold': '',
             'shfmt': '',
             'yum-utils': '',
+            'libvarlink-devel': '', # not available
         }
     }
 }

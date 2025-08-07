@@ -1,4 +1,4 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
    Locking functions
    Copyright (C) Andrew Tridgell 1992-2000
@@ -91,7 +91,6 @@ void init_strict_lock_struct(files_struct *fsp,
 				br_off start,
 				br_off size,
 				enum brl_type lock_type,
-				enum brl_flavour lock_flav,
 				struct lock_struct *plock)
 {
 	SMB_ASSERT(lock_type == READ_LOCK || lock_type == WRITE_LOCK);
@@ -437,12 +436,12 @@ char *share_mode_str(TALLOC_CTX *ctx, int num,
 	struct file_id_buf ftmp;
 
 	return talloc_asprintf(ctx, "share_mode_entry[%d]: "
-		 "pid = %s, share_access = 0x%x, private_options = 0x%x, "
+		 "pid = %s, share_access = 0x%x, "
 		 "access_mask = 0x%x, mid = 0x%llx, type= 0x%x, gen_id = %llu, "
 		 "uid = %u, flags = %u, file_id %s, name_hash = 0x%x",
 		 num,
 		 server_id_str_buf(e->pid, &tmp),
-		 e->share_access, e->private_options,
+		 e->share_access,
 		 e->access_mask, (unsigned long long)e->op_mid,
 		 e->op_type, (unsigned long long)e->share_file_id,
 		 (unsigned int)e->uid, (unsigned int)e->flags,
@@ -619,17 +618,12 @@ bool rename_share_filename(struct messaging_context *msg_ctx,
 
 void get_file_infos(struct file_id id,
 		    uint32_t name_hash,
-		    bool *delete_on_close,
-		    struct timespec *write_time)
+		    bool *delete_on_close)
 {
 	struct share_mode_lock *lck;
 
 	if (delete_on_close) {
 		*delete_on_close = false;
-	}
-
-	if (write_time) {
-		*write_time = make_omit_timespec();
 	}
 
 	if (!(lck = fetch_share_mode_unlocked(talloc_tos(), id))) {
@@ -638,10 +632,6 @@ void get_file_infos(struct file_id id,
 
 	if (delete_on_close) {
 		*delete_on_close = is_delete_on_close_set(lck, name_hash);
-	}
-
-	if (write_time) {
-		*write_time = get_share_mode_write_time(lck);
 	}
 
 	TALLOC_FREE(lck);
@@ -1073,144 +1063,6 @@ bool is_delete_on_close_set(struct share_mode_lock *lck, uint32_t name_hash)
 	return find_delete_on_close_token(d, name_hash) != NULL;
 }
 
-struct set_sticky_write_time_state {
-	struct file_id fileid;
-	struct timespec write_time;
-	bool ok;
-};
-
-static void set_sticky_write_time_fn(struct share_mode_lock *lck,
-				     void *private_data)
-{
-	struct set_sticky_write_time_state *state = private_data;
-	struct share_mode_data *d = NULL;
-	struct file_id_buf ftmp;
-	struct timeval_buf tbuf;
-	NTSTATUS status;
-
-	status = share_mode_lock_access_private_data(lck, &d);
-	if (!NT_STATUS_IS_OK(status)) {
-		/* Any error recovery possible here ? */
-		DBG_ERR("share_mode_lock_access_private_data() failed for "
-			"%s id=%s - %s\n",
-			timespec_string_buf(&state->write_time, true, &tbuf),
-			file_id_str_buf(state->fileid, &ftmp),
-			nt_errstr(status));
-		return;
-	}
-
-	share_mode_set_changed_write_time(lck, state->write_time);
-
-	state->ok = true;
-}
-
-bool set_sticky_write_time(struct file_id fileid, struct timespec write_time)
-{
-	struct set_sticky_write_time_state state = {
-		.fileid = fileid,
-		.write_time = write_time,
-	};
-	struct file_id_buf ftmp;
-	struct timeval_buf tbuf;
-	NTSTATUS status;
-
-	status = share_mode_do_locked_vfs_denied(fileid,
-						 set_sticky_write_time_fn,
-						 &state);
-	if (!NT_STATUS_IS_OK(status)) {
-		/* Any error recovery possible here ? */
-		DBG_ERR("share_mode_do_locked_vfs_denied() failed for "
-			"%s id=%s - %s\n",
-			timespec_string_buf(&write_time, true, &tbuf),
-			file_id_str_buf(fileid, &ftmp),
-			nt_errstr(status));
-		return false;
-	}
-
-	return state.ok;
-}
-
-struct set_write_time_state {
-	struct file_id fileid;
-	struct timespec write_time;
-	bool ok;
-};
-
-static void set_write_time_fn(struct share_mode_lock *lck,
-			      void *private_data)
-{
-	struct set_write_time_state *state = private_data;
-	struct share_mode_data *d = NULL;
-	struct file_id_buf idbuf;
-	struct timeval_buf tbuf;
-	NTSTATUS status;
-
-	status = share_mode_lock_access_private_data(lck, &d);
-	if (!NT_STATUS_IS_OK(status)) {
-		/* Any error recovery possible here ? */
-		DBG_ERR("share_mode_lock_access_private_data() failed for "
-			"%s id=%s - %s\n",
-			timespec_string_buf(&state->write_time, true, &tbuf),
-			file_id_str_buf(state->fileid, &idbuf),
-			nt_errstr(status));
-		return;
-	}
-
-	share_mode_set_old_write_time(lck, state->write_time);
-
-	state->ok = true;
-}
-
-bool set_write_time(struct file_id fileid, struct timespec write_time)
-{
-	struct set_write_time_state state = {
-		.fileid = fileid,
-		.write_time = write_time,
-	};
-	struct file_id_buf idbuf;
-	struct timeval_buf tbuf;
-	NTSTATUS status;
-
-	status = share_mode_do_locked_vfs_denied(fileid,
-						 set_write_time_fn,
-						 &state);
-	if (!NT_STATUS_IS_OK(status)) {
-		DBG_ERR("share_mode_do_locked_vfs_denied() failed for "
-			"%s id=%s - %s\n",
-			timespec_string_buf(&write_time, true, &tbuf),
-			file_id_str_buf(fileid, &idbuf),
-			nt_errstr(status));
-		return false;
-	}
-
-	return state.ok;
-}
-
-struct timespec get_share_mode_write_time(struct share_mode_lock *lck)
-{
-	struct share_mode_data *d = NULL;
-	NTSTATUS status;
-
-	status = share_mode_lock_access_private_data(lck, &d);
-	if (!NT_STATUS_IS_OK(status)) {
-		struct file_id id = share_mode_lock_file_id(lck);
-		struct file_id_buf id_buf;
-		struct timespec ts_zero = {};
-		/* Any error recovery possible here ? */
-		DBG_ERR("share_mode_lock_access_private_data() failed for "
-			"%s - %s\n",
-			file_id_str_buf(id, &id_buf),
-			nt_errstr(status));
-		smb_panic(__location__);
-		return ts_zero;
-	}
-
-	if (!null_nttime(d->changed_write_time)) {
-		return nt_time_to_full_timespec(d->changed_write_time);
-	}
-	return nt_time_to_full_timespec(d->old_write_time);
-}
-
 struct file_has_open_streams_state {
 	bool found_one;
 	bool ok;
@@ -1223,8 +1075,7 @@ static bool file_has_open_streams_fn(
 {
 	struct file_has_open_streams_state *state = private_data;
 
-	if ((e->private_options &
-	     NTCREATEX_FLAG_STREAM_BASEOPEN) == 0) {
+	if (!(e->flags & SHARE_ENTRY_FLAG_STREAM_BASEOPEN)) {
 		return false;
 	}
 

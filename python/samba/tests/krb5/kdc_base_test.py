@@ -103,6 +103,10 @@ from samba.join import DCJoinContext
 from samba.ndr import ndr_pack, ndr_unpack
 from samba.param import LoadParm
 from samba.samdb import SamDB, dsdb_Dn
+from samba.security import (
+    claims_tf_policy_parse_rules,
+    claims_tf_policy_wrap_xml,
+)
 
 rc4_bit = security.KERB_ENCTYPE_RC4_HMAC_MD5
 aes256_sk_bit = security.KERB_ENCTYPE_AES256_CTS_HMAC_SHA1_96_SK
@@ -120,6 +124,7 @@ from samba.tests.krb5.rfc4120_constants import (
     AD_WIN2K_PAC,
     AES256_CTS_HMAC_SHA1_96,
     ARCFOUR_HMAC_MD5,
+    KDC_ERR_POLICY,
     KDC_ERR_PREAUTH_REQUIRED,
     KDC_ERR_TGT_REVOKED,
     KRB_AS_REP,
@@ -205,6 +210,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
         cls.ldb_cleanups = []
 
         cls._claim_types_dn = None
+        cls._claim_tf_policies_dn = None
         cls._authn_policy_config_dn = None
         cls._authn_policies_dn = None
         cls._authn_silos_dn = None
@@ -248,6 +254,46 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
         # Return a copy of the DN.
         return ldb.Dn(samdb, str(self._claim_types_dn))
+
+    def get_claim_tf_policies_dn(self):
+        samdb = self.get_samdb()
+
+        if self._claim_tf_policies_dn is None:
+            claim_config_dn = samdb.get_config_basedn()
+
+            claim_config_dn.add_child('CN=Claims Configuration,CN=Services')
+            details = {
+                'dn': claim_config_dn,
+                'objectClass': 'container',
+            }
+            try:
+                samdb.add(details)
+            except ldb.LdbError as err:
+                num, _ = err.args
+                if num != ldb.ERR_ENTRY_ALREADY_EXISTS:
+                    raise
+            else:
+                self.accounts.append(str(claim_config_dn))
+
+            claim_tf_policies_dn = claim_config_dn
+            claim_tf_policies_dn.add_child('CN=Claims Transformation Policies')
+            details = {
+                'dn': claim_tf_policies_dn,
+                'objectClass': 'msDS-ClaimsTransformationPolicies',
+            }
+            try:
+                samdb.add(details)
+            except ldb.LdbError as err:
+                num, _ = err.args
+                if num != ldb.ERR_ENTRY_ALREADY_EXISTS:
+                    raise
+            else:
+                self.accounts.append(str(claim_tf_policies_dn))
+
+            type(self)._claim_tf_policies_dn = claim_tf_policies_dn
+
+        # Return a copy of the DN.
+        return ldb.Dn(samdb, str(self._claim_tf_policies_dn))
 
     def get_authn_policy_config_dn(self):
         samdb = self.get_samdb()
@@ -908,8 +954,11 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
     def create_trust(self, trust_info,
                      trust_enc_types=None,
+                     forest_info=None,
                      trust_incoming_password=None,
                      trust_outgoing_password=None,
+                     ingress_claims_tf_rules=None,
+                     egress_claims_tf_rules=None,
                      expect_error=None,
                      preserve=True):
         """Create an trust account for testing.
@@ -990,8 +1039,60 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
             lsa_conn.SetInformationTrustedDomain(tdo_handle,
                                                  lsa.LSA_TRUSTED_DOMAIN_SUPPORTED_ENCRYPTION_TYPES,
                                                  trust_enc_types)
+        trust_dns_nameL = lsa.StringLarge()
+        trust_dns_nameL.string = trust_info.domain_name.string
+        if isinstance(forest_info, lsa.ForestTrustInformation2):
+            local_forest_collision = \
+                lsa_conn.lsaRSetForestTrustInformation2(lsa_policy,
+                                                        trust_dns_nameL,
+                                                        lsa.LSA_FOREST_TRUST_RECORD2_TYPE_LAST,
+                                                        forest_info,
+                                                        0)
+        elif isinstance(forest_info, lsa.ForestTrustInformation):
+            local_forest_collision = \
+                lsa_conn.lsaRSetForestTrustInformation(lsa_policy,
+                                                       trust_dns_nameL,
+                                                       lsa.LSA_FOREST_TRUST_RECORD_TYPE_LAST,
+                                                       forest_info,
+                                                       0)
 
         samdb = self.get_samdb()
+
+        def claims_tf_policy_dn(name, rules):
+            xml_rules = claims_tf_policy_wrap_xml(rules)
+            rs = claims_tf_policy_parse_rules(xml_rules, strip_xml=True)
+            policy_dn = self.get_claim_tf_policies_dn()
+            policy_dn.add_child('CN=%s' % name)
+            details = {
+                'dn': policy_dn,
+                'objectClass': 'msDS-ClaimsTransformationPolicyType',
+                'msDS-TransformationRules': xml_rules,
+            }
+            try:
+                samdb.add(details)
+            except ldb.LdbError as err:
+                num, _ = err.args
+                if num != ldb.ERR_ENTRY_ALREADY_EXISTS:
+                    raise
+                raise
+            else:
+                self.accounts.append(str(policy_dn))
+
+            return policy_dn
+
+        if ingress_claims_tf_rules is not None:
+            ingress_policy_dn = claims_tf_policy_dn("%s-Ingress" %
+                                                    trust_dns_name.string,
+                                                    ingress_claims_tf_rules)
+        else:
+            ingress_policy_dn = None
+
+        if egress_claims_tf_rules is not None:
+            egress_policy_dn = claims_tf_policy_dn("%s-Egress" %
+                                                   trust_dns_name.string,
+                                                   egress_claims_tf_rules)
+        else:
+            egress_policy_dn = None
 
         incoming_account_name = trust_info.netbios_name.string
         incoming_account_name += '$'
@@ -1010,6 +1111,22 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
                                attrs=['msDS-TrustForestTrustInfo'])
         self.assertEqual(len(tdo_res), 1)
         tdo_dn = tdo_res[0].dn
+
+        if ingress_policy_dn or egress_policy_dn:
+            msg = ldb.Message()
+            msg.dn = tdo_dn
+            if ingress_policy_dn:
+                msg['ingress'] = ldb.MessageElement(
+                    str(ingress_policy_dn),
+                    ldb.FLAG_MOD_REPLACE,
+                    'msDS-IngressClaimsTransformationPolicy')
+            if egress_policy_dn:
+                msg['egress'] = ldb.MessageElement(
+                    str(egress_policy_dn),
+                    ldb.FLAG_MOD_REPLACE,
+                    'msDS-EgressClaimsTransformationPolicy')
+
+            samdb.modify(msg)
 
         acct_search_filter = "(&(objectClass=user)(sAMAccountName=%s))" % (
                              incoming_account_name)
@@ -1905,6 +2022,8 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
                      new_sids,
                      domain_sid=None,
                      user_rid=None,
+                     upn_dns_sid=None,
+                     requester_sid=None,
                      set_user_flags=0,
                      reset_user_flags=0):
         if domain_sid is None:
@@ -2028,12 +2147,65 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
             elif pac_buffer.type == krb5pac.PAC_TYPE_UPN_DNS_INFO:
                 upn_dns_info_ex = pac_buffer.info.ex
 
-                if user_rid is not None:
-                    upn_dns_info_ex.objectsid = security.dom_sid(
+                if upn_dns_sid is None and user_rid is not None:
+                    upn_dns_sid = security.dom_sid(
                         f'{domain_sid}-{user_rid}')
 
-            # But don't replace the user's SID in the Requester SID buffer, or
-            # we'll get a SID mismatch.
+                if upn_dns_sid is not None:
+                    upn_dns_info_ex.objectsid = upn_dns_sid
+
+            elif pac_buffer.type == krb5pac.PAC_TYPE_REQUESTER_SID:
+                if requester_sid is not None:
+                    pac_buffer.info.sid = requester_sid
+
+        self.assertTrue(found_logon_info, 'no LOGON_INFO PAC buffer')
+
+        pac.buffers = pac_buffers
+
+        return pac
+
+    # Replace the Names in a PAC.
+    def set_pac_names(self,
+                      pac,
+                      *,
+                      account_name=False,
+                      logon_server=False,
+                      logon_domain=False,
+                      logon_name=False,
+                      upn_name=False,
+                      logon_dns_domain=False,
+                      samaccountname=False):
+
+        found_logon_info = False
+
+        pac_buffers = pac.buffers
+        for pac_buffer in pac_buffers:
+            # Find the LOGON_INFO PAC buffer.
+            if pac_buffer.type == krb5pac.PAC_TYPE_LOGON_INFO:
+                logon_info = pac_buffer.info.info
+
+                if account_name is not False:
+                    logon_info.info3.base.account_name.string = account_name
+                if logon_server is not False:
+                    logon_info.info3.base.logon_server.string = logon_server
+                if logon_domain is not False:
+                    logon_info.info3.base.logon_domain.string = logon_domain
+
+                found_logon_info = True
+
+            elif pac_buffer.type == krb5pac.PAC_TYPE_LOGON_NAME:
+                if logon_name is not False:
+                    pac_buffer.info.account_name = logon_name
+
+            elif pac_buffer.type == krb5pac.PAC_TYPE_UPN_DNS_INFO:
+                upn_dns_info = pac_buffer.info
+
+                if upn_name is not False:
+                    upn_dns_info.upn_name = upn_name
+                if logon_dns_domain is not False:
+                    upn_dns_info.dns_domain_name = logon_dns_domain
+                if samaccountname is not False:
+                    upn_dns_info.ex.samaccountname = samaccountname
 
         self.assertTrue(found_logon_info, 'no LOGON_INFO PAC buffer')
 
@@ -2243,26 +2415,31 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
             claims_arrays.append(claims_array)
 
-        claims_set = claims.CLAIMS_SET()
-        claims_set.claims_arrays = claims_arrays
-        claims_set.claims_array_count = len(claims_arrays)
+        if len(claims_arrays) != 0:
+            claims_set = claims.CLAIMS_SET()
+            claims_set.claims_arrays = claims_arrays
+            claims_set.claims_array_count = len(claims_arrays)
 
-        claims_ctr = claims.CLAIMS_SET_CTR()
-        claims_ctr.claims = claims_set
+            claims_ctr = claims.CLAIMS_SET_CTR()
+            claims_ctr.claims = claims_set
 
-        claims_ndr = claims.CLAIMS_SET_NDR()
-        claims_ndr.claims = claims_ctr
+            claims_ndr = claims.CLAIMS_SET_NDR()
+            claims_ndr.claims = claims_ctr
 
-        metadata = claims.CLAIMS_SET_METADATA()
-        metadata.claims_set = claims_ndr
-        metadata.compression_format = (
-            claims.CLAIMS_COMPRESSION_FORMAT_XPRESS_HUFF)
+            metadata = claims.CLAIMS_SET_METADATA()
+            metadata.claims_set = claims_ndr
+            metadata.compression_format = (
+                claims.CLAIMS_COMPRESSION_FORMAT_XPRESS_HUFF)
 
-        metadata_ctr = claims.CLAIMS_SET_METADATA_CTR()
-        metadata_ctr.metadata = metadata
+            metadata_ctr = claims.CLAIMS_SET_METADATA_CTR()
+            metadata_ctr.metadata = metadata
 
-        metadata_ndr = claims.CLAIMS_SET_METADATA_NDR()
-        metadata_ndr.claims = metadata_ctr
+            metadata_ndr = claims.CLAIMS_SET_METADATA_NDR()
+            metadata_ndr.claims = metadata_ctr
+
+            claims_buffer = ndr_pack(metadata_ndr)
+        else:
+            claims_buffer = b''
 
         pac_buffers = pac.buffers
         for pac_buffer in pac_buffers:
@@ -2275,7 +2452,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
             pac_buffers.append(pac_buffer)
 
-        pac_buffer.info.remaining = ndr_pack(metadata_ndr)
+        pac_buffer.info.remaining = claims_buffer
 
         pac.buffers = pac_buffers
         pac.num_buffers = len(pac_buffers)
@@ -2302,6 +2479,19 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
         pac.buffers = pac_buffers
         pac.num_buffers = len(pac_buffers)
+
+        return pac
+
+    def remove_pac_buffers(self, pac, *, pac_buffer_type=None):
+
+        old_buffers = pac.buffers
+        new_buffers = []
+        for pac_buffer in old_buffers:
+            if pac_buffer.type != pac_buffer_type:
+                new_buffers.append(pac_buffer)
+
+        pac.buffers = new_buffers
+        pac.num_buffers = len(new_buffers)
 
         return pac
 
@@ -2333,6 +2523,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
             'delegation_to_spn': None,
             'delegation_from_dn': None,
             'trusted_to_auth_for_delegation': False,
+            'selective_auth_allowed_sid': None,
             'fast_support': False,
             'claims_support': False,
             'compound_id_support': False,
@@ -2392,6 +2583,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
                             delegation_to_spn,
                             delegation_from_dn,
                             trusted_to_auth_for_delegation,
+                            selective_auth_allowed_sid,
                             fast_support,
                             claims_support,
                             compound_id_support,
@@ -2406,10 +2598,12 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
                             logon_hours,
                             smartcard_required,
                             enabled):
+        self.assertNotEqual(account_type, self.AccountType.TRUST)
         if account_type is self.AccountType.USER:
             self.assertIsNone(delegation_to_spn)
             self.assertIsNone(delegation_from_dn)
             self.assertFalse(trusted_to_auth_for_delegation)
+            self.assertIsNone(selective_auth_allowed_sid)
         else:
             self.assertFalse(not_delegated)
 
@@ -2474,6 +2668,30 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
         if assigned_silo is not None:
             details['msDS-AssignedAuthNPolicySilo'] = assigned_silo
+
+        if selective_auth_allowed_sid is not None:
+            if account_type is self.AccountType.GROUP_MANAGED_SERVICE:
+                oclass = "msDS-GroupManagedServiceAccount"
+            elif account_type is self.AccountType.MANAGED_SERVICE:
+                oclass = "msDS-ManagedServiceAccount"
+            else: # COMPUTER, SERVER, RODC
+                oclass = "computer"
+            schema_dn = samdb.get_schema_basedn()
+            domain_sid = samdb.get_domain_sid()
+            domain_sid = security.dom_sid(domain_sid)
+            res = samdb.search(base=schema_dn, scope=ldb.SCOPE_ONELEVEL,
+                               expression="(lDAPDisplayName=%s)" % oclass,
+                               attrs=["defaultSecurityDescriptor"])
+            self.assertEqual(len(res), 1)
+            self.assertIn("defaultSecurityDescriptor", res[0])
+            self.assertEqual(len(res[0]["defaultSecurityDescriptor"]), 1)
+            sd = str(res[0]["defaultSecurityDescriptor"][0])
+            sd += "(OA;;CR;%s;;%s)" % (
+                security.GUID_DRS_ALLOWED_TO_AUTHENTICATE,
+                selective_auth_allowed_sid)
+
+            sd = security.descriptor.from_sddl(sd, domain_sid)
+            details['nTSecurityDescriptor'] = ndr_pack(sd)
 
         if logon_hours is not None:
             details['logonHours'] = logon_hours
@@ -3249,6 +3467,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
                            sname=None,
                            target_name=None, till=None, rc4_support=True,
                            to_rodc=False, kdc_options=None,
+                           expected_status=None,
                            expected_flags=None, unexpected_flags=None,
                            expected_groups=None,
                            unexpected_groups=None,
@@ -3287,7 +3506,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
                      expect_pac_attrs,
                      expect_pac_attrs_pac_request)
 
-        if not fresh:
+        if not fresh and expected_status is None:
             ticket = self.tkt_cache.get(cache_key)
 
             if ticket is not None:
@@ -3309,6 +3528,15 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
         decryption_key = self.TicketDecryptionKey_from_creds(target_creds)
 
+        if expected_status is not None:
+            check_rep_fn = None
+            check_error_fn = self.generic_check_kdc_error
+            expected_error_mode = KDC_ERR_POLICY
+        else:
+            check_rep_fn = self.generic_check_kdc_rep
+            check_error_fn = None
+            expected_error_mode = 0
+
         kdc_exchange_dict = self.tgs_exchange_dict(
             expected_crealm=tgt.crealm,
             expected_cname=tgt.cname,
@@ -3327,7 +3555,10 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
             unexpected_device_claims=unexpected_device_claims,
             ticket_decryption_key=decryption_key,
             expect_ticket_kvno=(not expect_krbtgt_referral),
-            check_rep_fn=self.generic_check_kdc_rep,
+            check_rep_fn=check_rep_fn,
+            check_error_fn=check_error_fn,
+            expected_error_mode=expected_error_mode,
+            expected_status=expected_status,
             check_kdc_private_fn=self.generic_check_kdc_private,
             tgt=tgt,
             authenticator_subkey=authenticator_subkey,
@@ -3346,6 +3577,9 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
                                          sname=sname,
                                          till_time=till,
                                          etypes=etype)
+        if expected_status is not None:
+            self.check_error_rep(rep, expected_error_mode)
+            return None
         self.check_tgs_reply(rep)
 
         service_ticket_creds = kdc_exchange_dict['rep_ticket_creds']
@@ -3766,7 +4000,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
         msg[name] = ldb.MessageElement([], flag, name)
         samdb.modify(msg)
 
-    def create_ccache(self, cname, ticket, enc_part):
+    def create_ccache(self, crealm, cname, ticket, enc_part):
         """ Lay out a version 4 on-disk credentials cache, to be read using the
             FILE: protocol.
         """
@@ -3791,7 +4025,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
         cprincipal = krb5ccache.PRINCIPAL()
         cprincipal.name_type = cname['name-type']
         cprincipal.component_count = len(cname_string)
-        cprincipal.realm = ticket['realm']
+        cprincipal.realm = crealm
         cprincipal.components = cname_string
 
         sname = ticket['sname']
@@ -3884,7 +4118,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
         # Write the ticket into a credentials cache file that can be ingested
         # by the main credentials code.
-        cachefile = self.create_ccache(cname, ticket.ticket,
+        cachefile = self.create_ccache(realm, cname, ticket.ticket,
                                        ticket.encpart_private)
 
         # Create a credentials object to reference the credentials cache.

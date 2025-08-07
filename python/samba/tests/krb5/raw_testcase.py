@@ -47,6 +47,7 @@ import pyasn1.type.univ
 from pyasn1.error import PyAsn1Error
 
 from samba import unix2nttime
+from samba.common import get_string
 from samba.credentials import Credentials
 from samba.dcerpc import claims, krb5pac, netlogon, samr, security, krb5ccache
 from samba.gensec import FEATURE_SEAL
@@ -701,6 +702,13 @@ class KerberosTicketCreds:
         self.ticket['sname'] = sname
         self.sname = sname
 
+    def set_srealm(self, srealm):
+        self.ticket['realm'] = srealm
+        self.srealm = srealm
+
+    def __str__(self):
+        return "KerberosTicketCreds(crealm=%s, cname=%s, srealm=%s, sname=%s)" %(
+                self.crealm, self.cname, self.srealm, self.sname)
 
 class PkInit(Enum):
     NOT_USED = object()
@@ -721,6 +729,7 @@ class RawKerberosTest(TestCase):
         EXTRA_SID = object()  # in info3.sids
         RESOURCE_SID = object()  # in resource_groups
         PRIMARY_GID = object()  # the (sole) primary group
+        EXTRA_DOMAIN_SID = object()  # in device_info.extra_domain
 
         def __repr__(self):
             return self.__str__()
@@ -3345,6 +3354,7 @@ class RawKerberosTest(TestCase):
             'expected_sname': expected_sname,
             'expected_account_name': expected_account_name,
             'expected_groups': expected_groups,
+            'expected_duplicated_groups': None,
             'unexpected_groups': unexpected_groups,
             'expected_upn_name': expected_upn_name,
             'expected_sid': expected_sid,
@@ -3404,6 +3414,7 @@ class RawKerberosTest(TestCase):
             'unexpected_device_claims': unexpected_device_claims,
             'expect_resource_groups_flag': expect_resource_groups_flag,
             'expected_device_groups': expected_device_groups,
+            'expected_device_duplicated_groups': None,
             'expected_extra_pac_buffers': expected_extra_pac_buffers,
             'expect_matching_nt_hash_in_pac': expect_matching_nt_hash_in_pac,
             'to_rodc': to_rodc
@@ -3422,6 +3433,7 @@ class RawKerberosTest(TestCase):
                           expected_sname=None,
                           expected_account_name=None,
                           expected_groups=None,
+                          expected_duplicated_groups=None,
                           unexpected_groups=None,
                           expected_upn_name=None,
                           expected_sid=None,
@@ -3481,6 +3493,7 @@ class RawKerberosTest(TestCase):
                           unexpected_device_claims=None,
                           expect_resource_groups_flag=None,
                           expected_device_groups=None,
+                          expected_device_duplicated_groups=None,
                           expected_extra_pac_buffers=None,
                           to_rodc=False):
         if expected_error_mode == 0:
@@ -3502,6 +3515,7 @@ class RawKerberosTest(TestCase):
             'expected_sname': expected_sname,
             'expected_account_name': expected_account_name,
             'expected_groups': expected_groups,
+            'expected_duplicated_groups': expected_duplicated_groups,
             'unexpected_groups': unexpected_groups,
             'expected_upn_name': expected_upn_name,
             'expected_sid': expected_sid,
@@ -3561,6 +3575,7 @@ class RawKerberosTest(TestCase):
             'unexpected_device_claims': unexpected_device_claims,
             'expect_resource_groups_flag': expect_resource_groups_flag,
             'expected_device_groups': expected_device_groups,
+            'expected_device_duplicated_groups': expected_device_duplicated_groups,
             'expected_extra_pac_buffers': expected_extra_pac_buffers,
             'to_rodc': to_rodc
         }
@@ -4385,6 +4400,7 @@ class RawKerberosTest(TestCase):
         resource_groups = logon_info_buffer.info.info.resource_groups
 
         expected_groups = kdc_exchange_dict['expected_groups']
+        expected_duplicated_groups = kdc_exchange_dict['expected_duplicated_groups']
         unexpected_groups = kdc_exchange_dict['unexpected_groups']
         expected_domain_sid = kdc_exchange_dict['expected_domain_sid']
         expected_sid = kdc_exchange_dict['expected_sid']
@@ -4400,6 +4416,11 @@ class RawKerberosTest(TestCase):
         if expected_groups is None and unexpected_groups is None:
             # Nothing more to do.
             return
+
+        if expected_duplicated_groups:
+            expected_duplicated_groups = set(expected_duplicated_groups)
+        else:
+            expected_duplicated_groups = frozenset()
 
         # Check the SIDs in the PAC.
 
@@ -4425,6 +4446,10 @@ class RawKerberosTest(TestCase):
                 pac_sid = (got_sid,
                            self.SidType.EXTRA_SID,
                            sid_attr.attributes)
+                if pac_sid in pac_sids:
+                    if pac_sid in expected_duplicated_groups:
+                        expected_duplicated_groups.remove(pac_sid)
+                        continue
                 self.assertNotIn(pac_sid, pac_sids, 'got duplicated SID')
                 pac_sids.add(pac_sid)
         else:
@@ -4442,6 +4467,10 @@ class RawKerberosTest(TestCase):
                     self.assertNotIn(got_sid, unexpected_groups)
 
                 pac_sid = (got_sid, self.SidType.BASE_SID, group.attributes)
+                if pac_sid in pac_sids:
+                    if pac_sid in expected_duplicated_groups:
+                        expected_duplicated_groups.remove(pac_sid)
+                        continue
                 self.assertNotIn(pac_sid, pac_sids, 'got duplicated SID')
                 pac_sids.add(pac_sid)
 
@@ -4480,6 +4509,8 @@ class RawKerberosTest(TestCase):
                 self.assertNotIn(pac_sid, pac_sids, 'got duplicated SID')
                 pac_sids.add(pac_sid)
 
+        self.assertEqual(len(expected_duplicated_groups), 0)
+
         # Compare the aggregated SIDs against the set of expected SIDs.
         if expected_groups is not None:
             if ... in expected_groups:
@@ -4513,6 +4544,7 @@ class RawKerberosTest(TestCase):
 
         device_domain_sid = kdc_exchange_dict['expected_device_domain_sid']
         expected_device_groups = kdc_exchange_dict['expected_device_groups']
+        expected_device_duplicated_groups = kdc_exchange_dict['expected_device_duplicated_groups']
         if kdc_exchange_dict['expect_device_info']:
             self.assertIsNotNone(device_domain_sid)
             self.assertIsNotNone(expected_device_groups)
@@ -4521,6 +4553,11 @@ class RawKerberosTest(TestCase):
             self.assertEqual(device_domain_sid, str(device_info.domain_sid))
         else:
             device_domain_sid = str(device_info.domain_sid)
+
+        if expected_device_duplicated_groups:
+            expected_device_duplicated_groups = set(expected_device_duplicated_groups)
+        else:
+            expected_device_duplicated_groups = frozenset()
 
         # Check the device info SIDs.
 
@@ -4532,14 +4569,21 @@ class RawKerberosTest(TestCase):
 
         # Collect the groups.
         if device_info.groups.rids is not None:
-            self.assertTrue(device_info.groups.rids, 'got empty RIDs')
+            self.assertEqual(len(device_info.groups.rids),
+                             device_info.groups.count)
 
             for group in device_info.groups.rids:
                 got_sid = f'{device_domain_sid}-{group.rid}'
 
                 device_sid = (got_sid, self.SidType.BASE_SID, group.attributes)
+                if device_sid in got_sids:
+                    if device_sid in expected_device_duplicated_groups:
+                        expected_device_duplicated_groups.remove(device_sid)
+                        continue
                 self.assertNotIn(device_sid, got_sids, 'got duplicated SID')
                 got_sids.add(device_sid)
+        else:
+            self.assertEqual(device_info.groups.count, 0)
 
         # Collect the SIDs.
         if device_info.sids is not None:
@@ -4557,6 +4601,10 @@ class RawKerberosTest(TestCase):
                 device_sid = (got_sid,
                               self.SidType.EXTRA_SID,
                               sid_attr.attributes)
+                if device_sid in got_sids:
+                    if device_sid in expected_device_duplicated_groups:
+                        expected_device_duplicated_groups.remove(device_sid)
+                        continue
                 self.assertNotIn(device_sid, got_sids, 'got duplicated SID')
                 got_sids.add(device_sid)
 
@@ -4582,19 +4630,37 @@ class RawKerberosTest(TestCase):
                     got_sid = f'{resource_group_sid}-{resource_group.rid}'
 
                     device_sid = (got_sid,
-                                  self.SidType.RESOURCE_SID,
+                                  self.SidType.EXTRA_DOMAIN_SID,
                                   resource_group.attributes)
-                    self.assertNotIn(device_sid, got_domain_sids, 'got duplicated SID')
-                    got_domain_sids.add(device_sid)
+                    if device_sid in got_sids:
+                        if device_sid in expected_device_duplicated_groups:
+                            expected_device_duplicated_groups.remove(device_sid)
+                            continue
+                    self.assertNotIn(device_sid, got_sids, 'got duplicated SID')
+                    got_sids.add(device_sid)
 
-                got_domain_sids = frozenset(got_domain_sids)
-                self.assertNotIn(got_domain_sids, got_sids)
-                got_sids.add(got_domain_sids)
+        self.assertEqual(len(expected_device_duplicated_groups), 0)
 
         # Compare the aggregated device SIDs against the set of expected device
         # SIDs.
         if expected_device_groups is not None:
-            self.assertEqual(expected_device_groups, got_sids,
+            _expected_device_groups = set()
+            for _g in expected_device_groups:
+                if isinstance(_g, frozenset):
+                    gset = _g
+                else:
+                    gset = frozenset([_g])
+                for g in gset:
+                    stype = g[1]
+                    if g[1] == self.SidType.RESOURCE_SID:
+                        stype = self.SidType.EXTRA_DOMAIN_SID
+                    elif g[1] == self.SidType.EXTRA_SID and g[0].startswith('S-1-5-21-'):
+                        tsid = security.dom_sid(g[0])
+                        if tsid.num_auths == 5:
+                            stype = self.SidType.EXTRA_DOMAIN_SID
+                    tmp_extra = (g[0], stype, g[2])
+                    _expected_device_groups.add(tmp_extra)
+            self.assertEqual(_expected_device_groups, got_sids,
                              'expected != got')
 
     def check_pac_buffers(self, pac_data, kdc_exchange_dict):
@@ -4874,18 +4940,36 @@ class RawKerberosTest(TestCase):
 
                 if uncompressed_size < (
                         claims.CLAIM_LOWER_COMPRESSION_THRESHOLD):
-                    self.assertEqual(claims.CLAIMS_COMPRESSION_FORMAT_NONE,
-                                     compression_format,
+                    self.assertEqual(compression_format,
+                                     claims.CLAIMS_COMPRESSION_FORMAT_NONE,
                                      f'{claims_type} unexpectedly '
                                      f'compressed ({uncompressed_size} '
                                      f'bytes uncompressed)')
-                elif uncompressed_size >= (
-                        claims.CLAIM_UPPER_COMPRESSION_THRESHOLD):
-                    self.assertEqual(
-                        claims.CLAIMS_COMPRESSION_FORMAT_XPRESS_HUFF,
-                        compression_format,
-                        f'{claims_type} unexpectedly not compressed '
-                        f'({uncompressed_size} bytes uncompressed)')
+                elif uncompressed_size > claims_metadata.claims_set_size:
+                    self.assertEqual(compression_format,
+                                     claims.CLAIMS_COMPRESSION_FORMAT_XPRESS_HUFF,
+                                     f'{claims_type} unexpectedly not compressed '
+                                     f'({uncompressed_size} bytes uncompressed)')
+                elif compression_format == claims.CLAIMS_COMPRESSION_FORMAT_NONE:
+                    claims_metadata.compression_format = claims.CLAIMS_COMPRESSION_FORMAT_XPRESS_HUFF
+                    tmp_claims_huff = ndr_pack(claims_metadata)
+                    claims_metadata.compression_format = compression_format
+                    tmp_metadata = ndr_unpack(claims.CLAIMS_SET_METADATA,
+                                              tmp_claims_huff)
+                    self.assertEqual(tmp_metadata.uncompressed_claims_set_size,
+                                     uncompressed_size)
+                    if uncompressed_size > tmp_metadata.claims_set_size:
+                        possible_gain = uncompressed_size - tmp_metadata.claims_set_size
+                        self.assertEqual(compression_format,
+                                         claims.CLAIMS_COMPRESSION_FORMAT_XPRESS_HUFF,
+                                         f'{claims_type} unexpectedly not compressed '
+                                         f'({uncompressed_size} bytes uncompressed)'
+                                         f'(could gain {possible_gain} bytes)')
+                else:
+                    self.assertEqual(compression_format,
+                                     claims.CLAIMS_COMPRESSION_FORMAT_XPRESS_HUFF,
+                                     f'{claims_type} unexpectedly not compressed '
+                                     f'({uncompressed_size} bytes uncompressed)')
 
                 claims_set = claims_metadata.claims_set.claims.claims
                 self.assertIsNotNone(claims_set,
@@ -5839,13 +5923,20 @@ class RawKerberosTest(TestCase):
     def modified_ticket(self,
                         ticket, *,
                         new_ticket_key=None,
-                        modify_fn=None,
+                        modify_fn=None, # legacy version of modify_enc_fn
+                        modify_tkt_fn=None,
+                        modify_enc_fn=None,
                         modify_pac_fn=None,
                         exclude_pac=False,
                         allow_empty_authdata=False,
                         update_pac_checksums=None,
                         checksum_keys=None,
                         include_checksums=None):
+        if modify_enc_fn is not None:
+            self.assertIsNone(modify_fn)
+        else:
+            modify_enc_fn = modify_fn
+
         if checksum_keys is None:
             # A dict containing a key for each checksum type to be created in
             # the PAC.
@@ -5919,10 +6010,10 @@ class RawKerberosTest(TestCase):
             enc_part, asn1Spec=krb5_asn1.EncTicketPart())
 
         # Modify the ticket here.
-        if callable(modify_fn):
-            enc_part = modify_fn(enc_part)
-        elif modify_fn:
-            for fn in modify_fn:
+        if callable(modify_enc_fn):
+            enc_part = modify_enc_fn(enc_part)
+        elif modify_enc_fn:
+            for fn in modify_enc_fn:
                 enc_part = fn(enc_part)
 
         auth_data = enc_part.get('authorization-data')
@@ -5994,13 +6085,29 @@ class RawKerberosTest(TestCase):
         new_ticket = ticket.ticket.copy()
         new_ticket['enc-part'] = enc_part_new
 
+        # Modify the ticket here.
+        if callable(modify_tkt_fn):
+            new_ticket = modify_tkt_fn(new_ticket)
+        elif modify_tkt_fn:
+            for fn in modify_tkt_fn:
+                new_ticket = fn(new_ticket)
+
+        crealm = get_string(enc_part['crealm'])
+        cname = dict(enc_part['cname'])
+        for i in range(0, len(cname['name-string'])):
+            cname['name-string'][i] = get_string(cname['name-string'][i])
+        srealm = get_string(new_ticket['realm'])
+        sname = dict(new_ticket['sname'])
+        for i in range(0, len(sname['name-string'])):
+            sname['name-string'][i] = get_string(sname['name-string'][i])
+
         new_ticket_creds = KerberosTicketCreds(
             new_ticket,
             session_key=ticket.session_key,
-            crealm=ticket.crealm,
-            cname=ticket.cname,
-            srealm=ticket.srealm,
-            sname=ticket.sname,
+            crealm=crealm,
+            cname=cname,
+            srealm=srealm,
+            sname=sname,
             decryption_key=new_ticket_key,
             ticket_private=enc_part,
             encpart_private=ticket.encpart_private)

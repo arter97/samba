@@ -32,7 +32,9 @@
 #include "../libcli/smbreadline/smbreadline.h"
 #include "../libcli/security/security.h"
 #include "system/select.h"
-#include "libsmb/libsmb.h"
+#include "source3/include/client.h"
+#include "source3/libsmb/proto.h"
+#include "libsmb/smbsock_connect.h"
 #include "libsmb/clirap.h"
 #include "trans2.h"
 #include "libsmb/nmblib.h"
@@ -1959,7 +1961,7 @@ static int do_put(const char *rname, const char *lname, bool reput)
 		put_total_time_ms += this_time;
 		put_total_size += state.nread;
 
-		DEBUG(1,("(%3.1f kb/s) (average %3.1f kb/s)\n",
+		DEBUG(1,("(%3.1f kB/s) (average %3.1f kB/s)\n",
 			 state.nread / (1.024*this_time + 1.0e-4),
 			 put_total_size / (1.024*put_total_time_ms)));
 	}
@@ -4379,7 +4381,7 @@ static int scopy_status(off_t written, void *priv)
 	clock_gettime_mono(&tp_end);
 	scopy_total_time_ms = nsec_time_diff(&tp_end,&st->tp_start)/1000000;
 
-	DEBUG(5,("Copied %jd bytes at an average %3.1f kb/s\n",
+	DEBUG(5,("Copied %jd bytes at an average %3.1f kB/s\n",
 		 (intmax_t)written, written / (1.024*scopy_total_time_ms)));
 
 	return true;
@@ -5783,6 +5785,7 @@ static int process_command_string(const char *cmd_in)
 	char *cmd = talloc_strdup(ctx, cmd_in);
 	int rc = 0;
 	struct cli_credentials *creds = samba_cmdline_get_creds();
+	struct smb_transports ts = smbsock_transports_from_port(port);
 
 	if (!cmd) {
 		return 1;
@@ -5796,7 +5799,8 @@ static int process_command_string(const char *cmd_in)
 				     desthost,
 				     service,
 				     creds,
-				     have_ip ? &dest_ss : NULL, port,
+				     have_ip ? &dest_ss : NULL,
+				     &ts,
 				     name_type,
 				     &cli);
 		if (!NT_STATUS_IS_OK(status)) {
@@ -6124,42 +6128,14 @@ cleanup:
 
 static bool finished;
 
-/****************************************************************************
- Make sure we swallow keepalives during idle time.
-****************************************************************************/
-
-static void readline_callback(void)
+static void cli_status_check(void)
 {
-	static time_t last_t;
-	struct timespec now;
-	time_t t;
 	NTSTATUS status;
-	unsigned char garbage[16];
 
-	clock_gettime_mono(&now);
-	t = now.tv_sec;
-
-	if (t - last_t < 5)
-		return;
-
-	last_t = t;
-
-	/* Ping the server to keep the connection alive using SMBecho. */
-	memset(garbage, 0xf0, sizeof(garbage));
-	status = cli_echo(cli, 1, data_blob_const(garbage, sizeof(garbage)));
-	if (NT_STATUS_IS_OK(status) ||
-			NT_STATUS_EQUAL(status, NT_STATUS_INVALID_PARAMETER)) {
-		/*
-		 * Even if server returns NT_STATUS_INVALID_PARAMETER
-		 * it still responded.
-		 * BUG: https://bugzilla.samba.org/show_bug.cgi?id=13007
-		 */
-		return;
-	}
-
-	if (!cli_state_is_connected(cli)) {
-		DEBUG(0,("SMBecho failed (%s). The connection is "
-			 "disconnected now\n", nt_errstr(status)));
+	status = smbXcli_conn_monitor_once(cli->conn);
+	if (!NT_STATUS_IS_OK(status)) {
+		D_ERR("The connection is disconnected now: %s\n",
+		      nt_errstr(status));
 		finished = true;
 		smb_readline_done();
 	}
@@ -6192,7 +6168,7 @@ static int process_stdin(void)
 			TALLOC_FREE(frame);
 			break;
 		}
-		line = smb_readline(the_prompt, readline_callback, completion_fn);
+		line = smb_readline(the_prompt, cli_status_check, completion_fn);
 		if (!line) {
 			TALLOC_FREE(frame);
 			break;
@@ -6239,12 +6215,14 @@ static int process(const char *base_directory)
 	int rc = 0;
 	NTSTATUS status;
 	struct cli_credentials *creds = samba_cmdline_get_creds();
+	struct smb_transports ts = smbsock_transports_from_port(port);
 
 	status = cli_cm_open(talloc_tos(), NULL,
 			     desthost,
 			     service,
 			     creds,
-			     have_ip ? &dest_ss : NULL, port,
+			     have_ip ? &dest_ss : NULL,
+			     &ts,
 			     name_type, &cli);
 	if (!NT_STATUS_IS_OK(status)) {
 		return 1;
@@ -6279,12 +6257,14 @@ static int do_host_query(struct loadparm_context *lp_ctx,
 {
 	NTSTATUS status;
 	struct cli_credentials *creds = samba_cmdline_get_creds();
+	struct smb_transports ts = smbsock_transports_from_port(port);
 
 	status = cli_cm_open(talloc_tos(), NULL,
 			     query_host,
 			     "IPC$",
 			     creds,
-			     have_ip ? &dest_ss : NULL, port,
+			     have_ip ? &dest_ss : NULL,
+			     &ts,
 			     name_type, &cli);
 	if (!NT_STATUS_IS_OK(status)) {
 		return 1;
@@ -6318,6 +6298,9 @@ static int do_host_query(struct loadparm_context *lp_ctx,
 	if (port != NBT_SMB_PORT ||
 	    smbXcli_conn_protocol(cli->conn) > PROTOCOL_NT1)
 	{
+		const char *nbt[] = { "nbt", NULL, };
+		struct smb_transports nbt_ts = smb_transports_parse("forced-nbt",
+								    nbt);
 		/*
 		 * Workgroups simply don't make sense over anything
 		 * else but port 139 and SMB1.
@@ -6330,7 +6313,8 @@ static int do_host_query(struct loadparm_context *lp_ctx,
 				     query_host,
 				     "IPC$",
 				     creds,
-				     have_ip ? &dest_ss : NULL, NBT_SMB_PORT,
+				     have_ip ? &dest_ss : NULL,
+				     &nbt_ts,
 				     name_type, &cli);
 		if (!NT_STATUS_IS_OK(status)) {
 			d_printf("Unable to connect with SMB1 "
@@ -6356,6 +6340,7 @@ static int do_tar_op(const char *base_directory)
 	struct tar *tar_ctx = tar_get_ctx();
 	int ret = 0;
 	struct cli_credentials *creds = samba_cmdline_get_creds();
+	struct smb_transports ts = smbsock_transports_from_port(port);
 
 	/* do we already have a connection? */
 	if (!cli) {
@@ -6365,7 +6350,8 @@ static int do_tar_op(const char *base_directory)
 				     desthost,
 				     service,
 				     creds,
-				     have_ip ? &dest_ss : NULL, port,
+				     have_ip ? &dest_ss : NULL,
+				     &ts,
 				     name_type, &cli);
 		if (!NT_STATUS_IS_OK(status)) {
             ret = 1;
@@ -6398,6 +6384,8 @@ static int do_tar_op(const char *base_directory)
 static int do_message_op(struct cli_credentials *creds)
 {
 	NTSTATUS status;
+	struct smb_transports ts =
+		smbsock_transports_from_port(port ? port : NBT_SMB_PORT);
 
 	if (lp_disable_netbios()) {
 		d_printf("NetBIOS over TCP disabled.\n");
@@ -6406,7 +6394,8 @@ static int do_message_op(struct cli_credentials *creds)
 
 	status = cli_connect_nb(talloc_tos(),
 				desthost, have_ip ? &dest_ss : NULL,
-				port ? port : NBT_SMB_PORT, name_type,
+				&ts,
+				name_type,
 				lp_netbios_name(),
 				SMB_SIGNING_OFF,
 				0,

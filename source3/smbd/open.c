@@ -405,7 +405,7 @@ NTSTATUS check_parent_access_fsp(struct files_struct *fsp,
 		goto out;
 	}
 
-	get_file_infos(fsp->file_id, fsp->name_hash, &delete_on_close_set, NULL);
+	get_file_infos(fsp->file_id, fsp->name_hash, &delete_on_close_set);
 	if (delete_on_close_set) {
 		status = NT_STATUS_DELETE_PENDING;
 		goto out;
@@ -946,7 +946,6 @@ static NTSTATUS open_file(
 	const struct vfs_open_how *_how,
 	uint32_t access_mask,	   /* client requested access mask. */
 	uint32_t open_access_mask, /* what we're actually using in the open. */
-	uint32_t private_flags,
 	bool *p_file_created)
 {
 	connection_struct *conn = fsp->conn;
@@ -3443,7 +3442,6 @@ struct open_ntcreate_lock_state {
 	bool first_open_attempt;
 	bool keep_locked;
 	NTSTATUS status;
-	struct timespec write_time;
 	share_mode_entry_prepare_unlock_fn_t cleanup_fn;
 };
 
@@ -3473,8 +3471,6 @@ static void open_ntcreate_lock_add_entry(struct share_mode_lock *lck,
 	if (!NT_STATUS_IS_OK(state->status)) {
 		return;
 	}
-
-	state->write_time = get_share_mode_write_time(lck);
 
 	/*
 	 * keep the g_lock while existing the tdb chainlock,
@@ -3588,7 +3584,6 @@ static NTSTATUS open_file_ntcreate(connection_struct *conn,
 	uint32_t open_access_mask = access_mask;
 	NTSTATUS status;
 	SMB_STRUCT_STAT saved_stat = smb_fname->st;
-	struct timespec old_write_time;
 	bool setup_poll = false;
 	NTSTATUS ulstatus;
 
@@ -3913,7 +3908,7 @@ static NTSTATUS open_file_ntcreate(connection_struct *conn,
 		 */
 		fsp->file_id = vfs_file_id_from_sbuf(conn, &smb_fname->st);
 	}
-	fh_set_private_options(fsp->fh, private_flags);
+	fsp_apply_private_ntcreatex_flags(fsp, private_flags);
 	fsp->access_mask = open_access_mask; /* We change this to the
 					      * requested access_mask after
 					      * the open is done. */
@@ -3966,7 +3961,6 @@ static NTSTATUS open_file_ntcreate(connection_struct *conn,
 				     &how,
 				     access_mask,
 				     open_access_mask,
-				     private_flags,
 				     &new_file_created);
 	}
 	if (NT_STATUS_EQUAL(fsp_open, NT_STATUS_NETWORK_BUSY)) {
@@ -4060,8 +4054,6 @@ static NTSTATUS open_file_ntcreate(connection_struct *conn,
 		return NT_STATUS_ACCESS_DENIED;
 	}
 
-	old_write_time = smb_fname->st.st_ex_mtime;
-
 	/*
 	 * Deal with the race condition where two smbd's detect the
 	 * file doesn't exist and do the create at the same time. One
@@ -4117,7 +4109,6 @@ static NTSTATUS open_file_ntcreate(connection_struct *conn,
 						   fsp->file_id,
 						   conn->connectpath,
 						   smb_fname,
-						   &old_write_time,
 						   open_ntcreate_lock_add_entry,
 						   &lck_state);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -4264,7 +4255,7 @@ static NTSTATUS open_file_ntcreate(connection_struct *conn,
 			     parent_dir_fname,
 			     info,
 			     new_dos_attributes,
-			     &smb_fname->st.st_ex_mode);
+			     &unx_mode);
 
 	/* Determine sparse flag. */
 	if (posix_open) {
@@ -4321,15 +4312,6 @@ static NTSTATUS open_file_ntcreate(connection_struct *conn,
 				  (unsigned int)new_unx_mode);
 			}
 		}
-	}
-
-	/*
-	 * Deal with other opens having a modified write time.
-	 */
-	if (fsp_getinfo_ask_sharemode(fsp) &&
-	    !is_omit_timespec(&lck_state.write_time))
-	{
-		update_stat_ex_mtime(&fsp->fsp_name->st, lck_state.write_time);
 	}
 
 	status = NT_STATUS_OK;
@@ -4558,7 +4540,7 @@ static NTSTATUS mkdir_internal(connection_struct *conn,
 #ifdef OPENBSD
 	/*
 	 * OpenBSD requires to have write permissions
-	 * on both source and destimation of renameat(),
+	 * on both source and destination of renameat(),
 	 * see https://bugzilla.samba.org/show_bug.cgi?id=15801
 	 *
 	 * For now just disable the new code by default.
@@ -4882,7 +4864,6 @@ static NTSTATUS open_directory(connection_struct *conn,
 	struct open_ntcreate_lock_state lck_state = {};
 	bool keep_locked = false;
 	NTSTATUS status;
-	struct timespec mtimespec;
 	int info = 0;
 	uint32_t need_fd_access;
 	NTSTATUS ulstatus;
@@ -5086,7 +5067,7 @@ static NTSTATUS open_directory(connection_struct *conn,
 	fsp->fsp_flags.can_read = false;
 	fsp->fsp_flags.can_write = false;
 
-	fh_set_private_options(fsp->fh, 0);
+	fsp_apply_private_ntcreatex_flags(fsp, 0);
 	/*
 	 * According to Samba4, SEC_FILE_READ_ATTRIBUTE is always granted,
 	 */
@@ -5099,15 +5080,6 @@ static NTSTATUS open_directory(connection_struct *conn,
 	if (file_attributes & FILE_FLAG_POSIX_SEMANTICS) {
 		fsp->fsp_flags.posix_open = true;
 	}
-
-	/* Don't store old timestamps for directory
-	   handles in the internal database. We don't
-	   update them in there if new objects
-	   are created in the directory. Currently
-	   we only update timestamps on file writes.
-	   See bug #9870.
-	*/
-	mtimespec = make_omit_timespec();
 
 	/*
 	 * Obviously for FILE_LIST_DIRECTORY we need to reopen to get an fd
@@ -5214,7 +5186,6 @@ static NTSTATUS open_directory(connection_struct *conn,
 						   fsp->file_id,
 						   conn->connectpath,
 						   smb_dname,
-						   &mtimespec,
 						   open_ntcreate_lock_add_entry,
 						   &lck_state);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -5249,13 +5220,6 @@ static NTSTATUS open_directory(connection_struct *conn,
 			   not the regular one. The magic gets handled in close. */
 			fsp->fsp_flags.initial_delete_on_close = true;
 		}
-	}
-
-	/*
-	 * Deal with other opens having a modified write time.
-	 */
-	if (!is_omit_timespec(&lck_state.write_time)) {
-		update_stat_ex_mtime(&fsp->fsp_name->st, lck_state.write_time);
 	}
 
 	if (pinfo) {

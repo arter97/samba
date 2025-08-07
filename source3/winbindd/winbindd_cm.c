@@ -70,7 +70,8 @@
 #include "rpc_client/cli_lsarpc.h"
 #include "../librpc/gen_ndr/ndr_dssetup_c.h"
 #include "libads/sitename_cache.h"
-#include "libsmb/libsmb.h"
+#include "source3/include/client.h"
+#include "source3/libsmb/proto.h"
 #include "libsmb/clidgram.h"
 #include "ads.h"
 #include "secrets.h"
@@ -88,6 +89,7 @@
 #include "lib/util/string_wrappers.h"
 #include "lib/global_contexts.h"
 #include "librpc/gen_ndr/ndr_winbind_c.h"
+#include "libsmb/smbsock_connect.h"
 
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_WINBIND
@@ -320,7 +322,7 @@ void set_domain_online_request(struct winbindd_domain *domain)
  Add -ve connection cache entries for domain and realm.
 ****************************************************************/
 
-static void winbind_add_failed_connection_entry(
+void winbind_add_failed_connection_entry(
 	const struct winbindd_domain *domain,
 	const char *server,
 	NTSTATUS result)
@@ -557,12 +559,12 @@ NTSTATUS winbindd_get_trust_credentials(struct winbindd_domain *domain,
 }
 
 /************************************************************************
- Given a fd with a just-connected TCP connection to a DC, open a connection
+ Given just-connected transport connection to a DC, open a connection
  to the pipe.
 ************************************************************************/
 
 static NTSTATUS cm_prepare_connection(struct winbindd_domain *domain,
-				      const int sockfd,
+				      struct smbXcli_transport **ptransport,
 				      const char *controller,
 				      struct cli_state **cli,
 				      bool *retry)
@@ -590,7 +592,6 @@ static NTSTATUS cm_prepare_connection(struct winbindd_domain *domain,
 			 * connect to a foreign domain
 			 * without a direct outbound trust.
 			 */
-			close(sockfd);
 			return NT_STATUS_NO_TRUST_LSA_SECRET;
 		}
 
@@ -637,32 +638,21 @@ static NTSTATUS cm_prepare_connection(struct winbindd_domain *domain,
 	mutex = grab_named_mutex(talloc_tos(), controller,
 				 WINBIND_SERVER_MUTEX_WAIT_TIME);
 	if (mutex == NULL) {
-		close(sockfd);
 		DEBUG(0,("cm_prepare_connection: mutex grab failed for %s\n",
 			 controller));
 		result = NT_STATUS_POSSIBLE_DEADLOCK;
 		goto done;
 	}
 
-	/*
-	 * cm_prepare_connection() is responsible that sockfd does not leak.
-	 * Once cli_state_create() returns with success, the
-	 * smbXcli_conn_destructor() makes sure that close(sockfd) is finally
-	 * called. Till that, close(sockfd) must be called on every unsuccessful
-	 * return.
-	 */
-	*cli = cli_state_create(NULL, sockfd, controller,
+	*cli = cli_state_create(NULL, ptransport, controller,
 				smb_sign_client_connections, flags);
 	if (*cli == NULL) {
-		close(sockfd);
 		DEBUG(1, ("Could not cli_initialize\n"));
 		result = NT_STATUS_NO_MEMORY;
 		goto done;
 	}
 
 	cli_set_timeout(*cli, 10000); /* 10 seconds */
-
-	set_socket_options(sockfd, lp_socket_options());
 
 	result = smbXcli_negprot((*cli)->conn,
 				 (*cli)->timeout,
@@ -1098,7 +1088,9 @@ static bool dcip_check_name(TALLOC_CTX *mem_ctx,
 
 	if ((lp_security() == SEC_ADS) && (domain->alt_name != NULL)) {
 		is_ad_domain = true;
-	} else if (lp_server_role() == ROLE_ACTIVE_DIRECTORY_DC) {
+	} else if (lp_server_role() == ROLE_ACTIVE_DIRECTORY_DC ||
+		   lp_server_role() == ROLE_IPA_DC)
+	{
 		is_ad_domain = domain->active_directory;
 	}
 
@@ -1287,9 +1279,13 @@ static bool get_dcs(TALLOC_CTX *mem_ctx, struct winbindd_domain *domain,
 static bool connect_preferred_dc(TALLOC_CTX *mem_ctx,
 				 struct winbindd_domain *domain,
 				 uint32_t request_flags,
-				 int *fd)
+				 struct smbXcli_transport **ptransport)
 {
 	char *saf_servername = NULL;
+	struct smb_transports ts =
+		smb_transports_parse("client smb transports",
+			lp_client_smb_transports());
+	struct loadparm_context *lp_ctx = NULL;
 	NTSTATUS status;
 	bool ok;
 
@@ -1357,15 +1353,22 @@ static bool connect_preferred_dc(TALLOC_CTX *mem_ctx,
 		return false;
 	}
 
-	status = smbsock_connect(&domain->dcaddr, 0,
+	lp_ctx = loadparm_init_s3(talloc_tos(), loadparm_s3_helpers());
+	if (lp_ctx == NULL) {
+		DBG_ERR("loadparm_init_s3 failed\n");
+		return false;
+	}
+
+	status = smbsock_connect(&domain->dcaddr, lp_ctx, &ts,
 				 domain->dcname, -1, NULL, -1,
-				 fd, NULL, 10);
+				 10, NULL, ptransport);
 	if (!NT_STATUS_IS_OK(status)) {
 		winbind_add_failed_connection_entry(domain,
 						    domain->dcname,
 						    NT_STATUS_UNSUCCESSFUL);
 		return false;
 	}
+	talloc_reparent(NULL, mem_ctx, *ptransport);
 	return true;
 
 fail:
@@ -1388,8 +1391,9 @@ fail:
 static bool find_dc(TALLOC_CTX *mem_ctx,
 		    struct winbindd_domain *domain,
 		    uint32_t request_flags,
-		    int *fd)
+		    struct smbXcli_transport **ptransport)
 {
+	struct loadparm_context *lp_ctx = NULL;
 	struct dc_name_ip *dcs = NULL;
 	int num_dcs = 0;
 
@@ -1398,24 +1402,33 @@ static bool find_dc(TALLOC_CTX *mem_ctx,
 
 	struct sockaddr_storage *addrs = NULL;
 	int num_addrs = 0;
-
+	struct smb_transports ts =
+		smb_transports_parse("client smb transports",
+			lp_client_smb_transports());
 	int i;
 	size_t fd_index;
+	struct smbXcli_transport *xtp = NULL;
 
 	NTSTATUS status;
 	bool ok;
 
-	*fd = -1;
+	*ptransport = NULL;
 
 	D_NOTICE("First try to connect to the closest DC (using server "
 		 "affinity cache). If this fails, try to lookup the DC using "
 		 "DNS afterwards.\n");
-	ok = connect_preferred_dc(mem_ctx, domain, request_flags, fd);
+	ok = connect_preferred_dc(mem_ctx, domain, request_flags, &xtp);
 	if (ok) {
-		return true;
+		goto return_transport;
 	}
 
 	if (domain->force_dc) {
+		return false;
+	}
+
+	lp_ctx = loadparm_init_s3(talloc_tos(), loadparm_s3_helpers());
+	if (lp_ctx == NULL) {
+		DBG_ERR("loadparm_init_s3 failed\n");
 		return false;
 	}
 
@@ -1447,7 +1460,8 @@ static bool find_dc(TALLOC_CTX *mem_ctx,
 		"(timeout of 10 sec for each DC).\n",
 		num_dcs);
 	status = smbsock_any_connect(addrs, dcnames, NULL, NULL, NULL,
-				     num_addrs, 0, 10, fd, &fd_index, NULL);
+				     num_addrs, lp_ctx, &ts,
+				     10, NULL, &xtp, &fd_index);
 	if (!NT_STATUS_IS_OK(status)) {
 		for (i=0; i<num_dcs; i++) {
 			char ab[INET6_ADDRSTRLEN];
@@ -1460,6 +1474,7 @@ static bool find_dc(TALLOC_CTX *mem_ctx,
 		}
 		return False;
 	}
+	talloc_reparent(NULL, mem_ctx, xtp);
 	D_NOTICE("Successfully connected to DC '%s'.\n", dcs[fd_index].name);
 
 	domain->dcaddr = addrs[fd_index];
@@ -1471,7 +1486,7 @@ static bool find_dc(TALLOC_CTX *mem_ctx,
 		if (domain->dcname == NULL) {
 			return false;
 		}
-		return true;
+		goto return_transport;
 	}
 
 	/* Try to figure out the name */
@@ -1482,7 +1497,7 @@ static bool find_dc(TALLOC_CTX *mem_ctx,
 			     &domain->dcname,
 			     request_flags);
 	if (ok) {
-		return true;
+		goto return_transport;
 	}
 
 	/* We can not continue without the DC's name */
@@ -1499,10 +1514,7 @@ static bool find_dc(TALLOC_CTX *mem_ctx,
 	TALLOC_FREE(addrs);
 	num_addrs = 0;
 
-	if (*fd != -1) {
-		close(*fd);
-		*fd = -1;
-	}
+	TALLOC_FREE(xtp);
 
 	/*
 	 * This should not be an infinite loop, since get_dcs() will not return
@@ -1510,6 +1522,12 @@ static bool find_dc(TALLOC_CTX *mem_ctx,
 	 * winbind_add_failed_connection_entry() call.
 	 */
 	goto again;
+
+return_transport:
+
+	*ptransport = talloc_move(mem_ctx, &xtp);
+
+	return true;
 }
 
 static char *current_dc_key(TALLOC_CTX *mem_ctx, const char *domain_name)
@@ -1624,7 +1642,6 @@ static NTSTATUS cm_open_connection(struct winbindd_domain *domain,
 	NTSTATUS result = NT_STATUS_DOMAIN_CONTROLLER_NOT_FOUND;
 	int retries;
 	uint32_t request_flags = need_rw_dc ? DS_WRITABLE_REQUIRED : 0;
-	int fd = -1;
 	bool retry = false;
 	bool seal_pipes = true;
 
@@ -1638,6 +1655,7 @@ static NTSTATUS cm_open_connection(struct winbindd_domain *domain,
 		 "if the domain has more than one DC. We will try to connect 3 "
 		 "times at most.\n");
 	for (retries = 0; retries < 3; retries++) {
+		struct smbXcli_transport *xtp = NULL;
 		bool found_dc;
 
 		D_DEBUG("Attempt %d/3: DC '%s' of domain '%s'.\n",
@@ -1645,7 +1663,7 @@ static NTSTATUS cm_open_connection(struct winbindd_domain *domain,
 			domain->dcname ? domain->dcname : "",
 			domain->name);
 
-		found_dc = find_dc(mem_ctx, domain, request_flags, &fd);
+		found_dc = find_dc(mem_ctx, domain, request_flags, &xtp);
 		if (!found_dc) {
 			/* This is the one place where we will
 			   set the global winbindd offline state
@@ -1658,8 +1676,9 @@ static NTSTATUS cm_open_connection(struct winbindd_domain *domain,
 
 		new_conn->cli = NULL;
 
-		result = cm_prepare_connection(domain, fd, domain->dcname,
+		result = cm_prepare_connection(domain, &xtp, domain->dcname,
 			&new_conn->cli, &retry);
+		TALLOC_FREE(xtp);
 		if (NT_STATUS_IS_OK(result)) {
 			break;
 		}

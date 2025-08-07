@@ -259,6 +259,7 @@ static const struct loadparm_service _sDefault =
 	.spotlight_backend = SPOTLIGHT_BACKEND_NOINDEX,
 	.honor_change_notify_privilege = false,
 	.volume_serial_number = -1,
+	.smb3_unix_extensions = true,
 	.dummy = ""
 };
 
@@ -846,7 +847,8 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 	Globals.server_signing = SMB_SIGNING_DEFAULT;
 
 	Globals.defer_sharing_violations = true;
-	Globals.smb_ports = str_list_make_v3_const(NULL, SMB_PORTS, NULL);
+	Globals.server_smb_transports = str_list_make_v3_const(NULL, "tcp, nbt", NULL);
+	Globals.client_smb_transports = str_list_make_v3_const(NULL, "tcp, nbt", NULL);
 
 	Globals.enable_privileges = true;
 	Globals.host_msdfs        = true;
@@ -886,7 +888,7 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 	lpcfg_string_set(Globals.ctx, &Globals.ncalrpc_dir,
 			 get_dyn_NCALRPCDIR());
 
-	Globals.server_services = str_list_make_v3_const(NULL, "s3fs rpc nbt wrepl ldap cldap kdc drepl winbindd ntp_signd kcc dnsupdate dns", NULL);
+	Globals.server_services = str_list_make_v3_const(NULL, "s3fs rpc nbt wrepl ldap cldap kdc drepl ft_scanner winbindd ntp_signd kcc dnsupdate dns", NULL);
 
 	Globals.dcerpc_endpoint_servers = str_list_make_v3_const(NULL, "epmapper wkssvc samr netlogon lsarpc drsuapi dssetup unixinfo browser eventlog6 backupkey dnsserver", NULL);
 
@@ -2947,7 +2949,7 @@ bool lp_do_section(const char *pszSectionName, void *userdata)
 	if (bRetval) {
 		/* We put this here to avoid an odd message order if messages are */
 		/* issued by the post-processing of a previous section. */
-		DEBUG(2, ("Processing section \"[%s]\"\n", pszSectionName));
+		DBG_INFO("Processing section \"[%s]\"\n", pszSectionName);
 
 		iServiceIndex = add_a_service(&sDefault, pszSectionName);
 		if (iServiceIndex < 0) {
@@ -4665,27 +4667,6 @@ void lp_set_mangling_method(const char *new_method)
 }
 
 /*******************************************************************
- Global state for POSIX pathname processing.
-********************************************************************/
-
-static bool posix_pathnames;
-
-bool lp_posix_pathnames(void)
-{
-	return posix_pathnames;
-}
-
-/*******************************************************************
- Change everything needed to ensure POSIX pathname processing (currently
- not much).
-********************************************************************/
-
-void lp_set_posix_pathnames(void)
-{
-	posix_pathnames = true;
-}
-
-/*******************************************************************
  Global state for POSIX lock processing - CIFS unix extensions.
 ********************************************************************/
 
@@ -4740,12 +4721,6 @@ void widelinks_warning(int snum)
 			"These parameters are incompatible. "
 			"Wide links will be disabled for this share.\n",
 			 lp_const_servicename(snum));
-		} else if (lp_smb3_unix_extensions(snum)) {
-			DBG_ERR("Share '%s' has wide links and SMB3 Unix "
-				"extensions enabled. "
-				"These parameters are incompatible. "
-				"Wide links will be disabled for this share.\n",
-				lp_const_servicename(snum));
 		}
 	}
 }
@@ -4753,7 +4728,7 @@ void widelinks_warning(int snum)
 bool lp_widelinks(int snum)
 {
 	/* wide links is always incompatible with unix extensions */
-	if (lp_smb1_unix_extensions() || lp_smb3_unix_extensions(snum)) {
+	if (lp_smb1_unix_extensions()) {
 		/*
 		 * Unless we have "allow insecure widelinks"
 		 * turned on.

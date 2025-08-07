@@ -36,7 +36,8 @@
 #include "smb_krb5.h"
 #include "secrets.h"
 #include "../libcli/security/security.h"
-#include "libsmb/libsmb.h"
+#include "source3/include/client.h"
+#include "source3/libsmb/proto.h"
 #include "lib/param/loadparm.h"
 #include "utils/net_dns.h"
 #include "auth/kerberos/pac_utils.h"
@@ -2291,6 +2292,9 @@ static int net_ads_printer_publish(struct net_context *c,
 	LDAPMessage *res = NULL;
 	bool ok;
 	int ret = -1;
+	struct smb_transports ts =
+		smb_transports_parse("client smb transports",
+				     lp_client_smb_transports());
 
 	if (argc < 1 || c->display_usage) {
 		d_printf("%s\n%s",
@@ -2340,7 +2344,7 @@ static int net_ads_printer_publish(struct net_context *c,
 					      lp_netbios_name(),
 					      servername,
 					      &server_ss,
-					      0,
+					      &ts,
 					      "IPC$",
 					      "IPC",
 					      c->creds,
@@ -2911,40 +2915,6 @@ out:
 	return ret;
 }
 
-static int net_ads_keytab_flush(struct net_context *c,
-				int argc,
-				const char **argv)
-{
-	TALLOC_CTX *tmp_ctx = talloc_stackframe();
-	ADS_STRUCT *ads = NULL;
-	ADS_STATUS status;
-	int ret = -1;
-
-	if (c->display_usage) {
-		d_printf(  "%s\n"
-			   "net ads keytab flush\n"
-			   "    %s\n",
-			 _("Usage:"),
-			 _("Delete the whole keytab"));
-		TALLOC_FREE(tmp_ctx);
-		return -1;
-	}
-
-	if (!c->explicit_credentials) {
-		net_use_krb_machine_account(c);
-	}
-
-	status = ads_startup(c, true, tmp_ctx, &ads);
-	if (!ADS_ERR_OK(status)) {
-		goto out;
-	}
-
-	ret = ads_keytab_flush(ads);
-out:
-	TALLOC_FREE(tmp_ctx);
-	return ret;
-}
-
 static int net_ads_keytab_create(struct net_context *c, int argc, const char **argv)
 {
 	NTSTATUS ntstatus;
@@ -2978,7 +2948,7 @@ static int net_ads_keytab_list(struct net_context *c, int argc, const char **arg
 		d_printf("%s\n%s",
 			 _("Usage:"),
 			 _("net ads keytab list [keytab]\n"
-			   "  List a local keytab\n"
+			   "  List a local keytab (default: krb5 default)\n"
 			   "    keytab\tKeytab to list\n"));
 		return -1;
 	}
@@ -3000,14 +2970,6 @@ int net_ads_keytab(struct net_context *c, int argc, const char **argv)
 			N_("Create (sync) a fresh keytab"),
 			N_("net ads keytab create\n"
 			   "    Create (sync) a fresh keytab or update existing one (see also smb.conf 'sync machine password to keytab'.")
-		},
-		{
-			"flush",
-			net_ads_keytab_flush,
-			NET_TRANSPORT_ADS,
-			N_("Remove all keytab entries"),
-			N_("net ads keytab flush\n"
-			   "    Remove all keytab entries")
 		},
 		{
 			"list",
@@ -3036,7 +2998,7 @@ static int net_ads_kerberos_renew(struct net_context *c, int argc, const char **
 		return -1;
 	}
 
-	ret = smb_krb5_renew_ticket(NULL, NULL, NULL, NULL);
+	ret = smb_krb5_renew_ticket(c->opt_krb5_ccache, NULL, NULL, NULL);
 	if (ret) {
 		d_printf(_("failed to renew kerberos ticket: %s\n"),
 			error_message(ret));
@@ -3091,7 +3053,7 @@ static int net_ads_kerberos_pac_common(struct net_context *c, int argc, const ch
 				     0,
 				     NULL,
 				     NULL,
-				     NULL,
+				     c->opt_krb5_ccache,
 				     true,
 				     true,
 				     2592000, /* one month */
@@ -3272,7 +3234,7 @@ static int net_ads_kerberos_kinit(struct net_context *c, int argc, const char **
 					  0,
 					  NULL,
 					  NULL,
-					  NULL,
+					  c->opt_krb5_ccache,
 					  true,
 					  true,
 					  2592000, /* one month */

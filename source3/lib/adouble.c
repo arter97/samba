@@ -1600,26 +1600,27 @@ done:
 	return ret;
 }
 
-static bool ad_unconvert_open_ad(TALLOC_CTX *mem_ctx,
-				 struct vfs_handle_struct *handle,
-				 struct smb_filename *smb_fname,
-				 struct smb_filename *adpath,
-				 files_struct **_fsp)
+static NTSTATUS ad_unconvert_open_ad(TALLOC_CTX *mem_ctx,
+				     struct vfs_handle_struct *handle,
+				     struct smb_filename *smb_fname,
+				     struct files_struct *dirfsp,
+				     struct smb_filename *adname,
+				     files_struct **_fsp)
 {
+	struct smb_filename *adpath = NULL;
 	files_struct *fsp = NULL;
 	NTSTATUS status;
 	int ret;
 
-	status = openat_pathref_fsp(handle->conn->cwd_fsp, adpath);
-	if (!NT_STATUS_IS_OK(status) &&
-	    !NT_STATUS_EQUAL(status, NT_STATUS_OBJECT_NAME_NOT_FOUND)) {
-		return false;
+	adpath = full_path_from_dirfsp_atname(mem_ctx, dirfsp, adname);
+	if (adpath == NULL) {
+		return NT_STATUS_NO_MEMORY;
 	}
 
 	status = SMB_VFS_CREATE_FILE(
 		handle->conn,
 		NULL,				/* req */
-		NULL,				/* dirfsp */
+		dirfsp,				/* dirfsp */
 		adpath,
 		FILE_READ_DATA|FILE_WRITE_DATA,
 		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
@@ -1638,7 +1639,7 @@ static bool ad_unconvert_open_ad(TALLOC_CTX *mem_ctx,
 	if (!NT_STATUS_IS_OK(status)) {
 		DBG_ERR("SMB_VFS_CREATE_FILE [%s] failed: %s\n",
 			smb_fname_str_dbg(adpath), nt_errstr(status));
-		return false;
+		return status;
 	}
 
 	if (fsp->fsp_name->st.st_ex_uid != smb_fname->st.st_ex_uid ||
@@ -1648,29 +1649,30 @@ static bool ad_unconvert_open_ad(TALLOC_CTX *mem_ctx,
 				     smb_fname->st.st_ex_uid,
 				     smb_fname->st.st_ex_gid);
 		if (ret != 0) {
+			status = map_nt_error_from_unix(errno);
 			DBG_ERR("SMB_VFS_FCHOWN [%s] failed: %s\n",
 				fsp_str_dbg(fsp), nt_errstr(status));
 			close_file_free(NULL, &fsp, NORMAL_CLOSE);
-			return false;
+			return status;
 		}
 	}
 
 	*_fsp = fsp;
-	return true;
+	return status;
 }
 
-static bool ad_unconvert_get_streams(struct vfs_handle_struct *handle,
-				     struct smb_filename *smb_fname,
-				     TALLOC_CTX *mem_ctx,
-				     unsigned int *num_streams,
-				     struct stream_struct **streams)
+static NTSTATUS ad_unconvert_get_streams(struct vfs_handle_struct *handle,
+					 struct smb_filename *smb_fname,
+					 TALLOC_CTX *mem_ctx,
+					 unsigned int *num_streams,
+					 struct stream_struct **streams)
 {
 	files_struct *fsp = NULL;
 	NTSTATUS status;
 
 	status = openat_pathref_fsp(handle->conn->cwd_fsp, smb_fname);
 	if (!NT_STATUS_IS_OK(status)) {
-		return false;
+		return status;
 	}
 
 	status = SMB_VFS_CREATE_FILE(
@@ -1697,7 +1699,7 @@ static bool ad_unconvert_get_streams(struct vfs_handle_struct *handle,
 		DBG_ERR("Opening [%s] failed: %s\n",
 			smb_fname_str_dbg(smb_fname),
 			nt_errstr(status));
-		return false;
+		return status;
 	}
 
 	status = vfs_fstreaminfo(fsp,
@@ -1709,7 +1711,7 @@ static bool ad_unconvert_get_streams(struct vfs_handle_struct *handle,
 		DBG_ERR("streaminfo on [%s] failed: %s\n",
 			smb_fname_str_dbg(smb_fname),
 			nt_errstr(status));
-		return false;
+		return status;
 	}
 
 	status = close_file_free(NULL, &fsp, NORMAL_CLOSE);
@@ -1717,10 +1719,10 @@ static bool ad_unconvert_get_streams(struct vfs_handle_struct *handle,
 		DBG_ERR("close_file [%s] failed: %s\n",
 			smb_fname_str_dbg(smb_fname),
 			nt_errstr(status));
-		return false;
+		return status;
 	}
 
-	return true;
+	return NT_STATUS_OK;
 }
 
 struct ad_collect_state {
@@ -1729,12 +1731,13 @@ struct ad_collect_state {
 	char *rsrc_data_buf;
 };
 
-static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
-				  struct char_mappings **cmaps,
-				  struct smb_filename *smb_fname,
-				  const struct stream_struct *stream,
-				  struct adouble *ad,
-				  struct ad_collect_state *state)
+static NTSTATUS ad_collect_one_stream(struct vfs_handle_struct *handle,
+				      struct char_mappings **cmaps,
+				      struct files_struct *dirfsp,
+				      struct smb_filename *smb_fname,
+				      const struct stream_struct *stream,
+				      struct adouble *ad,
+				      struct ad_collect_state *state)
 {
 	struct smb_filename *sname = NULL;
 	files_struct *fsp = NULL;
@@ -1754,26 +1757,25 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 				    smb_fname->twrp,
 				    0);
 	if (sname == NULL) {
-		return false;
+		return NT_STATUS_NO_MEMORY;
 	}
 
 	if (is_ntfs_default_stream_smb_fname(sname)) {
 		TALLOC_FREE(sname);
-		return true;
+		return NT_STATUS_OK;
 	}
 
 	DBG_DEBUG("Collecting stream [%s]\n", smb_fname_str_dbg(sname));
 
 	status = openat_pathref_fsp(handle->conn->cwd_fsp, sname);
 	if (!NT_STATUS_IS_OK(status)) {
-		ok = false;
 		goto out;
 	}
 
 	status = SMB_VFS_CREATE_FILE(
 		handle->conn,
 		NULL,				/* req */
-		NULL,				/* dirfsp */
+		dirfsp,				/* dirfsp */
 		sname,
 		FILE_READ_DATA|DELETE_ACCESS,
 		FILE_SHARE_READ,
@@ -1792,7 +1794,6 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 	if (!NT_STATUS_IS_OK(status)) {
 		DBG_ERR("SMB_VFS_CREATE_FILE [%s] failed\n",
 			smb_fname_str_dbg(sname));
-		ok = false;
 		goto out;
 	}
 
@@ -1803,7 +1804,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 			DBG_ERR("Bad size [%zd] on [%s]\n",
 				(ssize_t)stream->size,
 				smb_fname_str_dbg(sname));
-			ok = false;
+			status = NT_STATUS_INTERNAL_DB_CORRUPTION;
 			goto out;
 		}
 
@@ -1812,7 +1813,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 			DBG_ERR("Bad size [%zd] on [%s]\n",
 				(ssize_t)stream->size,
 				smb_fname_str_dbg(sname));
-			ok = false;
+			status = NT_STATUS_INTERNAL_DB_CORRUPTION;
 			goto out;
 		}
 
@@ -1827,17 +1828,17 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 		if (!ok) {
 			DBG_ERR("Deleting [%s] failed\n",
 				smb_fname_str_dbg(sname));
-			ok = false;
+			status = NT_STATUS_INTERNAL_DB_CORRUPTION;
 			goto out;
 		}
-		ok = true;
+		status = NT_STATUS_OK;
 		goto out;
 	}
 
 	if (is_afpresource_stream(stream->name)) {
 		ad->ad_rsrc_data = talloc_size(ad, stream->size);
 		if (ad->ad_rsrc_data == NULL) {
-			ok = false;
+			status = NT_STATUS_NO_MEMORY;
 			goto out;
 		}
 
@@ -1849,7 +1850,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 			DBG_ERR("Bad size [%zd] on [%s]\n",
 				(ssize_t)stream->size,
 				smb_fname_str_dbg(sname));
-			ok = false;
+			status = NT_STATUS_INTERNAL_DB_CORRUPTION;
 			goto out;
 		}
 
@@ -1870,11 +1871,11 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 			if (!ok) {
 				DBG_ERR("Deleting [%s] failed\n",
 					smb_fname_str_dbg(sname));
-				ok = false;
+				status = NT_STATUS_INTERNAL_DB_CORRUPTION;
 				goto out;
 			}
 		}
-		ok = true;
+		status = NT_STATUS_OK;
 		goto out;
 	}
 
@@ -1883,7 +1884,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 					 struct ad_xattr_entry,
 					 ad->adx_header.adx_num_attrs + 1);
 	if (ad->adx_entries == NULL) {
-		ok = false;
+		status = NT_STATUS_NO_MEMORY;
 		goto out;
 	}
 
@@ -1893,7 +1894,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 	};
 	e->adx_name = talloc_strdup(ad, stream->name + 1);
 	if (e->adx_name == NULL) {
-		ok = false;
+		status = NT_STATUS_NO_MEMORY;
 		goto out;
 	}
 	p = strchr(e->adx_name, ':');
@@ -1909,7 +1910,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 				     vfs_translate_to_unix);
 	if (rc != 0) {
 		DBG_ERR("string_replace_allocate failed: %s\n", strerror(rc));
-		ok = false;
+		status = map_nt_error_from_unix(rc);
 		goto out;
 	}
 
@@ -1930,7 +1931,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 					      char,
 					      needed_size);
 		if (ad->adx_data == NULL) {
-			ok = false;
+			status = NT_STATUS_NO_MEMORY;
 			goto out;
 		}
 	}
@@ -1943,7 +1944,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 		DBG_ERR("Bad size [%zd] on [%s]\n",
 			(ssize_t)stream->size,
 			smb_fname_str_dbg(sname));
-		ok = false;
+		status = NT_STATUS_INTERNAL_DB_CORRUPTION;
 		goto out;
 	}
 	state->adx_data_off += nread;
@@ -1955,7 +1956,7 @@ static bool ad_collect_one_stream(struct vfs_handle_struct *handle,
 	if (!ok) {
 		DBG_ERR("Deleting [%s] failed\n",
 			smb_fname_str_dbg(sname));
-		ok = false;
+		status = NT_STATUS_INTERNAL_DB_CORRUPTION;
 		goto out;
 	}
 
@@ -1967,27 +1968,29 @@ out:
 			DBG_ERR("close_file [%s] failed: %s\n",
 				smb_fname_str_dbg(smb_fname),
 				nt_errstr(status));
-			ok = false;
 		}
 	}
 
-	return ok;
+	return status;
 }
 
 /**
  * Convert filesystem metadata to AppleDouble file
  **/
-bool ad_unconvert(TALLOC_CTX *mem_ctx,
-		  struct vfs_handle_struct *handle,
-		  const char *catia_mappings,
-		  struct smb_filename *smb_fname,
-		  bool *converted)
+NTSTATUS ad_unconvert(TALLOC_CTX *mem_ctx,
+		      struct vfs_handle_struct *handle,
+		      const char *catia_mappings,
+		      struct smb_filename *smb_fname,
+		      bool *converted)
 {
 	static struct char_mappings **cmaps = NULL;
 	TALLOC_CTX *frame = talloc_stackframe();
 	struct ad_collect_state state;
 	struct stream_struct *streams = NULL;
-	struct smb_filename *adpath = NULL;
+	struct smb_filename *adname = NULL;
+	struct files_struct *dirfsp = NULL;
+	struct smb_filename *fullname = NULL;
+	struct smb_filename *relname = NULL;
 	struct adouble *ad = NULL;
 	unsigned int num_streams = 0;
 	size_t to_convert = 0;
@@ -1996,7 +1999,6 @@ bool ad_unconvert(TALLOC_CTX *mem_ctx,
 	size_t i;
 	NTSTATUS status;
 	int ret;
-	bool ok;
 
 	*converted = false;
 
@@ -2006,19 +2008,32 @@ bool ad_unconvert(TALLOC_CTX *mem_ctx,
 		mappings = str_list_make_v3_const(
 			frame, catia_mappings, NULL);
 		if (mappings == NULL) {
-			ok = false;
+			status = NT_STATUS_NO_MEMORY;
 			goto out;
 		}
 		cmaps = string_replace_init_map(mem_ctx, mappings);
 		TALLOC_FREE(mappings);
 	}
 
-	ok = ad_unconvert_get_streams(handle,
-				      smb_fname,
-				      frame,
-				      &num_streams,
-				      &streams);
-	if (!ok) {
+	status = filename_convert_dirfsp_rel(frame,
+					     handle->conn,
+					     handle->conn->cwd_fsp,
+					     smb_fname->base_name,
+					     0,
+					     smb_fname->twrp,
+					     &dirfsp,
+					     &fullname,
+					     &relname);
+	if (!NT_STATUS_IS_OK(status)) {
+		return status;
+	}
+	if (!VALID_STAT(relname->st)) {
+		return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+	}
+
+	status = ad_unconvert_get_streams(
+		handle, fullname, frame, &num_streams, &streams);
+	if (!NT_STATUS_IS_OK(status)) {
 		goto out;
 	}
 
@@ -2033,7 +2048,7 @@ bool ad_unconvert(TALLOC_CTX *mem_ctx,
 	}
 
 	if (to_convert == 0) {
-		ok = true;
+		status = NT_STATUS_OK;
 		goto out;
 	}
 
@@ -2041,18 +2056,18 @@ bool ad_unconvert(TALLOC_CTX *mem_ctx,
 		.adx_data_off = 0,
 	};
 
-	ret = adouble_path(frame, smb_fname, &adpath);
-	if (ret != 0) {
-		ok = false;
+	adname = adouble_name(frame, relname);
+	if (adname == NULL) {
+		status = NT_STATUS_NO_MEMORY;
 		goto out;
 	}
 
-	ret = SMB_VFS_STAT(handle->conn, adpath);
+	ret = SMB_VFS_FSTATAT(handle->conn, dirfsp, adname, &adname->st, 0);
 	if (ret == 0) {
 		state.have_adfile = true;
 	} else {
 		if (errno != ENOENT) {
-			ok = false;
+			status = map_nt_error_from_unix(errno);
 			goto out;
 		}
 		state.have_adfile = false;
@@ -2064,56 +2079,57 @@ bool ad_unconvert(TALLOC_CTX *mem_ctx,
 		 * from an AppleDouble file. Fine, that means there's nothing to
 		 * convert.
 		 */
-		ok = true;
+		status = NT_STATUS_OK;
 		goto out;
 	}
 
 	ad = ad_init(frame, ADOUBLE_RSRC);
 	if (ad == NULL) {
-		ok = false;
+		status = NT_STATUS_NO_MEMORY;
 		goto out;
 	}
 
 	for (i = 0; i < num_streams; i++) {
-		ok = ad_collect_one_stream(handle,
-					   cmaps,
-					   smb_fname,
-					   &streams[i],
-					   ad,
-					   &state);
-		if (!ok) {
+		status = ad_collect_one_stream(handle,
+					       cmaps,
+					       dirfsp,
+					       fullname,
+					       &streams[i],
+					       ad,
+					       &state);
+		if (!NT_STATUS_IS_OK(status)) {
 			goto out;
 		}
 	}
 
-	ok = ad_unconvert_open_ad(frame, handle, smb_fname, adpath, &fsp);
-	if (!ok) {
+	status = ad_unconvert_open_ad(
+		frame, handle, fullname, dirfsp, adname, &fsp);
+	if (!NT_STATUS_IS_OK(status)) {
 		DBG_ERR("Failed to open adfile [%s]\n",
-			smb_fname_str_dbg(smb_fname));
+			smb_fname_str_dbg(fullname));
 		goto out;
 	}
 
 	ret = ad_fset(handle, ad, fsp);
 	if (ret != 0) {
-		ok = false;
+		status = NT_STATUS_ACCESS_DENIED; /* probably wrong */
 		goto out;
 	}
 
 	*converted = true;
-	ok = true;
+	status = NT_STATUS_OK;
 
 out:
 	if (fsp != NULL) {
 		status = close_file_free(NULL, &fsp, NORMAL_CLOSE);
 		if (!NT_STATUS_IS_OK(status)) {
 			DBG_ERR("close_file_free() [%s] failed: %s\n",
-				smb_fname_str_dbg(smb_fname),
+				smb_fname_str_dbg(fullname),
 				nt_errstr(status));
-			ok = false;
 		}
 	}
 	TALLOC_FREE(frame);
-	return ok;
+	return status;
 }
 
 /**
@@ -2494,23 +2510,22 @@ static struct adouble *ad_alloc(TALLOC_CTX *ctx,
 		return NULL;
 	}
 
-	ad = talloc_zero(ctx, struct adouble);
+	ad = talloc(ctx, struct adouble);
 	if (ad == NULL) {
 		rc = -1;
 		goto exit;
 	}
 
-	if (adsize) {
-		ad->ad_data = talloc_zero_array(ad, char, adsize);
-		if (ad->ad_data == NULL) {
-			rc = -1;
-			goto exit;
-		}
+	*ad = (struct adouble){
+		.ad_type = type,
+		.ad_magic = AD_MAGIC,
+		.ad_version = AD_VERSION,
+		.ad_data = talloc_zero_array(ad, char, adsize),
+	};
+	if (ad->ad_data == NULL) {
+		rc = -1;
+		goto exit;
 	}
-
-	ad->ad_type = type;
-	ad->ad_magic = AD_MAGIC;
-	ad->ad_version = AD_VERSION;
 
 	talloc_set_destructor(ad, adouble_destructor);
 
@@ -2531,7 +2546,6 @@ exit:
  **/
 struct adouble *ad_init(TALLOC_CTX *ctx, adouble_type_t type)
 {
-	int rc = 0;
 	const struct ad_entry_order  *eid;
 	struct adouble *ad = NULL;
 	time_t t = time(NULL);
@@ -2564,9 +2578,6 @@ struct adouble *ad_init(TALLOC_CTX *ctx, adouble_type_t type)
 	ad_setdate(ad, AD_DATE_ACCESS | AD_DATE_UNIX, t);
 	ad_setdate(ad, AD_DATE_BACKUP, htonl(AD_DATE_START));
 
-	if (rc != 0) {
-		TALLOC_FREE(ad);
-	}
 	return ad;
 }
 
@@ -2686,7 +2697,7 @@ int ad_fset(struct vfs_handle_struct *handle,
 	switch (ad->ad_type) {
 	case ADOUBLE_META:
 		rc = SMB_VFS_NEXT_FSETXATTR(handle,
-				   fsp->base_fsp ? fsp->base_fsp : fsp,
+				   metadata_fsp(fsp),
 				   AFPINFO_EA_NETATALK,
 				   ad->ad_data,
 				   AD_DATASZ_XATTR, 0);
@@ -2777,6 +2788,22 @@ int adouble_path(TALLOC_CTX *ctx,
 	*pp_smb_fname_out = smb_fname;
 
 	return 0;
+}
+
+struct smb_filename *adouble_name(TALLOC_CTX *mem_ctx,
+				  const struct smb_filename *base)
+{
+	size_t ad_len = strlen(base->base_name);
+	char ad_name[ad_len + 3];
+	struct smb_filename ad_fname = {
+		.base_name = ad_name,
+		.flags = base->flags,
+		.twrp = base->twrp,
+	};
+
+	snprintf(ad_name, sizeof(ad_name), "._%s", base->base_name);
+
+	return cp_smb_filename(mem_ctx, &ad_fname);
 }
 
 /**

@@ -21,7 +21,8 @@
 #include "../librpc/gen_ndr/ndr_samr.h"
 #include "rpc_client/cli_pipe.h"
 #include "rpc_client/cli_samr.h"
-#include "libsmb/libsmb.h"
+#include "source3/include/client.h"
+#include "source3/libsmb/proto.h"
 #include "libsmb/clirap.h"
 #include "libsmb/nmblib.h"
 #include "../libcli/smb/smbXcli_base.h"
@@ -41,13 +42,16 @@ NTSTATUS remote_password_change(const char *remote_machine,
 	NTSTATUS status;
 	NTSTATUS result;
 	bool pass_must_change = False;
+	struct smb_transports ts =
+		smb_transports_parse("client smb transports",
+				     lp_client_smb_transports());
 
 	*err_str = NULL;
 
 	result = cli_connect_nb(talloc_tos(),
 				remote_machine,
 				NULL,
-				0,
+				&ts,
 				0x20,
 				NULL,
 				SMB_SIGNING_IPC_DEFAULT,

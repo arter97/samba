@@ -30,6 +30,7 @@
 #include "lib/util/time.h"
 #include "lib/util/data_blob.h"
 
+struct smbXcli_transport;
 struct smbXcli_conn;
 struct smbXcli_session;
 struct smbXcli_tcon;
@@ -38,10 +39,28 @@ struct GUID;
 struct iovec;
 struct smb2_create_blobs;
 struct smb_create_returns;
+struct smb_transport;
 struct smb311_capabilities;
+struct samba_sockaddr;
+struct tstream_context;
+
+struct smbXcli_transport *smbXcli_transport_tstream(TALLOC_CTX *mem_ctx,
+						    struct tstream_context **pstream,
+						    const struct samba_sockaddr *laddr,
+						    const struct samba_sockaddr *raddr,
+						    const struct smb_transport *tp);
+
+struct smbXcli_transport *smbXcli_transport_bsd(TALLOC_CTX *mem_ctx,
+						int *_fd,
+						const struct smb_transport *tp);
+
+struct smbXcli_transport *smbXcli_transport_bsd_tstream(
+						TALLOC_CTX *mem_ctx,
+						int *fd,
+						const struct smb_transport *tp);
 
 struct smbXcli_conn *smbXcli_conn_create(TALLOC_CTX *mem_ctx,
-					 int fd,
+					 struct smbXcli_transport **ptransport,
 					 const char *remote_name,
 					 enum smb_signing_setting signing_state,
 					 uint32_t smb1_capabilities,
@@ -51,6 +70,17 @@ struct smbXcli_conn *smbXcli_conn_create(TALLOC_CTX *mem_ctx,
 
 bool smbXcli_conn_is_connected(struct smbXcli_conn *conn);
 void smbXcli_conn_disconnect(struct smbXcli_conn *conn, NTSTATUS status);
+
+struct tevent_req *smbXcli_conn_monitor_send(TALLOC_CTX *mem_ctx,
+					     struct tevent_context *ev,
+					     struct smbXcli_conn *conn);
+NTSTATUS smbXcli_conn_monitor_recv(struct tevent_req *req);
+/*
+ * This needs to be called multiple times per second
+ * on an idle connection in order to let the transport
+ * do low level keepalive handling.
+ */
+NTSTATUS smbXcli_conn_monitor_once(struct smbXcli_conn *conn);
 
 struct tevent_queue *smbXcli_conn_send_queue(struct smbXcli_conn *conn);
 bool smbXcli_conn_has_async_calls(struct smbXcli_conn *conn);
@@ -500,6 +530,14 @@ struct smbXcli_session *smbXcli_session_shallow_copy(TALLOC_CTX *mem_ctx,
 					       struct smbXcli_session *src);
 bool smbXcli_session_is_guest(struct smbXcli_session *session);
 bool smbXcli_session_is_authenticated(struct smbXcli_session *session);
+void smbXcli_session_dump_keys(uint64_t session_id,
+			       DATA_BLOB *session_key,
+			       uint16_t signing_algo,
+			       DATA_BLOB *signing_key,
+			       DATA_BLOB *application_key,
+			       DATA_BLOB *encryption_key,
+			       DATA_BLOB *decryption_key,
+			       const char *wireshark_keyfile);
 NTSTATUS smb2cli_session_signing_key(struct smbXcli_session *session,
 				     TALLOC_CTX *mem_ctx,
 				     DATA_BLOB *key);

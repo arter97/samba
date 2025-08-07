@@ -368,7 +368,6 @@ NTSTATUS schedule_smb2_aio_read(connection_struct *conn,
 			(uint64_t)startpos,
 			(uint64_t)smb_maxcnt,
 			READ_LOCK,
-			lp_posix_cifsu_locktype(fsp),
 			&aio_ex->lock);
 
 	/* Take the lock until the AIO completes. */
@@ -517,7 +516,6 @@ NTSTATUS schedule_aio_smb2_write(connection_struct *conn,
 			in_offset,
 			(uint64_t)in_data.length,
 			WRITE_LOCK,
-			lp_posix_cifsu_locktype(fsp),
 			&aio_ex->lock);
 
 	/* Take the lock until the AIO completes. */
@@ -528,6 +526,7 @@ NTSTATUS schedule_aio_smb2_write(connection_struct *conn,
 
 	aio_ex->nbyte = in_data.length;
 	aio_ex->offset = in_offset;
+	prepare_file_modified(fsp, &aio_ex->modified_state);
 
 	req = pwrite_fsync_send(aio_ex, fsp->conn->sconn->ev_ctx, fsp,
 				in_data.data, in_data.length, in_offset,
@@ -588,7 +587,7 @@ static void aio_pwrite_smb2_done(struct tevent_req *req)
 	DEBUG(10, ("pwrite_recv returned %d, err = %s\n", (int)nwritten,
 		   (nwritten == -1) ? strerror(err) : "no error"));
 
-	mark_file_modified(fsp);
+	mark_file_modified(fsp, true, &aio_ex->modified_state);
 
         status = smb2_write_complete_nosync(subreq, nwritten, err);
 

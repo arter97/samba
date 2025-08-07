@@ -139,9 +139,7 @@ void msg_close_file(struct messaging_context *msg_ctx,
 NTSTATUS delete_all_streams(struct files_struct *fsp,
 			    struct files_struct *dirfsp,
 			    struct smb_filename *fsp_atname);
-NTSTATUS recursive_rmdir(TALLOC_CTX *ctx,
-		     connection_struct *conn,
-		     struct smb_filename *smb_dname);
+NTSTATUS recursive_rmdir_fsp(struct files_struct *fsp);
 bool has_other_nonposix_opens(struct share_mode_lock *lck,
 			      struct files_struct *fsp);
 bool has_nonposix_opens(struct share_mode_lock *lck);
@@ -231,7 +229,7 @@ NTSTATUS file_set_sparse(connection_struct *conn,
 int file_ntimes(connection_struct *conn,
 		files_struct *fsp,
 		struct smb_file_time *ft);
-bool set_sticky_write_time_fsp(struct files_struct *fsp,
+void set_sticky_write_time_fsp(struct files_struct *fsp,
 			       struct timespec mtime);
 
 NTSTATUS fget_ea_dos_attribute(struct files_struct *fsp,
@@ -244,10 +242,6 @@ NTSTATUS set_create_timespec_ea(struct files_struct *fsp,
 				struct timespec create_time);
 
 struct timespec get_create_timespec(connection_struct *conn,
-				struct files_struct *fsp,
-				const struct smb_filename *smb_fname);
-
-struct timespec get_change_timespec(connection_struct *conn,
 				struct files_struct *fsp,
 				const struct smb_filename *smb_fname);
 
@@ -285,10 +279,15 @@ NTSTATUS can_set_delete_on_close(files_struct *fsp, uint32_t dosmode);
 /* The following definitions come from smbd/fileio.c  */
 
 ssize_t read_file(files_struct *fsp,char *data,off_t pos,size_t n);
-void fsp_flush_write_time_update(struct files_struct *fsp);
-void trigger_write_time_update(struct files_struct *fsp);
-void trigger_write_time_update_immediate(struct files_struct *fsp);
-void mark_file_modified(files_struct *fsp);
+void trigger_write_time_update_immediate(struct files_struct *fsp,
+					 bool update_mtime,
+					 bool update_ctime);
+struct file_modified_state;
+void prepare_file_modified(files_struct *fsp,
+			   struct file_modified_state *state);
+void mark_file_modified(files_struct *fsp,
+			bool modified,
+			struct file_modified_state *state);
 ssize_t write_file(struct smb_request *req,
 			files_struct *fsp,
 			const char *data,
@@ -435,6 +434,9 @@ NTSTATUS parent_pathref(TALLOC_CTX *mem_ctx,
 			const struct smb_filename *smb_fname,
 			struct smb_filename **_parent,
 			struct smb_filename **_atname);
+
+void fsp_apply_private_ntcreatex_flags(struct files_struct *fsp,
+				       uint32_t flags);
 
 /* The following definitions come from smbd/smb2_ipc.c  */
 
@@ -871,7 +873,8 @@ void process_smb(struct smbXsrv_connection *xconn,
 void smbd_process(struct tevent_context *ev_ctx,
 		  struct messaging_context *msg_ctx,
 		  int sock_fd,
-		  bool interactive);
+		  bool interactive,
+		  enum smb_transport_type transport_type);
 bool valid_smb1_header(const uint8_t *inbuf);
 bool init_smb1_request(struct smb_request *req,
 		      struct smbd_server_connection *sconn,

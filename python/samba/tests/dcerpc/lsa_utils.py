@@ -114,7 +114,7 @@ class CreateTrustedDomain(TestCase):
 
         info = lsa.TrustDomainInfoInfoEx()
         info.domain_name.string = name.string
-        info.netbios_name.string = "createtrustrelax"
+        info.netbios_name.string = "TESTTRUSTRELAXX"
         info.sid = security.dom_sid("S-1-5-21-538490383-3740119673-95748416")
         info.trust_direction = (
             lsa.LSA_TRUST_DIRECTION_INBOUND
@@ -202,7 +202,7 @@ class CreateTrustedDomain(TestCase):
 
         info = lsa.TrustDomainInfoInfoEx()
         info.domain_name.string = name.string
-        info.netbios_name.string = "createtrustrelax"
+        info.netbios_name.string = "TESTTRUSTRELAXX"
         info.sid = security.dom_sid("S-1-5-21-538490383-3740119673-95748416")
         info.trust_direction = (
             lsa.LSA_TRUST_DIRECTION_INBOUND

@@ -98,13 +98,7 @@ NTSTATUS vfs_default_durable_cookie(struct files_struct *fsp,
 	cookie.base_name = fsp->fsp_name->base_name;
 	cookie.initial_allocation_size = fsp->initial_allocation_size;
 	cookie.position_information = fh_get_position_information(fsp->fh);
-	cookie.update_write_time_triggered =
-		fsp->fsp_flags.update_write_time_triggered;
-	cookie.update_write_time_on_close =
-		fsp->fsp_flags.update_write_time_on_close;
 	cookie.write_time_forced = fsp->fsp_flags.write_time_forced;
-	cookie.close_write_time = full_timespec_to_nt_time(
-		&fsp->close_write_time);
 
 	cookie.stat_info.st_ex_dev = fsp->fsp_name->st.st_ex_dev;
 	cookie.stat_info.st_ex_ino = fsp->fsp_name->st.st_ex_ino;
@@ -122,6 +116,11 @@ NTSTATUS vfs_default_durable_cookie(struct files_struct *fsp,
 	cookie.stat_info.st_ex_blksize = fsp->fsp_name->st.st_ex_blksize;
 	cookie.stat_info.st_ex_blocks = fsp->fsp_name->st.st_ex_blocks;
 	cookie.stat_info.st_ex_flags = fsp->fsp_name->st.st_ex_flags;
+
+	if (CHECK_DEBUGLVL(DBGLVL_DEBUG)) {
+		DBG_DEBUG("Fresh cookie\n");
+		NDR_PRINT_DEBUG(vfs_default_durable_cookie, &cookie);
+	}
 
 	ndr_err = ndr_push_struct_blob(cookie_blob, mem_ctx, &cookie,
 			(ndr_push_flags_fn_t)ndr_push_vfs_default_durable_cookie);
@@ -144,32 +143,7 @@ static void default_durable_disconnect_fn(struct share_mode_lock *lck,
 {
 	struct durable_disconnect_state *state = private_data;
 	struct files_struct *fsp = state->fsp;
-	struct smb_file_time ft;
 	bool ok;
-
-	/* Ensure any pending write time updates are done. */
-	if (fsp->update_write_time_event) {
-		fsp_flush_write_time_update(fsp);
-	}
-
-
-	init_smb_file_time(&ft);
-
-	if (fsp->fsp_flags.write_time_forced) {
-		NTTIME mtime = share_mode_changed_write_time(lck);
-		ft.mtime = nt_time_to_full_timespec(mtime);
-	} else if (fsp->fsp_flags.update_write_time_on_close) {
-		if (is_omit_timespec(&fsp->close_write_time)) {
-			ft.mtime = timespec_current();
-		} else {
-			ft.mtime = fsp->close_write_time;
-		}
-	}
-
-	if (!is_omit_timespec(&ft.mtime)) {
-		round_timespec(fsp->conn->ts_res, &ft.mtime);
-		file_ntimes(fsp->conn, fsp, &ft);
-	}
 
 	ok = mark_share_mode_disconnected(lck, fsp);
 	if (!ok) {
@@ -211,6 +185,11 @@ NTSTATUS vfs_default_durable_disconnect(struct files_struct *fsp,
 	if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
 		status = ndr_map_error2ntstatus(ndr_err);
 		return status;
+	}
+
+	if (CHECK_DEBUGLVL(DBGLVL_DEBUG)) {
+		DBG_DEBUG("Old cookie\n");
+		NDR_PRINT_DEBUG(vfs_default_durable_cookie, &cookie);
 	}
 
 	if (strcmp(cookie.magic, VFS_DEFAULT_DURABLE_COOKIE_MAGIC) != 0) {
@@ -284,13 +263,7 @@ NTSTATUS vfs_default_durable_disconnect(struct files_struct *fsp,
 	cookie.base_name = fsp_str_dbg(fsp);
 	cookie.initial_allocation_size = fsp->initial_allocation_size;
 	cookie.position_information = fh_get_position_information(fsp->fh);
-	cookie.update_write_time_triggered =
-		fsp->fsp_flags.update_write_time_triggered;
-	cookie.update_write_time_on_close =
-		fsp->fsp_flags.update_write_time_on_close;
 	cookie.write_time_forced = fsp->fsp_flags.write_time_forced;
-	cookie.close_write_time = full_timespec_to_nt_time(
-		&fsp->close_write_time);
 
 	cookie.stat_info.st_ex_dev = fsp->fsp_name->st.st_ex_dev;
 	cookie.stat_info.st_ex_ino = fsp->fsp_name->st.st_ex_ino;
@@ -314,6 +287,11 @@ NTSTATUS vfs_default_durable_disconnect(struct files_struct *fsp,
 	if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
 		status = ndr_map_error2ntstatus(ndr_err);
 		return status;
+	}
+
+	if (CHECK_DEBUGLVL(DBGLVL_DEBUG)) {
+		DBG_DEBUG("New cookie\n");
+		NDR_PRINT_DEBUG(vfs_default_durable_cookie, &cookie);
 	}
 
 	status = fd_close(fsp);
@@ -632,7 +610,7 @@ static void vfs_default_durable_reconnect_fn(struct share_mode_lock *lck,
 		goto fail;
 	}
 
-	fh_set_private_options(fsp->fh, e.private_options);
+	fsp_apply_share_entry_flags(fsp, e.flags);
 	fsp->open_time = e.time;
 	fsp->access_mask = e.access_mask;
 	fsp->fsp_flags.can_read = ((fsp->access_mask & FILE_READ_DATA) != 0);
@@ -682,13 +660,7 @@ static void vfs_default_durable_reconnect_fn(struct share_mode_lock *lck,
 
 	fsp->initial_allocation_size = state->cookie.initial_allocation_size;
 	fh_set_position_information(fsp->fh, state->cookie.position_information);
-	fsp->fsp_flags.update_write_time_triggered =
-		state->cookie.update_write_time_triggered;
-	fsp->fsp_flags.update_write_time_on_close =
-		state->cookie.update_write_time_on_close;
 	fsp->fsp_flags.write_time_forced = state->cookie.write_time_forced;
-	fsp->close_write_time = nt_time_to_full_timespec(
-		state->cookie.close_write_time);
 
 	state->op->compat = fsp;
 	fsp->op = state->op;
@@ -858,6 +830,11 @@ NTSTATUS vfs_default_durable_reconnect(struct connection_struct *conn,
 	if (!NDR_ERR_CODE_IS_SUCCESS(ndr_err)) {
 		status = ndr_map_error2ntstatus(ndr_err);
 		return status;
+	}
+
+	if (CHECK_DEBUGLVL(DBGLVL_DEBUG)) {
+		DBG_DEBUG("Cookie:\n");
+		NDR_PRINT_DEBUG(vfs_default_durable_cookie, &state.cookie);
 	}
 
 	if (strcmp(state.cookie.magic, VFS_DEFAULT_DURABLE_COOKIE_MAGIC) != 0) {

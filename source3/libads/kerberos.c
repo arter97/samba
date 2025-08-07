@@ -1230,12 +1230,35 @@ static char *get_kdc_ip_string(char *mem_ctx,
 
 	if (!NT_STATUS_IS_OK(status)) {
 		DBG_DEBUG("netlogon_pings failed: %s\n", nt_errstr(status));
+		result = talloc_move(mem_ctx, &kdc_str);
 		goto out;
 	}
 
 	for (i=0; i<num_dcs; i++) {
+		struct NETLOGON_SAM_LOGON_RESPONSE_EX *cldap_reply = NULL;
+		char addr[INET6_ADDRSTRLEN];
+
 		if (responses[i] == NULL) {
 			continue;
+		}
+
+		if (responses[i]->ntver != NETLOGON_NT_VERSION_5EX) {
+			continue;
+		}
+
+		print_sockaddr(addr, sizeof(addr), &dc_addrs[i]);
+
+		cldap_reply = &responses[i]->data.nt5_ex;
+
+		if (cldap_reply->pdc_dns_name != NULL) {
+			status = check_negative_conn_cache(
+				realm,
+				cldap_reply->pdc_dns_name);
+			if (!NT_STATUS_IS_OK(status)) {
+				/* propagate blacklisting from name to ip */
+				add_failed_connection_entry(realm, addr, status);
+				continue;
+			}
 		}
 
 		/* Append to the string - inefficient but not done often. */

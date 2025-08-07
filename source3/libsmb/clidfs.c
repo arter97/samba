@@ -20,7 +20,8 @@
 */
 
 #include "includes.h"
-#include "libsmb/libsmb.h"
+#include "source3/include/client.h"
+#include "source3/libsmb/proto.h"
 #include "libsmb/clirap.h"
 #include "msdfs.h"
 #include "trans2.h"
@@ -134,7 +135,7 @@ static NTSTATUS do_connect(TALLOC_CTX *ctx,
 					const char *share,
 					struct cli_credentials *creds,
 					const struct sockaddr_storage *dest_ss,
-					int port,
+					const struct smb_transports *transports,
 					int name_type,
 					struct cli_state **pcli)
 {
@@ -150,7 +151,6 @@ static NTSTATUS do_connect(TALLOC_CTX *ctx,
 	enum smb_encryption_setting encryption_state =
 		cli_credentials_get_smb_encryption(creds);
 	struct smb2_negotiate_contexts *in_contexts = NULL;
-	struct smb2_negotiate_contexts *out_contexts = NULL;
 
 	if (encryption_state >= SMB_ENCRYPTION_DESIRED) {
 		signing_state = SMB_SIGNING_REQUIRED;
@@ -186,7 +186,7 @@ static NTSTATUS do_connect(TALLOC_CTX *ctx,
 	status = cli_connect_nb(NULL,
 				server,
 				dest_ss,
-				port,
+				transports,
 				name_type,
 				NULL,
 				signing_state,
@@ -226,8 +226,8 @@ static NTSTATUS do_connect(TALLOC_CTX *ctx,
 				 lp_client_min_protocol(),
 				 lp_client_max_protocol(),
 				 in_contexts,
-				 ctx,
-				 &out_contexts);
+				 NULL,
+				 NULL);
 	TALLOC_FREE(in_contexts);
 
 	if (NT_STATUS_EQUAL(status, NT_STATUS_IO_TIMEOUT)) {
@@ -236,7 +236,9 @@ static NTSTATUS do_connect(TALLOC_CTX *ctx,
 			 smbXcli_conn_remote_name(c->conn));
 		cli_shutdown(c);
 		return status;
-	} else if (!NT_STATUS_IS_OK(status)) {
+	}
+
+	if (!NT_STATUS_IS_OK(status)) {
 		d_printf("Protocol negotiation to server %s (for a protocol between %s and %s) failed: %s\n",
 			 smbXcli_conn_remote_name(c->conn),
 			 lpcfg_get_smb_protocol(lp_client_min_protocol()),
@@ -312,7 +314,7 @@ static NTSTATUS do_connect(TALLOC_CTX *ctx,
 		cli_shutdown(c);
 		return do_connect(ctx, newserver,
 				newshare, creds,
-				NULL, port, name_type, pcli);
+				NULL, transports, name_type, pcli);
 	}
 
 	/* must be a normal share */
@@ -340,7 +342,7 @@ static NTSTATUS cli_cm_connect(TALLOC_CTX *ctx,
 			       const char *share,
 			       struct cli_credentials *creds,
 			       const struct sockaddr_storage *dest_ss,
-			       int port,
+			       const struct smb_transports *transports,
 			       int name_type,
 			       struct cli_state **pcli)
 {
@@ -349,7 +351,7 @@ static NTSTATUS cli_cm_connect(TALLOC_CTX *ctx,
 
 	status = do_connect(ctx, server, share,
 				creds,
-				dest_ss, port, name_type, &cli);
+				dest_ss, transports, name_type, &cli);
 
 	if (!NT_STATUS_IS_OK(status)) {
 		return status;
@@ -433,7 +435,7 @@ NTSTATUS cli_cm_open(TALLOC_CTX *ctx,
 		     const char *share,
 		     struct cli_credentials *creds,
 		     const struct sockaddr_storage *dest_ss,
-		     int port,
+		     const struct smb_transports *transports,
 		     int name_type,
 		     struct cli_state **pcli)
 {
@@ -461,7 +463,7 @@ NTSTATUS cli_cm_open(TALLOC_CTX *ctx,
 				share,
 				creds,
 				dest_ss,
-				port,
+				transports,
 				name_type,
 				&c);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -949,6 +951,9 @@ NTSTATUS cli_resolve_path(TALLOC_CTX *ctx,
 	struct cli_dfs_path_split *dfs_refs = NULL;
 	bool ok;
 	bool is_already_dfs = false;
+	struct smb_transports ts =
+		smb_transports_parse("client smb transports",
+				     lp_client_smb_transports());
 
 	if ( !rootcli || !path || !targetcli ) {
 		return NT_STATUS_INVALID_PARAMETER;
@@ -1039,7 +1044,7 @@ NTSTATUS cli_resolve_path(TALLOC_CTX *ctx,
 			     "IPC$",
 			     creds,
 			     NULL, /* dest_ss not needed, we reuse the transport */
-			     0,
+			     &ts,
 			     0x20,
 			     &cli_ipc);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -1095,7 +1100,7 @@ NTSTATUS cli_resolve_path(TALLOC_CTX *ctx,
 				dfs_refs[count].share,
 				creds,
 				NULL, /* dest_ss */
-				0, /* port */
+				&ts,
 				0x20,
 				targetcli);
 		if (!NT_STATUS_IS_OK(status)) {

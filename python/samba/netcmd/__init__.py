@@ -30,6 +30,7 @@ from samba.getopt import Option, OptionParser
 from samba.logger import get_samba_logger
 from samba.samdb import SamDB
 from samba.dcerpc.security import SDDLValueError
+from samba import getopt as options
 
 from .encoders import JSONEncoder
 
@@ -281,10 +282,16 @@ class Command(object):
             option_class=Option)
         parser.add_options(self.takes_options)
         optiongroups = {}
+
+        # let samba-tool subcommands process --version
+        if "versionopts" not in self.takes_optiongroups:
+            self.takes_optiongroups["_versionopts"] = options.VersionOptions
+
         for name in sorted(self.takes_optiongroups.keys()):
             optiongroup = self.takes_optiongroups[name]
             optiongroups[name] = optiongroup(parser)
             parser.add_option_group(optiongroups[name])
+
         if self.use_colour:
             parser.add_option("--color",
                               help="use colour if available (default: auto)",
@@ -313,12 +320,36 @@ class Command(object):
             return -1
 
         # Filter out options from option groups
+        #
+        # run() methods on subclasses receive all direct options as
+        # keyword arguments, but options that come from OptionGroups
+        # (for example, --configfile from SambaOpts group) are removed
+        # from the direct keyword arguments list, and the option group
+        # itself becomes a keyword argument. The option can be
+        # accessed as an attribute of that (e.g. sambaopts.configfile).
+        #
+        # This allows for option groups to grow without needing to
+        # change the signature for all samba-tool tools.
+        #
+        # _versionopts special case.
+        # ==========================
+        #
+        # The _versionopts group was added automatically, and is
+        # removed here. It only has the -V/--version option, and that
+        # will have triggered already if given (as will --help, and
+        # errors on unknown options).
+        #
+        # Some subclasses take 'versionopts' which they expect to
+        # receive but never use.
+
         kwargs = dict(opts.__dict__)
-        for option_group in parser.option_groups:
+
+        for og_name, option_group in optiongroups.items():
             for option in option_group.option_list:
                 if option.dest is not None and option.dest in kwargs:
                     del kwargs[option.dest]
-        kwargs.update(optiongroups)
+            if og_name != '_versionopts':
+                kwargs[og_name] = option_group
 
         if kwargs.get('output_format') == 'json':
             self.preferred_output_format = 'json'
@@ -415,7 +446,10 @@ class SuperCommand(Command):
                 sub = self.subcommands[a]
                 return sub._resolve(sub_path, *sub_args, outf=outf, errf=errf)
 
-            elif a in ['--help', 'help', None, '-h', '-V', '--version']:
+            if a in ['-V', '--version']:
+                return (self, [a])
+
+            if a in ['--help', 'help', None, '-h']:
                 # we pass these to the leaf node.
                 if a == 'help':
                     a = '--help'
@@ -426,8 +460,9 @@ class SuperCommand(Command):
             print("%s: no such subcommand: %s\n" % (path, a), file=self.outf)
             return (self, [])
 
-        # We didn't find a subcommand, but maybe we found e.g. --version
-        print("%s: missing subcommand\n" % (path), file=self.outf)
+        # We didn't find a subcommand, but maybe we found e.g. --help
+        if not deferred_args:
+            print("%s: missing subcommand\n" % (path), file=self.outf)
         return (self, deferred_args)
 
     def _run(self, *argv):

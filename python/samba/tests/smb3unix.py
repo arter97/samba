@@ -37,8 +37,8 @@ class Smb3UnixTests(samba.tests.libsmb.LibsmbTests):
         super().setUp()
 
         self.samsid = os.environ["SAMSID"]
-        prefix_abs = os.environ["PREFIX_ABS"]
-        p = subprocess.run(['stat', '-f', '-c', '%T', prefix_abs], capture_output=True, text=True)
+        prefix = os.environ["PREFIX"]
+        p = subprocess.run(['stat', '-f', '-c', '%T', prefix], capture_output=True, text=True)
         self.fstype = p.stdout.strip().lower()
 
     def connections(self, share1=None, posix1=False, share2=None, posix2=True):
@@ -182,12 +182,29 @@ class Smb3UnixTests(samba.tests.libsmb.LibsmbTests):
                 wire_mode = libsmb.unix_mode_to_wire(0o744)
                 f,_,cc_out = c.create_ex('\\%s' % fname,
                                 CreateDisposition=libsmb.FILE_CREATE,
-                                DesiredAccess=security.SEC_STD_DELETE,
+                                DesiredAccess=security.SEC_FILE_READ_ATTRIBUTE,
                                 CreateContexts=[posix_context(wire_mode)])
             except NTSTATUSError as e:
                 self.fail(e)
-            c.delete_on_close(f, True)
             c.close(f)
+
+        try:
+            res = c.list('', info_level=libsmb.SMB2_FIND_POSIX_INFORMATION)
+            found_files = {get_string(i['name']): i for i in res}
+            for fname in test_files:
+                self.assertTrue(fname in found_files)
+        except NTSTATUSError as e:
+            self.fail(e)
+        finally:
+            wire_mode = libsmb.unix_mode_to_wire(0o600)
+            for fname in test_files:
+                f,_,_ = c.create_ex('\\%s' % fname,
+                                CreateDisposition=libsmb.FILE_OPEN,
+                                DesiredAccess=security.SEC_STD_DELETE,
+                                CreateContexts=[posix_context(wire_mode)])
+                c.delete_on_close(f, True)
+                c.close(f)
+
 
     def test_posix_delete_on_close(self):
         c = libsmb.Conn(

@@ -1,4 +1,4 @@
-/* 
+/*
  * ensure meta data operations are performed synchronously
  *
  * Copyright (C) Andrew Tridgell     2007
@@ -8,12 +8,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *  
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -31,12 +31,12 @@
   operation is guaranteed to remain in the filesystem after a power
   failure. This is particularly important for some cluster filesystems
   which are participating in a node failover system with clustered
-  Samba
+  Samba.
 
   On those filesystems this module provides a way to perform those
-  operations safely.  
+  operations safely.
 
-  most of the performance loss with this module is in fsync on close(). 
+  Most of the performance loss with this module is in fsync on close().
   You can disable that with
      syncops:onclose = no
   that can be set either globally or per share.
@@ -46,7 +46,7 @@
      syncops:onmeta = no
   This option can be set either globally or per share.
 
-  you can also disable the module completely for a share with
+  You can also disable the module completely for a share with
      syncops:disable = true
 
  */
