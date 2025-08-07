@@ -93,6 +93,8 @@ usr/lib/${DEB_HOST_MULTIARCH}/samba/libmessages-dgm-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libmessages-util-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libmsghdr-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libmsrpc3-private-samba.so.0
+usr/lib/${DEB_HOST_MULTIARCH}/samba/libngtcp2-crypto-gnutls-private-samba.so.0
+usr/lib/${DEB_HOST_MULTIARCH}/samba/libngtcp2-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libndr-samba-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libndr-samba4-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libnetif-private-samba.so.0
@@ -101,6 +103,7 @@ usr/lib/${DEB_HOST_MULTIARCH}/samba/libpac-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libposix-eadb-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libprinting-migrate-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libprocess-model-private-samba.so.0
+usr/lib/${DEB_HOST_MULTIARCH}/samba/libquic-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libregistry-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libreplace-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamba-cluster-support-private-samba.so.0
@@ -108,6 +111,7 @@ usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamba-debug-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamba-modules-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamba-net-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamba-security-private-samba.so.0
+usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamba-security-trusts-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamba-sockets-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamba3-util-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamdb-common-private-samba.so.0
@@ -119,7 +123,6 @@ usr/lib/${DEB_HOST_MULTIARCH}/samba/libsecrets3-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libserver-id-db-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libserver-role-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libservice-private-samba.so.0
-usr/lib/${DEB_HOST_MULTIARCH}/samba/libsmb-transport-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsmbclient-raw-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsmbd-base-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsmbd-shim-private-samba.so.0
