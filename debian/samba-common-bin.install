@@ -30,3 +30,4 @@ usr/lib/${DEB_HOST_MULTIARCH}/samba/libRPC-WORKER-private-samba.so.0
 usr/libexec/samba/samba-dcerpcd
 usr/share/man/man8/samba-dcerpcd.8
 usr/libexec/samba/rpcd_*
+usr/share/locale/*/LC_MESSAGES/net.mo
