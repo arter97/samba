@@ -83,6 +83,9 @@ tdb-packages := libtdb1 tdb-tools libtdb-dev python3-tdb
 extra-version-vars = \
 	-Vldb:Version=${ldb-version} \
 
+# used in libnss-winbind.install & libpam-winbind.install
+export SYSLIBDIR = $(if ${before-trixie},/lib,/usr/lib)
+
 omit-pkgs =
 
 config-args = \
@@ -95,7 +98,7 @@ config-args = \
 	--libdir=/usr/lib/${DEB_HOST_MULTIARCH} \
 	--datadir=/usr/share \
 	--with-modulesdir=/usr/lib/${DEB_HOST_MULTIARCH}/samba \
-	--with-pammodulesdir=/lib/${DEB_HOST_MULTIARCH}/security \
+	--with-pammodulesdir=${SYSLIBDIR}/${DEB_HOST_MULTIARCH}/security \
 	--with-privatedir=/var/lib/samba/private \
 	--with-smbpasswd-file=/etc/samba/smbpasswd \
 	--with-piddir=/run/samba \
@@ -270,7 +273,6 @@ override_dh_auto_install-arch:
 	rm -rf debian/tmp${PYTHONDIR}/samba/tests/
 	# pam stuff
 	install -Dp -m0644 debian/winbind.pam-config debian/tmp/usr/share/pam-configs/winbind
-	mv debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/libnss_* debian/tmp/lib/$(DEB_HOST_MULTIARCH)/
 	install -p -m755 debian/update-apparmor-samba-profile -t debian/tmp/usr/share/samba/
 	install -Dp -m0644 debian/samba.ufw.profile debian/tmp/etc/ufw/applications.d/samba
 	# install-and-rename docs for ctdb (also arch-specific)
@@ -432,10 +434,6 @@ ifneq (,$(filter ${build-pkgs}, ${mitkrb5-dep-pkgs}))
 	dh_gencontrol $(addprefix -p, $(filter ${build-pkgs}, ${mitkrb5-dep-pkgs})) -- -v${mitkrb5-samba-ver} ${extra-version-vars}
 endif
 	dh_gencontrol --remaining-packages -- ${extra-version-vars}
-ifeq (,${before-trixie})
-# run dh_movetousr only on trixie and up, not before
-	dh_movetousr -plibpam-winbind -plibnss-winbind
-endif
 
 # check-subpkg-ver name,variable-in-wscript
 define check-subpkg-ver
