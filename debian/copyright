@@ -243,11 +243,6 @@ Copyright:
   Copyright Michal Proszek, 2014 (poxip)
 License: BSD-3
 
-Files: third_party/waf/waflib/extras/boo.py
-Copyright:
-  Copyright Yannick LM 2011
-License: BSD-3
-
 Files: third_party/waf/waflib/extras/boost.py
 Copyright:
   Copyright Gernot Vormayr
@@ -261,11 +256,6 @@ License: BSD-3
 Files: third_party/waf/waflib/extras/buildcopy.py
 Copyright:
   Copyright Calle Rosenquist, 2017 (xbreak)
-License: BSD-3
-
-Files: third_party/waf/waflib/extras/cabal.py
-Copyright:
-  Copyright Anton Feldmann, 2012
 License: BSD-3
 
 Files:
