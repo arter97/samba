@@ -14,6 +14,7 @@ libsmbclient.so.0 #PACKAGE# #MINVER#
  SMBCLIENT_0.6.0@SMBCLIENT_0.6.0 2:4.12.0+dfsg
  SMBCLIENT_0.7.0@SMBCLIENT_0.7.0 2:4.16.0+dfsg
  SMBCLIENT_0.8.0@SMBCLIENT_0.8.0 2:4.20.0~rc1
+ SMBCLIENT_0.8.1@SMBCLIENT_0.8.1 2:4.23.0~rc1
  smbc_chmod@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_close@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_closedir@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
@@ -35,6 +36,7 @@ libsmbclient.so.0 #PACKAGE# #MINVER#
  smbc_getFunctionClose@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_getFunctionClosedir@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_getFunctionCreat@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
+ smbc_getFunctionFGetxattr@SMBCLIENT_0.8.1 2:4.23.0~rc1
  smbc_getFunctionFstat@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_getFunctionFstatVFS@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_getFunctionFstatdir@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
@@ -130,6 +132,7 @@ libsmbclient.so.0 #PACKAGE# #MINVER#
  smbc_setFunctionClose@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_setFunctionClosedir@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_setFunctionCreat@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
+ smbc_setFunctionFGetxattr@SMBCLIENT_0.8.1 2:4.23.0~rc1
  smbc_setFunctionFstat@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_setFunctionFstatVFS@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
  smbc_setFunctionFstatdir@SMBCLIENT_0.1.0 2:4.0.3+dfsg1
