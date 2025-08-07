@@ -1,3 +1,23 @@
+samba (2:4.23.0~rc1+dfsg-1) experimental; urgency=medium
+
+  * new upstream release candidate
+  * d/gbp.conf: switch to 4.23 upstream branch
+  * d/rules: tevent=0.17.1 tdb=1.4.14
+  * libads-fix-get_kdc_ip_string.patch: remove (included upstream)
+  * d/copyright: remove entries for two removed files
+  * d/libpam-winbind.install: install message catalogs
+  * d/samba-common-bin.install: install message catalog(s) for the net command
+  * d/libsmbclient0.symbols,d/libtevent0t64.symbols: add new symbols
+  * d/libtdb1.symbols: add new version
+  * d/samba-dsdb-modules.install: add new AD module (trust_notify.so)
+  * d/samba-libs.install: refresh private libraries list (-1, +4 libs)
+  * d/rules: explicitly specify --pythondir= & --pythonarchdir=
+    (so it doesn't install to /usr/lib/python3.13/site-packages/)
+  * d/rules,d/lib{nss,pam}-winbind.install: use ${SYSLIBDIR}
+    for /lib vs /usr/lib, stop using dh_movetousr
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 07 Aug 2025 23:29:29 +0300
+
 samba (2:4.22.3+dfsg-4) unstable; urgency=medium
 
   * fix python3-talloc.symbols generation to not have -debian_revision
