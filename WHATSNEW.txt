@@ -1,7 +1,7 @@
 Release Announcements
 =====================
 
-This is the first release candidate release of Samba 4.23.  This is *not*
+This is the second release candidate release of Samba 4.23.  This is *not*
 intended for production environments and is designed for testing
 purposes only.  Please report any defects via the Samba bug reporting
 system at https://bugzilla.samba.org/.
@@ -32,9 +32,47 @@ Initial version of smb_prometheus_endpoint
 ------------------------------------------
 todo
 
-samba-tool improvements
------------------------
-todo
+samba-tool domain backup --no-secrets avoids confidential attributes
+--------------------------------------------------------------------
+
+The --no-secrets option creates a back-up without secret attributes
+(e.g. passwords), suitable for use in a lab domain. Until now it could
+still contain confidential attributes, including BitLocker recovery
+data and KDS root keys. Objects in the classes msKds-ProvRootKey,
+msFVE-RecoveryInformation, and msTPM-InformationObject will now be
+entirely removed from the backup, as these objects are required by
+schema to have confidential attributes and are no use without them.
+
+CTDB changes
+------------
+
+* CTDB now supports loading tunables from
+  /etc/ctdb/tunables.d/*.tunables, in addition to the standard
+  /etc/ctdb/tunables.conf.  See the ctdb-tunables(7) manual page for
+  more details.  Note that the above locations are examples - the
+  actual location of these files will depend on compile time
+  configuration.
+
+  It isn't expected that many users will require a directory of tunables
+  files, since most users do not need to change tunables from their
+  default values.  However, this allows vendors to ship their required
+  tunables settings (for example, in one or more files marked "do not
+  edit") while still allowing local administrators to add their own
+  tunables settings (in one or more separate files).
+
+Per-share profiling stats
+-------------------------
+Starting with Samba 4.23, users can collect profile counters at a
+per-share level. This feature requires building Samba with profiling
+data enabled and adding an appropriate `smb.conf` parameter for
+specific shares. It's particularly useful for deployments with a large
+number of active shares, allowing administrators to monitor individual
+share activity and identify potential bottlenecks or hot-spots. When
+enabled, users can inspect current per-share profile information
+("Extended Profile") using the standard `smbstatus` utility.
+
+Currently, this functionality is supported only by the default and
+`ceph_new` VFS modules.
 
 
 REMOVED FEATURES
@@ -50,6 +88,21 @@ smb.conf changes
   client smb transports                   New             tcp, nbt
   server smb transports                   New             tcp, nbt
   winbind varlink service                 New             no
+
+CHANGES SINCE 4.23.0rc1
+=======================
+
+o  Björn Baumbach <bb@sernet.de>
+   * BUG 15896: libquic build fixes.
+
+o  Ralph Boehme <slow@samba.org>
+   * BUG 15844: getpwuid does not shift to new DC when current DC is down.
+   * BUG 15876: Windows security hardening locks out schannel'ed netlogon dc
+     calls like netr_DsRGetDCName.
+
+o  Gary Lockyer <gary@catalyst.net.nz>
+   * BUG 15896: libquic build fixes.
+
 
 KNOWN ISSUES
 ============
