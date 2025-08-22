@@ -1,3 +1,9 @@
+samba (2:4.23.0~rc2+dfsg-1) experimental; urgency=medium
+
+  * new upstream release candidate
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Sat, 23 Aug 2025 01:52:34 +0300
+
 samba (2:4.23.0~rc1+dfsg-1) experimental; urgency=medium
 
   * new upstream release candidate
