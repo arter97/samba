@@ -1,7 +1,7 @@
 Release Announcements
 =====================
 
-This is the second release candidate release of Samba 4.23.  This is *not*
+This is the third release candidate release of Samba 4.23.  This is *not*
 intended for production environments and is designed for testing
 purposes only.  Please report any defects via the Samba bug reporting
 system at https://bugzilla.samba.org/.
@@ -18,23 +18,60 @@ NEW FEATURES/CHANGES
 
 Enable SMB3 Unix Extensions by default
 --------------------------------------
-todo
+Starting with Samba 4.23, the SMB3 UNIX Extensions are enabled by
+default. These extensions provide first-class support for POSIX semantics
+over SMB3, allowing UNIX and Linux clients to access file services with
+features such as proper POSIX permissions, symlink handling, hardlinks,
+and special file types.
+
+Enabling this feature by default improves interoperability for UNIX/Linux
+clients without requiring additional configuration. Windows clients that
+do not support the extensions will continue to function normally, by
+using standard SMB3 behavior.
 
 Add support for SMB3 over QUIC
 ------------------------------
-todo
+The new "client smb transports" and "server smb transport"
+allow a more flexible configuration for the used tcp
+sockets.
+
+It also got the ability specify "quic" as possible transport.
+If quic should be used in addition to the defaults something
+like "server smb transports = +quic" can be used.
+
+For the client quic only works with name based uncs,
+ip address based uncs are not supported.
+
+Note for the server 'quic' requires the quic.ko kernel module
+for Linux from https://github.com/lxin/quic (tested with Linux 6.14).
+Future Linux versions may support it natively, here's the
+branch that will hopefully accepted upstream soon:
+https://github.com/lxin/net-next/commits/quic/
+
+For the client side there's a fallback to the userspace ngtcp2
+library if the quic kernel module is not available.
+
+Check the smb.conf manpage for additional hints
+about the "client smb transports" and "server smb transport"
+options and interactions with tls related options.
 
 Modern write time update logic
 ------------------------------
-todo
+Samba 4.23 changes file timestamp handling to match modern Windows servers.
+Earlier releases used delayed write time updates, where last_write_time was
+only refreshed after a short idle period. Now Samba applies immediate
+timestamp updates consistent with modern Windows 10/Server 2016 or newer.
 
 Initial version of smb_prometheus_endpoint
 ------------------------------------------
-todo
+Samba 4.23 introduces the smb_prometheus_endpoint utility, which exports
+Samba server metrics in Prometheus-compatible format. This enables seamless
+integration of Samba performance and status monitoring into existing
+Prometheus and Grafana environments. For usage and configuration details,
+refer to the new smb_prometheus_endpoint man page.
 
 samba-tool domain backup --no-secrets avoids confidential attributes
 --------------------------------------------------------------------
-
 The --no-secrets option creates a back-up without secret attributes
 (e.g. passwords), suitable for use in a lab domain. Until now it could
 still contain confidential attributes, including BitLocker recovery
@@ -45,20 +82,19 @@ schema to have confidential attributes and are no use without them.
 
 CTDB changes
 ------------
+CTDB now supports loading tunables from
+/etc/ctdb/tunables.d/*.tunables, in addition to the standard
+/etc/ctdb/tunables.conf.  See the ctdb-tunables(7) manual page for
+more details.  Note that the above locations are examples - the
+actual location of these files will depend on compile time
+configuration.
 
-* CTDB now supports loading tunables from
-  /etc/ctdb/tunables.d/*.tunables, in addition to the standard
-  /etc/ctdb/tunables.conf.  See the ctdb-tunables(7) manual page for
-  more details.  Note that the above locations are examples - the
-  actual location of these files will depend on compile time
-  configuration.
-
-  It isn't expected that many users will require a directory of tunables
-  files, since most users do not need to change tunables from their
-  default values.  However, this allows vendors to ship their required
-  tunables settings (for example, in one or more files marked "do not
-  edit") while still allowing local administrators to add their own
-  tunables settings (in one or more separate files).
+It isn't expected that many users will require a directory of tunables
+files, since most users do not need to change tunables from their
+default values.  However, this allows vendors to ship their required
+tunables settings (for example, in one or more files marked "do not
+edit") while still allowing local administrators to add their own
+tunables settings (in one or more separate files).
 
 Per-share profiling stats
 -------------------------
@@ -88,6 +124,21 @@ smb.conf changes
   client smb transports                   New             tcp, nbt
   server smb transports                   New             tcp, nbt
   winbind varlink service                 New             no
+
+
+CHANGES SINCE 4.23.0rc2
+=======================
+
+o  Ralph Boehme <slow@samba.org>
+   * BUG 15843: macOS Finder client DFS broken on 4.22.0.
+
+o  Stefan Metzmacher <metze@samba.org>
+   * BUG 15899: Self-signed certificates don't have X509v3 Subject Alternative
+     Name for DNS.
+
+o  Andreas Schneider <asn@samba.org>
+   * BUG 15893: Improve handling of principals and realms in client tools.
+
 
 CHANGES SINCE 4.23.0rc1
 =======================
