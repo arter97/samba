@@ -1495,6 +1495,7 @@ int tstream_tls_connect_recv(struct tevent_req *req,
 */
 NTSTATUS tstream_tls_params_server(TALLOC_CTX *mem_ctx,
 				   const char *dns_host_name,
+				   const char * const *additional_dns_hostnames,
 				   bool enabled,
 				   const char *key_file,
 				   const char *cert_file,
@@ -1545,6 +1546,7 @@ NTSTATUS tstream_tls_params_server(TALLOC_CTX *mem_ctx,
 
 	if (!file_exist(ca_file)) {
 		tls_cert_generate(tlsp, dns_host_name,
+				  additional_dns_hostnames,
 				  key_file, cert_file, ca_file);
 	}
 
@@ -1659,7 +1661,6 @@ NTSTATUS tstream_tls_params_server(TALLOC_CTX *mem_ctx,
 }
 
 NTSTATUS tstream_tls_params_server_lpcfg(TALLOC_CTX *mem_ctx,
-					 const char *dns_host_name,
 					 struct loadparm_context *lp_ctx,
 					 struct tstream_tls_params **_tlsp)
 {
@@ -1667,7 +1668,8 @@ NTSTATUS tstream_tls_params_server_lpcfg(TALLOC_CTX *mem_ctx,
 	NTSTATUS status;
 
 	status = tstream_tls_params_server(mem_ctx,
-					   dns_host_name,
+					   lpcfg_dns_hostname(lp_ctx),
+					   lpcfg_additional_dns_hostnames(lp_ctx),
 					   lpcfg_tls_enabled(lp_ctx),
 					   lpcfg_tls_keyfile(frame, lp_ctx),
 					   lpcfg_tls_certfile(frame, lp_ctx),
