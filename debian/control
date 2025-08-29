@@ -49,6 +49,8 @@ Build-Depends-Arch:
 	libkrb5-dev (>= 1.21.0~) <pkg.samba.mitkrb5>,
 	libldap2-dev,
 	liblmdb-dev,
+#	libngtcp2-dev (>> 1.12.0~) [linux-any],
+#	libngtcp2-crypto-gnutls-dev (>> 1.12.0~) [linux-any],
 	libpam0g-dev,
 	libpcap-dev [hurd-any],
 	libpopt-dev,
