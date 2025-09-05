@@ -135,14 +135,7 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
 # just require libldb version of the same build
 # https://lists.samba.org/archive/samba-technical/2023-September/138422.html
  libldb2 (= ${ldb:Version}),
-Replaces:
-# libsamba-util.so &deps moved from libwbclient0 to samba-libs in 4.16.1+dfsg-7
- libwbclient0 (<< 2:4.16.1+dfsg-7~),
-# libpac-samba4.so.0 moved from samba to samba-libs in 4.17.0+dfsg-2
- samba (<< 2:4.17.0+dfsg-2~),
 Breaks:
- libwbclient0 (<< 2:4.16.1+dfsg-7~),
- samba (<< 2:4.17.0+dfsg-2~),
  sssd-ad (<< 2.9.4-1+b1),
  sssd-ad-common (<< 2.9.4-1+b1),
  sssd-ipa (<< 2.9.4-1+b1),
@@ -239,8 +232,6 @@ Multi-Arch: foreign
 Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends},
  python3-markdown,
-Replaces: samba (<< 2:4.17.3+dfsg-4~)
-Breaks:   samba (<< 2:4.17.3+dfsg-4~)
 Description: Samba files needed for AD domain provision
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file and printer sharing with
@@ -310,9 +301,6 @@ Depends: libc6-dev,
          libwbclient-dev,
          samba-libs (= ${binary:Version}),
          ${misc:Depends}
-# libsamba-util.so moved from libwbclient0 to samba-libs in 4.16.1+dfsg-7
-Replaces: libwbclient-dev (<< 2:4.16.1+dfsg-7~)
-Breaks:   libwbclient-dev (<< 2:4.16.1+dfsg-7~)
 Section: devel
 Description: tools for extending Samba
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
@@ -339,8 +327,6 @@ Breaks:
           samba-common-bin (<< 2:4.20.1+dfsg-2~), samba (<< 2:4.20.1+dfsg-2~),
 Replaces:
           samba-common-bin (<< 2:4.20.1+dfsg-2~), samba (<< 2:4.20.1+dfsg-2~),
-# libsamba-policy & helpers and dckeytab python libs moved to python3-samba
-          samba-libs (<< 2:4.16.0+dfsg-1~),
 Recommends: tdb-tools,
 Description: Python 3 bindings for Samba
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
@@ -481,11 +467,6 @@ Enhances:
          libkrb5-26t64-heimdal <!pkg.samba.mitkrb5 !pkg.samba.before-trixie>,
          libkrb5-26-heimdal    <!pkg.samba.mitkrb5  pkg.samba.before-trixie>,
 Suggests: libnss-winbind, libpam-winbind
-# 4.16.6+dfsg-5 idmap_{script,rfc2307}.8 moved samba{,-libs} => winbind
-Breaks:   samba (<< 2:4.16.6+dfsg-5~), samba-libs (<< 2:4.16.6+dfsg-5~),
-# libpam-winbind & libnss-winbind depend on exact version since 4.16.1+dfsg-7
- libpam-winbind (<< 2:4.16.1+dfsg-7~), libnss-winbind (<< 2:4.16.1+dfsg-7~),
-Replaces: samba (<< 2:4.16.6+dfsg-5~), samba-libs (<< 2:4.16.6+dfsg-5~),
 Description: service to resolve user and group information from Windows NT servers
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
