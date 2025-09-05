@@ -92,13 +92,10 @@ Depends: passwd,
          ${python3:Depends},
          ${shlibs:Depends}
 Recommends: attr,
-            python3-samba,
-# samba-ad-dc has been split out of samba in 4.20.1+dfsg-2.  Keep it
-# in Recommends for one release cycle to avoid breaking existing installs
-            samba-ad-dc,
 Suggests: ctdb,
           ufw,
           winbind,
+          python3-samba,
           samba-vfs-ceph, samba-vfs-glusterfs,
 # move libdfs-server-ad-samba4.so.0 samba-libs=>samba-vfs-modules in 4.19.0~rc1
 # swallow samba-vfs-modules by samba in 4.20.2-dfsg-3
