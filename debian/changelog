@@ -43,7 +43,7 @@ samba (2:4.22.3+dfsg-3) unstable; urgency=medium
 
   [ Sascha Lucas ]
   * winbind pam-config: fix account section to actually execute pam_winbind
-    entries after usually successful cal to pam_unix, in a way how it's done
+    entries after usually successful call to pam_unix, in a way how it's done
     in sssd (Closes: #907318)
 
   [ Douglas Bagnall ]
