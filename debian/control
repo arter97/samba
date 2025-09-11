@@ -85,7 +85,6 @@ Package: samba
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
 Depends: passwd,
-         procps,
          samba-common,
          samba-common-bin (=${binary:Version}),
          ${misc:Depends},
