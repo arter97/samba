@@ -558,7 +558,6 @@ Multi-Arch: foreign
 Depends: iproute2 [linux-any],
          samba-libs (= ${binary:Version}),
          tdb-tools,
-         time,
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: ethtool [linux-any], python3:any, python3-etcd,
