@@ -556,9 +556,7 @@ Package: ctdb
 Architecture: any
 Multi-Arch: foreign
 Depends: iproute2 [linux-any],
-         psmisc,
          samba-libs (= ${binary:Version}),
-         sudo,
          tdb-tools,
          time,
          ${misc:Depends},
