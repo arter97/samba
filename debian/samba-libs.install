@@ -103,7 +103,7 @@ usr/lib/${DEB_HOST_MULTIARCH}/samba/libpac-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libposix-eadb-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libprinting-migrate-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libprocess-model-private-samba.so.0
-usr/lib/${DEB_HOST_MULTIARCH}/samba/libquic-private-samba.so.0
+[linux-any] usr/lib/${DEB_HOST_MULTIARCH}/samba/libquic-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libregistry-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libreplace-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libsamba-cluster-support-private-samba.so.0
