@@ -425,7 +425,7 @@ endif
 override_dh_installexamples:
 	dh_installexamples -Xwscript_build
 
-override_dh_gencontrol:
+override_dh_gencontrol-arch:
 	dh_gencontrol $(addprefix -p, ${ldb-packages})    -- -v${ldb-version}
 	dh_gencontrol $(addprefix -p, ${talloc-packages}) -- -v${talloc-version}
 	dh_gencontrol $(addprefix -p, ${tevent-packages}) -- -v${tevent-version}
