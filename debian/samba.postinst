@@ -14,17 +14,6 @@ then
     [ -d $dir ] || install -d -m 1770 -g sambashare $dir
 fi
 
-# in 4.17.4+dfsg-3 we stopped masking services, unmask them here
-if [ configure = "$1" ] && dpkg --compare-versions "$2" lt-nl 2:4.17.4+dfsg-3~
-then
-    for s in nmbd smbd samba-ad-dc; do
-	if [ /dev/null = $(realpath /etc/systemd/system/$s.service) ]
-	then
-	    rm -f /etc/systemd/system/$s.service
-	fi
-    done
-fi
-
 # in 2:4.20.1+dfsg-2 ad-dc functionality has been moved from samba to its own package.
 # in 2:4.21.1+dfsg-2 we cleaned up the startup scripts
 if   [ configure = "$1" ] \
