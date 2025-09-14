@@ -25,29 +25,6 @@ then
     done
 fi
 
-# remove old spool directory (point it to /var/tmp if in use)
-if [ configure = "$1" ] && dpkg --compare-versions "$2" lt-nl 2:4.17.4+dfsg-3~
-then
-    dir=/var/spool/samba
-    pat="^(\\s*path\\s*=\\s*)$dir"
-    if grep -q -E "$pat\\s*$" /etc/samba/smb.conf ; then
-	echo "WARNING: fixing smb.conf, replacing $dir with /var/tmp" >&2
-	sed -ri "s|$pat\\s*$|\\1/var/tmp|" /etc/samba/smb.conf
-    fi
-    if [ -d $dir -a ! -L $dir ]; then
-	echo "W: removing old samba print spool $dir" >&2
-	rm -rf $dir
-    fi
-    # we can still have it in an include file (or have a subdir there?)
-    if testparm -s 2>/dev/null | grep -E "$pat\\b" >&2; then
-	echo "WARNING: $dir is still referenced in smb.conf. Please update smb.conf" >&2
-	if [ ! -L $dir ]; then
-	    echo "WARNING: redirecting $dir to /var/tmp" >&2
-	    ln -s ../tmp $dir
-	fi
-    fi
-fi
-
 # in 2:4.20.1+dfsg-2 ad-dc functionality has been moved from samba to its own package.
 # in 2:4.21.1+dfsg-2 we cleaned up the startup scripts
 if   [ configure = "$1" ] \
