@@ -25,7 +25,7 @@ if [ "$1" = configure ]; then
 fi
 
 # clean up old debconf entries
-if [ confogure = "$1" ] && dpkg --compare-versions "$2" lt-nl 2:4.20.2+dfsg-6
+if [ configure = "$1" ] && dpkg --compare-versions "$2" lt-nl 2:4.23.0+dfsg-3
 then
   echo PURGE | debconf-communicate samba-common
 fi
