@@ -1,3 +1,7 @@
+# Available build profiles:
+#  pkg.samba.before-trixie: no t64, no usrmerge, no rpcsvc-proto
+#  pkg.samba.builtin-ngtcp2: use built-in ngtcp2 (required version of libngtcp2 is >= 1.12.0)
+#  pkg.samba.dumpmscat: build /usr/bin/dumpmscat binary
 Source: samba
 Section: net
 Priority: optional
