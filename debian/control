@@ -57,8 +57,8 @@ Build-Depends-Arch:
 	libreadline-dev,
 	libtirpc-dev,
 	libsystemd-dev [linux-any],
-	libtasn1-6-dev,
-	libtasn1-bin,
+	libtasn1-6-dev <pkg.samba.dumpmscat>,
+	libtasn1-bin <pkg.samba.dumpmscat>,
 	liburing-dev [linux-any],
 # xfslibs-dev is not multi-arch-usable but we only need .h (#1092689)
 	xfslibs-dev:native [linux-any],
@@ -77,7 +77,9 @@ Build-Depends-Arch:
 #	python3-iso8601 <!nocheck>,
 #	python3-pyasn1 <!nocheck>,
 #	tdb-tools <!nocheck>,
-Build-Conflicts-Arch: libngtcp2-dev <pkg.samba.builtin-ngtcp2>
+Build-Conflicts-Arch:
+ libngtcp2-dev <pkg.samba.builtin-ngtcp2>,
+ libtasn1-bin <!pkg.samba.dumpmscat>,
 Rules-Requires-Root: no
 Vcs-Browser: https://salsa.debian.org/samba-team/samba
 Vcs-Git: https://salsa.debian.org/samba-team/samba.git

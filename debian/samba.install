@@ -1,6 +1,5 @@
 #!/usr/bin/dh-exec --with-scripts=filter-arch,filter-build-profiles
 etc/ufw/applications.d/samba
-usr/bin/dumpmscat
 usr/bin/mvxattr
 usr/bin/oLschema2ldif
 usr/bin/pdbedit
@@ -12,7 +11,8 @@ usr/bin/smbstatus
 <!pkg.samba.mitkrb5> usr/lib/${DEB_HOST_MULTIARCH}/samba/libhdb-private-samba.so.0
 <!pkg.samba.mitkrb5> usr/lib/${DEB_HOST_MULTIARCH}/samba/libkdc-private-samba.so.0
 <pkg.samba.mitkrb5> usr/lib/${DEB_HOST_MULTIARCH}/krb5/plugins/kdb/samba.so
-usr/lib/${DEB_HOST_MULTIARCH}/samba/libmscat-private-samba.so.0
+<pkg.samba.dumpmscat> usr/bin/dumpmscat
+<pkg.samba.dumpmscat> usr/lib/${DEB_HOST_MULTIARCH}/samba/libmscat-private-samba.so.0
 usr/libexec/samba/samba-bgqd
 usr/lib/${DEB_HOST_MULTIARCH}/samba/service/*.so
 usr/sbin/eventlogadm
