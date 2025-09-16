@@ -93,8 +93,8 @@ usr/lib/${DEB_HOST_MULTIARCH}/samba/libmessages-dgm-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libmessages-util-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libmsghdr-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libmsrpc3-private-samba.so.0
-[linux-any] usr/lib/${DEB_HOST_MULTIARCH}/samba/libngtcp2-crypto-gnutls-private-samba.so.0
-[linux-any] usr/lib/${DEB_HOST_MULTIARCH}/samba/libngtcp2-private-samba.so.0
+[linux-any] <pkg.samba.builtin-ngtcp2> usr/lib/${DEB_HOST_MULTIARCH}/samba/libngtcp2-crypto-gnutls-private-samba.so.0
+[linux-any] <pkg.samba.builtin-ngtcp2> usr/lib/${DEB_HOST_MULTIARCH}/samba/libngtcp2-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libndr-samba-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libndr-samba4-private-samba.so.0
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libnetif-private-samba.so.0
