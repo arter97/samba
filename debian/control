@@ -11,7 +11,7 @@ Uploaders: Jelmer Vernooĳ <jelmer@debian.org>,
            Mathieu Parent <sathieu@debian.org>,
            Michael Tokarev <mjt@tls.msk.ru>
 Homepage: https://www.samba.org
-Standards-Version: 4.7.0
+Standards-Version: 4.7.2
 Build-Depends:
 	debhelper-compat (= 13),
 	dh-exec,
