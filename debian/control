@@ -21,11 +21,13 @@ Build-Depends-Arch:
 	docbook-xml, docbook-xsl, xsltproc,
 	flex,
 	perl:any,
-# :native for bookworm, on trixie and up it is not needed
+# :native for bookworm where the package in question does not hav M-A markings:
 	libparse-yapp-perl:native | libparse-yapp-perl,
 	rpcsvc-proto  <!pkg.samba.before-trixie>,
 # for winexe. gcc-mingw-w64 brings 4 toolchains, we need only 2
-	gcc-mingw-w64-i686-win32:native, gcc-mingw-w64-x86-64-win32:native,
+# :native for trixie where the package in question does not hav M-A markings:
+	gcc-mingw-w64-i686-win32:native | gcc-mingw-w64-i686-win32,
+	gcc-mingw-w64-x86-64-win32:native | gcc-mingw-w64-x86-64-win32,
 # system libraries:
 	pkgconf,
 	libacl1-dev,
@@ -67,7 +69,7 @@ Build-Depends-Arch:
 	zlib1g-dev,
 # python (+#904999):
 	python3-dev:native, libpython3-dev,
-# :native for bookworm, for trixie and up it is not needed
+# :native for bookworm where the package in question does not hav M-A markings:
 	python3-dnspython:native | python3-dnspython,
 	python3-etcd:native | python3-etcd,
 	python3-markdown:native | python3-markdown,
