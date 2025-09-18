@@ -68,6 +68,8 @@ Build-Depends-Arch:
 	xfslibs-dev:native [linux-any],
 	zlib1g-dev,
 # python (+#904999):
+# cross-build: native python environment, host-specific libpython-dev
+# (see also d/rules, _PYTHON_SYSCONFIGDATA_NAME):
 	python3-dev:native, libpython3-dev,
 # :native for bookworm where the package in question does not have M-A markings:
 	python3-dnspython:native | python3-dnspython,
