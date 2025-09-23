@@ -70,6 +70,33 @@ EOF
     fi
 fi
 
+# in 2:4.23.0+dfsg-4 we removed usershares.patch changing upstream default
+if   [ configure = "$1" ] \
+  && dpkg --compare-versions "$2" lt-nl 2:4.23.0+dfsg-4~~ \
+  && [ -f /etc/samba/smb.conf ]
+then
+    if testparm -s --section-name=global 2>/dev/null | grep -q 'usershare max shares = '
+    then
+	: nothing to do
+    elif line=$(grep -n -m1 -i '^\s*\[\s*g\s*l\s*o\s*b\s*a\s*l\s*\]' /etc/samba/smb.conf)
+	# there can be more than one [global] in smb.conf!
+    then
+	sed -i ${line%%:*}' a\
+# Prior to version 4.23.0+dfsg-4, debian samba package carried usershare.patch\
+# patch which changed default value for "usershare max share" parameter\
+    usershare max shares = 100' /etc/samba/smb.conf
+	cat <<-EOF >&2
+	WARNING: =====================================================================
+	WARNING: Samba package in Debian stopped changing default value for parameter
+	WARNING: "usershare max shares".  Adding this parameter to your smb.conf
+	WARNING: to preserve compatibility for your installation.
+	WARNING: =====================================================================
+
+EOF
+
+    fi
+fi
+
 #DEBHELPER#
 
 exit 0
