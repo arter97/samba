@@ -6,7 +6,6 @@ tdb_logging_func.diff
 hurd-compat.patch
 README_nosmbldap-tools.patch
 smbclient-pager.patch
-usershare.patch
 heimdal-rfc3454.txt
 add-so-version-to-private-libraries
 ldb-no-replace.diff
