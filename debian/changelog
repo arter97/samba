@@ -15,7 +15,6 @@ samba (2:4.23.1+dfsg-1) unstable; urgency=medium
      CTDB_SOCKET can be used even when CTDB_TEST_MODE is not set
   * d/control: describe the forgotten mitkrb5 build profile
   * d/control: Standards-Version: 4.7.2 (no changes)
-  * d/control: dh-exec is only needed for Arch build
   * d/control: sort python build-deps together
   * d/control: clarify some :native usages and add non-:native
     alternatives for gcc-mingw*
