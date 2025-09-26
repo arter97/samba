@@ -1,4 +1,3 @@
-samba: hardening-no-fortify-functions */samba/libmscat-private-samba.so.*
 # False positives, see #896012
 samba: library-not-linked-against-libc *
 # manpages describing vfs modules (they're named vfs_foo while the module is vfs/foo.so):
