@@ -13,8 +13,8 @@ Uploaders: Jelmer Vernooĳ <jelmer@debian.org>,
 Homepage: https://www.samba.org
 Standards-Version: 4.7.2
 Build-Depends: debhelper-compat (= 13),
-Build-Depends-Arch:
 	dh-exec,
+Build-Depends-Arch:
 	dpkg-dev (>= 1.22.5) <!pkg.samba.before-trixie>,
 # tools:
 	bison,
