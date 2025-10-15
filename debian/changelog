@@ -1,3 +1,13 @@
+samba (2:4.23.2+dfsg-1) unstable; urgency=medium
+
+  * new upstream security release:
+  * CVE-2025-9640: Uninitialized memory disclosure via vfs_streams_xattr
+    https://www.samba.org/samba/security/CVE-2025-9640.html
+  * CVE-2025-10230: Command injection via WINS server hook script
+    https://www.samba.org/samba/security/CVE-2025-10230.html
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 15 Oct 2025 17:21:11 +0300
+
 samba (2:4.23.1+dfsg-1) unstable; urgency=medium
 
   [ Michael Tokarev ]
