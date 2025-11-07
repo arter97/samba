@@ -1,3 +1,27 @@
+samba (2:4.23.3+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15926:
+     Samba 4.22 breaks Time Machine
+   - https://bugzilla.samba.org/show_bug.cgi?id=15927:
+     Spotlight search restriction for shares incomplete and
+     default search searches in too many attributes
+   - https://bugzilla.samba.org/show_bug.cgi?id=15930:
+     Searching for numbers doesn't work with Spotlight
+   - https://bugzilla.samba.org/show_bug.cgi?id=15931:
+     rpcd_mdssvc may crash because name mangling is not initialized
+   - https://bugzilla.samba.org/show_bug.cgi?id=15933:
+     Only increment lease epoch if a lease was granted
+   - https://bugzilla.samba.org/show_bug.cgi?id=15935:
+     Crash in ctdbd on failed updateip
+   - https://bugzilla.samba.org/show_bug.cgi?id=15940:
+     vfs_recycle does not update mtime
+   - https://bugzilla.samba.org/show_bug.cgi?id=15943:
+     samba-log-parser fails with UnicodeDecodeError:
+     'utf-8' codec can't decode byte
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 07 Nov 2025 16:45:53 +0300
+
 samba (2:4.23.2+dfsg-1) unstable; urgency=medium
 
   * new upstream security release:
