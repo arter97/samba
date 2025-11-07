@@ -85,7 +85,6 @@
 	int mdsyylwrap(void);
 	bool map_spotlight_to_es_query(TALLOC_CTX *mem_ctx,
 				       json_t *mappings,
-				       const char *path_scope,
 				       const char *query_string,
 				       char **_es_query);
 }
@@ -215,6 +214,13 @@ attribute EQUAL value {
 
 function:
 FUNC_INRANGE OBRACE attribute COMMA WORD COMMA WORD CBRACE {
+	if ($3 == NULL) {
+		$$ = NULL;
+	} else {
+		$$ = map_expr($3, '~', $5, $7);
+	}
+}
+| FUNC_INRANGE OBRACE attribute COMMA isodate COMMA isodate CBRACE {
 	if ($3 == NULL) {
 		$$ = NULL;
 	} else {
@@ -413,7 +419,7 @@ static char *map_fts(const struct es_attr_map *attr,
 		end = ")";
 		break;
 	default:
-		DBG_ERR("Mapping fts [%s] unexpected op [%c]\n", val, op);
+		DBG_DEBUG("Mapping fts [%s] unexpected op [%c]\n", val, op);
 		return NULL;
 	}
 
@@ -640,7 +646,6 @@ int mdsyylwrap(void)
  **/
 bool map_spotlight_to_es_query(TALLOC_CTX *mem_ctx,
 			       json_t *mappings,
-			       const char *path_scope,
 			       const char *query_string,
 			       char **_es_query)
 {
@@ -691,13 +696,11 @@ bool map_spotlight_to_es_query(TALLOC_CTX *mem_ctx,
 		return false;
 	}
 
-	es_query = talloc_asprintf(mem_ctx,
-				   "(%s) AND path.real.fulltext:\\\"%s\\\"",
-				   s.result, path_scope);
-	TALLOC_FREE(s.frame);
+	es_query = talloc_strdup(mem_ctx, s.result);
 	if (es_query == NULL) {
 		return false;
 	}
+	TALLOC_FREE(s.frame);
 
 	*_es_query = es_query;
 	return true;
