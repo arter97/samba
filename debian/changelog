@@ -1,3 +1,29 @@
+samba (2:4.23.4+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15809:
+     samba-bgqd: rework man page
+   - https://bugzilla.samba.org/show_bug.cgi?id=15897:
+     Assert failed: (dirfd != -1) || (smb_fname->base_name[0] == '/')
+     in vfswrap_openat
+   - https://bugzilla.samba.org/show_bug.cgi?id=15926:
+     Samba 4.22 breaks Time Machine
+   - https://bugzilla.samba.org/show_bug.cgi?id=15936:
+     samba-bgqd can't find [printers] share
+   - https://bugzilla.samba.org/show_bug.cgi?id=15947:
+     mdssvc doesn't support $time.iso dates before 1970
+   - https://bugzilla.samba.org/show_bug.cgi?id=15950:
+     ctdb can crash with inconsistent cluster lock configuration
+   - https://bugzilla.samba.org/show_bug.cgi?id=15955:
+     Winbind can hang forever in gssapi if there are network issues
+   - https://bugzilla.samba.org/show_bug.cgi?id=15961:
+     libldb requires linking libreplace on Linux
+   - https://bugzilla.samba.org/show_bug.cgi?id=15963:
+  * d/patches: remove revert-ldb-use-hexchars_upper-from-replace.h.patch
+    (applied upstream)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 12 Dec 2025 23:10:50 +0300
+
 samba (2:4.23.3+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release:
