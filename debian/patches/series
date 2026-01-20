@@ -20,7 +20,6 @@ move-msg.sock-from-var-lib-samba-to-run-samba.patch
 meaningful-error-if-no-samba-ad-provision.patch
 meaningful-error-if-no-python3-markdown.patch
 ctdb-use-run-instead-of-var-run.patch
-#revert-ldb-use-hexchars_upper-from-replace.h.patch
 replace-xpg-strerror.patch
 add-support-for-bind-9.20.patch
 libmscat-deps.patch
