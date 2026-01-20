@@ -413,7 +413,7 @@ endif
 	$(call depcheck, samba-libs, samba|winbind|smbclient|ctdb)
 	$(call depcheck, smbclient, samba|winbind|ctdb)
 	$(call depcheck, ctdb, samba|winbind|smbclient)
-	$(call depcheck, libldb2, samba|samba-libs|winbind|libwbclient0) # use-bzero-instead-of-memset_s.diff
+	$(call depcheck, libldb2, samba|samba-libs|winbind|libwbclient0)
 	$(call depcheck, python3-ldb, samba-libs|python3-samba)
 	$(call depcheck, python3-samba, samba|winbind|ctdb)
 	$(call depcheck, libwbclient0, samba|samba-libs|winbind|smbclient|ctdb)

@@ -1,0 +1,25 @@
+Subject: use explicit_bzero() to zero memory
+
+Samba uses memset_s() to zero-fill unused sensitive memory
+areas.  This interface is difficult to use right, and is not
+implemented in glibc due to this.  So many parts of samba
+link to libreplace to get rep_memset_s().  But glibc provides
+explicit_bzero(), so there's no need for this linkage.
+
+Unfortunately there are just insane amount of similar
+but non-standard functions, and upstream don't want
+to stay on something simple and robust in this context.
+
+diff --git a/lib/replace/replace.h b/lib/replace/replace.h
+index 4923e1f301d..f4754499da5 100644
+--- a/lib/replace/replace.h
++++ b/lib/replace/replace.h
+@@ -993,3 +993,7 @@ void rep_setproctitle_init(int argc, char *argv[], char *envp[]);
+ #ifndef HAVE_MEMSET_S
+-#define memset_s rep_memset_s
++#define HAVE_MEMSET_S
++#include <assert.h>
++#define memset_s(ptr, size, ch, len) \
++  do { static_assert((ch)==0, "memset_s is called with ch!=0"); \
++       explicit_bzero((ptr), (len)); } while (0)
+ int rep_memset_s(void *dest, size_t destsz, int ch, size_t count);
