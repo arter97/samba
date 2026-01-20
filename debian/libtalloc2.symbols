@@ -35,6 +35,7 @@ libtalloc.so.2 #PACKAGE# #MINVER#
  TALLOC_2.4.1@TALLOC_2.4.1 2.4.1
  TALLOC_2.4.2@TALLOC_2.4.2 2:2.4.2
  TALLOC_2.4.3@TALLOC_2.4.3 2:2.4.3
+ TALLOC_2.4.4@TALLOC_2.4.4 2:2.4.4
  _talloc@TALLOC_2.0.2 2.0.4~git20101213
  _talloc_array@TALLOC_2.0.2 2.0.4~git20101213
  _talloc_free@TALLOC_2.0.2 2.0.4~git20101213
@@ -44,6 +45,7 @@ libtalloc.so.2 #PACKAGE# #MINVER#
  _talloc_pooled_object@TALLOC_2.1.0 2.1.0
  _talloc_realloc@TALLOC_2.0.2 2.0.4~git20101213
  _talloc_realloc_array@TALLOC_2.0.2 2.0.4~git20101213
+ _talloc_realloc_array_zero@TALLOC_2.4.4 2:2.4.4
  _talloc_reference_loc@TALLOC_2.0.2 2.0.4~git20101213
  _talloc_set_destructor@TALLOC_2.0.2 2.0.4~git20101213
  _talloc_steal_loc@TALLOC_2.0.2 2.0.4~git20101213
