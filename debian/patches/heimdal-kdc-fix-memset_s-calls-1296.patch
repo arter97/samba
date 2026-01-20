@@ -1,0 +1,37 @@
+From: Nicolas Williams <nico@twosigma.com>
+Date: Tue, 20 Jan 2026 16:05:31 -0600
+Subject: kdc: Fix memset_s() calls (fix #1296)
+Origin: upstream, https://github.com/heimdal/heimdal/commit/112a82dd2596e228388c50b4c71b3aa816b86add
+Forwarded: not-needed
+
+---
+ third_party/heimdal/kdc/fast.c    | 4 ++--
+ third_party/heimdal/kdc/krb5tgs.c | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/third_party/heimdal/kdc/fast.c b/third_party/heimdal/kdc/fast.c
+--- a/third_party/heimdal/kdc/fast.c
++++ b/third_party/heimdal/kdc/fast.c
+@@ -844,8 +844,8 @@ _kdc_free_fast_state(KDCFastState *state)
+ 	PA_DATA *pa = &state->fast_state.val[i];
+ 
+ 	if (pa->padata_value.data)
+-	    memset_s(pa->padata_value.data, 0,
+-		     pa->padata_value.length, pa->padata_value.length);
++	    memset_s(pa->padata_value.data, pa->padata_value.length,
++		     0, pa->padata_value.length);
+     }
+     free_KDCFastState(state);
+ }
+diff --git a/third_party/heimdal/kdc/krb5tgs.c b/third_party/heimdal/kdc/krb5tgs.c
+--- a/third_party/heimdal/kdc/krb5tgs.c
++++ b/third_party/heimdal/kdc/krb5tgs.c
+@@ -2210,7 +2210,7 @@ _kdc_tgs_rep(astgs_request_t r)
+     }
+     free_LastReq(&r->ek.last_req);
+     if (r->et.key.keyvalue.data) {
+-	memset_s(r->et.key.keyvalue.data, 0, r->et.key.keyvalue.length,
++	memset_s(r->et.key.keyvalue.data, r->et.key.keyvalue.length, 0,
+ 		 r->et.key.keyvalue.length);
+     }
+     free_EncryptionKey(&r->et.key);

@@ -24,3 +24,4 @@ ctdb-use-run-instead-of-var-run.patch
 replace-xpg-strerror.patch
 add-support-for-bind-9.20.patch
 libmscat-deps.patch
+heimdal-kdc-fix-memset_s-calls-1296.patch
