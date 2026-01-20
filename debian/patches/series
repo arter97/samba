@@ -26,3 +26,4 @@ add-support-for-bind-9.20.patch
 libmscat-deps.patch
 heimdal-kdc-fix-memset_s-calls-1296.patch
 inline-getprogname.diff
+inline-openat2.diff
