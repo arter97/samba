@@ -1,5 +1,3 @@
-# False positives, see #896012
-samba: library-not-linked-against-libc *
 # manpages describing vfs modules (they're named vfs_foo while the module is vfs/foo.so):
 samba: spare-manual-page */man/man8/vfs_*
 samba: hardening-no-fortify-functions */samba/vfs/expand_msdfs.so*

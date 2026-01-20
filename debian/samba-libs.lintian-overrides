@@ -4,8 +4,6 @@
 samba-libs: package-name-doesnt-match-sonames *
 # Embedded Heimdal is patched
 samba-libs: embedded-library *heimdal*
-# False positives, see #896012
-samba-libs: library-not-linked-against-libc *
 samba-libs: shared-library-lacks-prerequisites */libdcerpc-samr.so.*
 # unofficial APIs
 samba-libs: shared-library-symbols-not-tracked *
