@@ -14,8 +14,8 @@ should clean up #ifdef'fery in replace.c.
 diff --git a/lib/replace/replace.c b/lib/replace/replace.c
 --- a/lib/replace/replace.c
 +++ b/lib/replace/replace.c
-@@ -1145,5 +1145,5 @@ void *rep_memset_explicit(void *block, int c, size_t size)
- #endif
+@@ -984,5 +984,5 @@ int rep_memset_s(void *dest, size_t destsz, int ch, size_t count)
+ #endif /* HAVE_MEMSET_S */
  
 -#ifndef HAVE_GETPROGNAME
 +#if !defined(HAVE_GETPROGNAME) && !defined(HAVE_PROGRAM_INVOCATION_SHORT_NAME)
@@ -24,7 +24,7 @@ diff --git a/lib/replace/replace.c b/lib/replace/replace.c
 diff --git a/lib/replace/replace.h b/lib/replace/replace.h
 --- a/lib/replace/replace.h
 +++ b/lib/replace/replace.h
-@@ -997,7 +997,11 @@ void *rep_memset_explicit(void *block, int c, size_t size);
+@@ -997,7 +997,11 @@ int rep_memset_s(void *dest, size_t destsz, int ch, size_t count);
  
  #ifndef HAVE_GETPROGNAME
 +#ifdef HAVE_PROGRAM_INVOCATION_SHORT_NAME
