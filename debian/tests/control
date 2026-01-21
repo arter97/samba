@@ -28,3 +28,7 @@ Restrictions: needs-root, allow-stderr, isolation-container, skippable
 Tests: reinstall-samba-common-bin
 Depends: samba-common, samba-common-bin
 Restrictions: needs-root, needs-reboot, isolation-machine, allow-stderr
+
+Tests: smbclient-macro-expansion
+Depends: samba, smbclient
+Restrictions: needs-root, allow-stderr, isolation-container
