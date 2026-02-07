@@ -1,7 +1,7 @@
 Release Announcements
 =====================
 
-This is the first release candidate release of Samba 4.24.  This is *not*
+This is the second release candidate release of Samba 4.24.  This is *not*
 intended for production environments and is designed for testing
 purposes only.  Please report any defects via the Samba bug reporting
 system at https://bugzilla.samba.org/.
@@ -218,6 +218,21 @@ limits are exceeded, it dynamically injects millisecond delays into async
 operations to maintain the defined threshold.
 
 
+CephFS FSCrypt support for the VFS ceph_new module
+--------------------------------------------------
+The ceph_new VFS module can now make use of the FSCrypt feature recently added
+to CephFS. This enhancement enables data and file name encryption on a per
+share basis. A single CephFS file system may host a mix of encrypted and
+unencrypted directories.
+
+To obtain the encryption keys needed for FSCrypt the ceph_new module includes
+support for the Keybridge protocol. Keybridge is an RPC protocol based on
+Varlink that can retrieve keys from a local service via a UNIX socket. Users
+can choose to develop a custom Keybridge implementation or use the existing
+KMIP-compatible Keybridge server available as part of the sambacc project
+(https://github.com/samba-in-kubernetes/sambacc).
+
+
 REMOVED FEATURES
 ================
 
@@ -233,6 +248,26 @@ smb.conf changes
   kdc require canonicalization            New             no
   kdc name match implicit dollar without canonicalization
                                           New             yes
+
+
+CHANGES SINCE 4.24.0rc1
+=======================
+
+o  Samuel Cabrero <scabrero@samba.org>
+   * BUG 15979: possible memory leak  on rpc_spoolss
+
+o  Pavel Filipenský <pfilipensky@samba.org>
+   * BUG 15972: Winbind group resolution failure
+
+o  Noel Power <noel.power@suse.com>
+   * BUG 15979: possible memory leak  on rpc_spoolss
+
+o  Martin Schwenke <mschwenke@ddn.com>
+   * BUG 15977: ctdbd socket documentation is wrong
+
+o  Michael Tokarev <mjt@tls.msk.ru>
+   * BUG 15976: time_t related build failure on 32bit arch in 4.24.0rc1
+
 
 KNOWN ISSUES
 ============

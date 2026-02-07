@@ -59,6 +59,7 @@ static int fetch_share_cache_time(const char *key_name,
 				  time_t *curr_time)
 {
 	char *key = NULL;
+	int64_t curr_time64 = -1;
 
 	key = talloc_asprintf(NULL, "%s/%s", key_name, sharename);
 	if (key == NULL) {
@@ -66,11 +67,12 @@ static int fetch_share_cache_time(const char *key_name,
 		return -1;
 	}
 
-	if (tdb_fetch_int64(tdb, key, curr_time) != 0) {
+	if (tdb_fetch_int64(tdb, key, &curr_time64) != 0) {
 		DBG_ERR("No timing record found for[%s]!\n", sharename);
 		TALLOC_FREE(key);
 		return -1;
 	}
+	*curr_time = curr_time64;
 
 	TALLOC_FREE(key);
 	return 0;
@@ -82,6 +84,7 @@ static int update_share_cache_time(const char *key_name,
 				   time_t curr_time)
 {
 	char *key = NULL;
+	int64_t curr_time64 = curr_time;
 
 	key = talloc_asprintf(NULL, "%s/%s", key_name, sharename);
 	if (key == NULL) {
@@ -89,7 +92,7 @@ static int update_share_cache_time(const char *key_name,
 		return -1;
 	}
 
-	if (tdb_store_int64(tdb, key, (int64_t)curr_time) != 0) {
+	if (tdb_store_int64(tdb, key, curr_time64) != 0) {
 		DBG_ERR("Unable to update print cache for %s\n", sharename);
 		TALLOC_FREE(key);
 		return -1;
@@ -2897,7 +2900,7 @@ NTSTATUS print_job_end(struct messaging_context *msg_ctx, int snum,
 			pjob->filename, pjob->size ? "deleted" : "zero length" ));
 		unlink(pjob->filename);
 		pjob_delete(global_event_context(), msg_ctx, sharename, jobid);
-		return NT_STATUS_OK;
+		goto out;
 	}
 
 	/* don't strip out characters like '$' from the printername */
@@ -2939,7 +2942,8 @@ NTSTATUS print_job_end(struct messaging_context *msg_ctx, int snum,
 	/* make sure the database is up to date */
 	if (print_cache_expired(lp_const_servicename(snum), True))
 		print_queue_update(msg_ctx, snum, False);
-
+out:
+	talloc_free(tmp_ctx);
 	return NT_STATUS_OK;
 
 fail:
