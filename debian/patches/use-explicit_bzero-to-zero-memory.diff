@@ -1,25 +1,29 @@
-Subject: use explicit_bzero() to zero memory
+Subject: use explicit_bzero() instead of memset_explicit()
 
-Samba uses memset_s() to zero-fill unused sensitive memory
-areas.  This interface is difficult to use right, and is not
-implemented in glibc due to this.  So many parts of samba
-link to libreplace to get rep_memset_s().  But glibc provides
-explicit_bzero(), so there's no need for this linkage.
+lib/replace/replace.h header defines ZERO_STRUCT macro
+which uses memset_explicit() function (which is similar to
+memset() but can not be optimized out by the compiler).
+Glibc has explicit_bzero() with similar property, while
+memset_explicit() is implemented in lib/replace/replace.c, -
+this way, some binaries needlessly link to libreplace
+just to get rep_memset_explicit() symbol.  By using
+explicit_bzero() instead, this endless linkage is eliminated,
+so we can package, for example, libldb (which uses ZERO_STRUCT)
+without it linking to libreplace-samba4.
 
 Unfortunately there are just insane amount of similar
 but non-standard functions, and upstream don't want
 to stay on something simple and robust in this context.
 
 diff --git a/lib/replace/replace.h b/lib/replace/replace.h
-index 4923e1f301d..f4754499da5 100644
+index 49757e0f60d..4d8a2871f4e 100644
 --- a/lib/replace/replace.h
 +++ b/lib/replace/replace.h
-@@ -993,3 +993,7 @@ void rep_setproctitle_init(int argc, char *argv[], char *envp[]);
- #ifndef HAVE_MEMSET_S
--#define memset_s rep_memset_s
-+#define HAVE_MEMSET_S
+@@ -993,3 +993,6 @@ void rep_setproctitle_init(int argc, char *argv[], char *envp[]);
+ #ifndef HAVE_MEMSET_EXPLICIT
+-#define memset_explicit rep_memset_explicit
 +#include <assert.h>
-+#define memset_s(ptr, size, ch, len) \
-+  do { static_assert((ch)==0, "memset_s is called with ch!=0"); \
++#define memset_explicit(ptr, ch, len) \
++  do { static_assert((ch)==0, "memset is called with ch!=0"); \
 +       explicit_bzero((ptr), (len)); } while (0)
- int rep_memset_s(void *dest, size_t destsz, int ch, size_t count);
+ void *rep_memset_explicit(void *block, int c, size_t size);
