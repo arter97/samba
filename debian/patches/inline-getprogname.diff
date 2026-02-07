@@ -14,25 +14,21 @@ should clean up #ifdef'fery in replace.c.
 diff --git a/lib/replace/replace.c b/lib/replace/replace.c
 --- a/lib/replace/replace.c
 +++ b/lib/replace/replace.c
-@@ -984,5 +984,5 @@ int rep_memset_s(void *dest, size_t destsz, int ch, size_t count)
- #endif /* HAVE_MEMSET_S */
+@@ -1146,3 +1146,3 @@ void *rep_memset_explicit(void *block, int c, size_t size)
  
 -#ifndef HAVE_GETPROGNAME
 +#if !defined(HAVE_GETPROGNAME) && !defined(HAVE_PROGRAM_INVOCATION_SHORT_NAME)
  # ifndef HAVE_PROGRAM_INVOCATION_SHORT_NAME
- # define PROGNAME_SIZE 32
 diff --git a/lib/replace/replace.h b/lib/replace/replace.h
 --- a/lib/replace/replace.h
 +++ b/lib/replace/replace.h
-@@ -997,7 +997,11 @@ int rep_memset_s(void *dest, size_t destsz, int ch, size_t count);
- 
+@@ -998,2 +998,5 @@ void *rep_memset_explicit(void *block, int c, size_t size);
  #ifndef HAVE_GETPROGNAME
 +#ifdef HAVE_PROGRAM_INVOCATION_SHORT_NAME
 +# define getprogname() (program_invocation_short_name)
 +#else
  #define getprogname rep_getprogname
- const char *rep_getprogname(void);
+@@ -1001,2 +1004,3 @@ const char *rep_getprogname(void);
  #endif
 +#endif
  
- #ifndef HAVE_COPY_FILE_RANGE
