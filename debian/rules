@@ -362,6 +362,7 @@ override_dh_installsystemd:
 ifneq (,$(filter samba, ${build-pkgs}))
 	dh_installsystemd -psamba --name=smbd
 	dh_installsystemd -psamba --name=nmbd
+	dh_installsystemd -psamba --name=samba-bgqd --no-enable --no-start --restart-after-upgrade
 	dh_installsystemd -psamba-ad-dc
 endif
 	$(call ifpkg, winbind, dh_installsystemd -pwinbind)
