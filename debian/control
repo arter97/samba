@@ -207,7 +207,7 @@ Depends: samba (= ${binary:Version}),
 	 ${python3:Depends},
 	 ${shlibs:Depends},
 	 ${misc:Depends}
-Recommends: libnss-winbind, libpam-winbind,
+Recommends:
 # samba-ad-provision is needed for setup only
 	samba-ad-provision,
 # used in a few AD-related subcommands of samba-tool (see #876984)
