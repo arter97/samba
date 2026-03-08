@@ -1,0 +1,15 @@
+[Unit]
+Description=Samba Background Queue Daemon for printing-related jobs
+Documentation=man:samba-bgqd(8) man:smb.conf(5)
+After=network.target
+
+[Service]
+Type=notify
+LimitNOFILE=16384
+Environment=BGQDOPTIONS=
+EnvironmentFile=-/etc/default/samba
+ExecStart=/usr/libexec/samba/samba-bgqd --foreground --no-process-group $BGQDOPTIONS
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
