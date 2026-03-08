@@ -355,7 +355,6 @@ endif
 	$(call ifpkg, winbind, dh_installinit -pwinbind)
 ifneq (,$(filter ctdb, ${build-pkgs}))
 	install -Dp -m755 ctdb/config/ctdb.init debian/ctdb/etc/init.d/ctdb
-	# Install dh scripts
 	dh_installinit -pctdb --no-start --no-stop-on-upgrade --onlyscripts
 endif
 
