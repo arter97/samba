@@ -2028,8 +2028,7 @@ static void cli_tcon_andx_done(struct tevent_req *subreq)
 		}
 	} else {
 		cli->dev = talloc_strdup(cli, "");
-		if (cli->dev == NULL) {
-			tevent_req_nterror(req, NT_STATUS_NO_MEMORY);
+		if (tevent_req_nomem(cli->dev, req)) {
 			return;
 		}
 	}
@@ -3446,7 +3445,9 @@ static void cli_full_connection_creds_enc_start(struct tevent_req *req)
 				"SMB3 encryption - failing connect\n");
 			tevent_req_nterror(req, status);
 			return;
-		} else if (!NT_STATUS_IS_OK(status)) {
+		}
+
+		if (!NT_STATUS_IS_OK(status)) {
 			d_printf("Encryption required and "
 				"setup failed with error %s.\n",
 				nt_errstr(status));

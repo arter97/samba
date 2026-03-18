@@ -83,7 +83,7 @@ static void request_handler(struct smbcli_request *req)
 	struct composite_context *c = (struct composite_context *)req->async.private_data;
 	struct sesssetup_state *state = talloc_get_type(c->private_data, struct sesssetup_state);
 	struct smbcli_session *session = req->session;
-	DATA_BLOB null_data_blob = data_blob(NULL, 0);
+	DATA_BLOB null_data_blob = {};
 	NTSTATUS session_key_err, nt_status;
 	struct smbcli_request *check_req = NULL;
 	const char *os = NULL;
@@ -329,7 +329,7 @@ static NTSTATUS session_setup_nt1(struct composite_context *c,
 	 */
 	DATA_BLOB names_blob = NTLMv2_generate_names_blob(state, NULL, domain);
 
-	DATA_BLOB session_key = data_blob(NULL, 0);
+	DATA_BLOB session_key = {};
 	int flags = CLI_CRED_NTLM_AUTH;
 
 	if (session->options.lanman_auth) {
@@ -377,6 +377,9 @@ static NTSTATUS session_setup_nt1(struct composite_context *c,
 		NT_STATUS_NOT_OK_RETURN(nt_status);
 	} else if (session->options.plaintext_auth) {
 		const char *password = cli_credentials_get_password(io->in.credentials);
+		if (password == NULL) {
+			password = "";
+		}
 		state->setup.nt1.in.password1 = data_blob_talloc(state, password, strlen(password));
 		state->setup.nt1.in.password2 = data_blob(NULL, 0);
 	} else {
@@ -437,6 +440,10 @@ static NTSTATUS session_setup_old(struct composite_context *c,
 	 * so just leave it away (as Windows client do)
 	 */
 	DATA_BLOB session_key;
+
+	if (password == NULL) {
+		password = "";
+	}
 
 	state->setup.old.level      = RAW_SESSSETUP_OLD;
 	state->setup.old.in.bufsize = session->transport->options.max_xmit;

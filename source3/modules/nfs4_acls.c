@@ -124,13 +124,13 @@ static int fstatat_with_cap_dac_override(int fd,
 {
 	int ret;
 
-	set_effective_capability(DAC_OVERRIDE_CAPABILITY);
+	set_dac_override_capability(true);
 	ret = sys_fstatat(fd,
 			  pathname,
 			  sbuf,
 			  flags,
 			  fake_dir_create_times);
-	drop_effective_capability(DAC_OVERRIDE_CAPABILITY);
+	set_dac_override_capability(false);
 
 	return ret;
 }
@@ -197,9 +197,9 @@ static int fstat_with_cap_dac_override(int fd, SMB_STRUCT_STAT *sbuf,
 {
 	int ret;
 
-	set_effective_capability(DAC_OVERRIDE_CAPABILITY);
+	set_dac_override_capability(true);
 	ret = sys_fstat(fd, sbuf, fake_dir_create_times);
-	drop_effective_capability(DAC_OVERRIDE_CAPABILITY);
+	set_dac_override_capability(false);
 
 	return ret;
 }
@@ -216,7 +216,8 @@ int nfs4_acl_fstat(struct vfs_handle_struct *handle,
 			lp_fake_directory_create_times(SNUM(handle->conn));
 
 		DBG_DEBUG("fstat for %s failed with EACCES. Trying with "
-			  "CAP_DAC_OVERRIDE.\n", fsp->fsp_name->base_name);
+			  "CAP_DAC_OVERRIDE.\n",
+			  fsp_str_dbg(fsp));
 		ret = fstat_with_cap_dac_override(fsp_get_pathref_fd(fsp),
 						  sbuf,
 						  fake_dctime);
@@ -254,7 +255,8 @@ int nfs4_acl_fstatat(struct vfs_handle_struct *handle,
 			lp_fake_directory_create_times(SNUM(handle->conn));
 
 		DBG_DEBUG("fstatat for %s failed with EACCES. Trying with "
-			  "CAP_DAC_OVERRIDE.\n", dirfsp->fsp_name->base_name);
+			  "CAP_DAC_OVERRIDE.\n",
+			  fsp_str_dbg(dirfsp));
 		ret = fstatat_with_cap_dac_override(fsp_get_pathref_fd(dirfsp),
 						    smb_fname->base_name,
 						    sbuf,
@@ -324,7 +326,7 @@ struct SMB4ACL_T *smb_create_smb4acl(TALLOC_CTX *mem_ctx)
 	theacl = talloc_zero(mem_ctx, struct SMB4ACL_T);
 	if (theacl==NULL)
 	{
-		DEBUG(0, ("TALLOC_SIZE failed\n"));
+		DBG_ERR("talloc_zero failed\n");
 		errno = ENOMEM;
 		return NULL;
 	}

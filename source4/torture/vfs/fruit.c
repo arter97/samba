@@ -172,7 +172,7 @@ Length     : 00000004 : 4
 00000000   : 00 00 01 A1                                     : ....
  */
 
-char metadata_xattr[] = {
+static const char metadata_xattr[] = {
 	0x00, 0x05, 0x16, 0x07, 0x00, 0x02, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -7847,7 +7847,7 @@ static bool test_readonly_exclusive_lock(struct torture_context *tctx,
 {
 	NTSTATUS status;
 	bool ret = true;
-	struct smb2_handle h;
+	struct smb2_handle h = {};
 	struct smb2_create create;
 	struct smb2_lock lock;
 	struct smb2_lock_element lock_element;
@@ -8121,7 +8121,7 @@ static bool test_stream_names_local(struct torture_context *tctx,
 
 	ret = torture_setup_local_xattr(tctx, "localdir", BASEDIR "/stream_names.txt",
 					"user.DosStream.bar:baz:$DATA",
-					"data", strlen("data"));
+					"data", strlen("data")+1);
 	CHECK_VALUE(ret, true);
 
 	ret = check_stream_list(tree, tctx, fname, 3, streams, false);

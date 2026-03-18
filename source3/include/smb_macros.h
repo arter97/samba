@@ -175,7 +175,6 @@ copy an IP address from one buffer to another
 ****************************************************************************/
 
 #define IS_DIRECTORY_SEP(c) ((c) == '\\' || (c) == '/')
-#define unix_format(fname) string_replace(fname,'\\','/')
 
 /****************************************************************************
  Make a file into DOS format.
@@ -210,14 +209,6 @@ copy an IP address from one buffer to another
 #define SMB_CALLOC_ARRAY(type,count) (type *)calloc_array(sizeof(type),(count))
 #define SMB_XMALLOC_P(type) (type *)smb_xmalloc_array(sizeof(type),1)
 #define SMB_XMALLOC_ARRAY(type,count) (type *)smb_xmalloc_array(sizeof(type),(count))
-
-#define TALLOC(ctx, size) talloc_named_const(ctx, size, __location__)
-#define TALLOC_SIZE(ctx, size) talloc_named_const(ctx, size, __location__)
-#define TALLOC_REALLOC(ctx, ptr, count) _talloc_realloc(ctx, ptr, count, __location__)
-#define talloc_destroy(ctx) talloc_free(ctx)
-#ifndef TALLOC_FREE
-#define TALLOC_FREE(ctx) do { talloc_free(ctx); ctx=NULL; } while(0)
-#endif
 
 /* only define PARANOID_MALLOC_CHECKER with --enable-developer */
 

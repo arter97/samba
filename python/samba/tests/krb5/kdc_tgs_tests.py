@@ -53,7 +53,7 @@ from samba.tests.krb5.rfc4120_constants import (
     KDC_ERR_SERVER_NOMATCH,
     KDC_ERR_TKT_EXPIRED,
     KDC_ERR_TGT_REVOKED,
-    KRB_ERR_TKT_NYV,
+    KDC_ERR_TKT_NYV,
     KDC_ERR_WRONG_REALM,
     NT_ENTERPRISE_PRINCIPAL,
     NT_PRINCIPAL,
@@ -667,7 +667,10 @@ class KdcTgsTests(KdcTgsBaseTests):
                                         pac_request=False, expect_pac=False)
 
         pac = self.get_ticket_pac(ticket, expect_pac=False)
-        self.assertIsNone(pac)
+        if not self.always_include_pac:
+            self.assertIsNone(pac)
+        else:
+            self.assertIsNotNone(pac)
 
     def test_request_enterprise_canon(self):
         upn = self.get_new_username()
@@ -1114,22 +1117,22 @@ class KdcTgsTests(KdcTgsBaseTests):
     def test_tgs_req_invalid(self):
         creds = self._get_creds()
         tgt = self._get_tgt(creds, invalid=True)
-        self._run_tgs(tgt, creds, expected_error=KRB_ERR_TKT_NYV)
+        self._run_tgs(tgt, creds, expected_error=KDC_ERR_TKT_NYV)
 
     def test_s4u2self_req_invalid(self):
         creds = self._get_creds()
         tgt = self._get_tgt(creds, invalid=True)
-        self._s4u2self(tgt, creds, expected_error=KRB_ERR_TKT_NYV)
+        self._s4u2self(tgt, creds, expected_error=KDC_ERR_TKT_NYV)
 
     def test_user2user_req_invalid(self):
         creds = self._get_creds()
         tgt = self._get_tgt(creds, invalid=True)
-        self._user2user(tgt, creds, expected_error=KRB_ERR_TKT_NYV)
+        self._user2user(tgt, creds, expected_error=KDC_ERR_TKT_NYV)
 
     def test_fast_req_invalid(self):
         creds = self._get_creds()
         tgt = self._get_tgt(creds, invalid=True)
-        self._fast(tgt, creds, expected_error=KRB_ERR_TKT_NYV,
+        self._fast(tgt, creds, expected_error=KDC_ERR_TKT_NYV,
                    expected_sname=self.get_krbtgt_sname())
 
     def test_tgs_req_no_requester_sid(self):
@@ -2644,7 +2647,10 @@ class KdcTgsTests(KdcTgsBaseTests):
         ticket = self._run_tgs(tgt, creds, expected_error=0, expect_pac=False)
 
         pac = self.get_ticket_pac(ticket, expect_pac=False)
-        self.assertIsNone(pac)
+        if not self.always_include_pac:
+            self.assertIsNone(pac)
+        else:
+            self.assertIsNotNone(pac)
 
     def test_tgs_pac_request_true(self):
         creds = self._get_creds()
@@ -2683,7 +2689,10 @@ class KdcTgsTests(KdcTgsBaseTests):
         ticket = self._run_tgs(tgt, creds, expected_error=0, expect_pac=False)
 
         pac = self.get_ticket_pac(ticket, expect_pac=False)
-        self.assertIsNone(pac)
+        if not self.always_include_pac:
+            self.assertIsNone(pac)
+        else:
+            self.assertIsNotNone(pac)
 
     def test_renew_pac_request_true(self):
         creds = self._get_creds()
@@ -2773,7 +2782,10 @@ class KdcTgsTests(KdcTgsBaseTests):
         ticket = self._run_tgs(tgt, creds, expected_error=0, expect_pac=False)
 
         pac = self.get_ticket_pac(ticket, expect_pac=False)
-        self.assertIsNone(pac)
+        if not self.always_include_pac:
+            self.assertIsNone(pac)
+        else:
+            self.assertIsNotNone(pac)
 
     def test_validate_pac_request_true(self):
         creds = self._get_creds()
@@ -2916,7 +2928,10 @@ class KdcTgsTests(KdcTgsBaseTests):
                                  expect_pac=False)
 
         pac = self.get_ticket_pac(ticket, expect_pac=False)
-        self.assertIsNone(pac)
+        if not self.always_include_pac:
+            self.assertIsNone(pac)
+        else:
+            self.assertIsNotNone(pac)
 
     def test_user2user_user_pac_request_true(self):
         creds = self._get_creds()

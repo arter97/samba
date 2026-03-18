@@ -1,4 +1,4 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
    Samba utility functions
    Copyright (C) Jelmer Vernooij <jelmer@samba.org> 2008
@@ -326,21 +326,6 @@ bool interpret_string_addr(struct sockaddr_storage *pss,
 					false);
 }
 
-/*******************************************************************
- Map a text hostname or IP address (IPv4 or IPv6) into a
- struct sockaddr_storage. Version that prefers IPv4.
-******************************************************************/
-
-bool interpret_string_addr_prefer_ipv4(struct sockaddr_storage *pss,
-		const char *str,
-		int flags)
-{
-	return interpret_string_addr_pref(pss,
-					str,
-					flags,
-					true);
-}
-
 /**
  * Interpret an internet address or name into an IP address in 4 byte form.
  * RETURNS IN NETWORK BYTE ORDER (big endian).
@@ -440,7 +425,7 @@ _PUBLIC_ bool same_net_v4(struct in_addr ip1, struct in_addr ip2, struct in_addr
 	nmask = ntohl(mask.s_addr);
 	net1  = ntohl(ip1.s_addr);
 	net2  = ntohl(ip2.s_addr);
-            
+
 	return((net1 & nmask) == (net2 & nmask));
 }
 

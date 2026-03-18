@@ -2420,7 +2420,7 @@ static int net_ads_printer_publish(struct net_context *c,
 
 	ret = 0;
 out:
-	talloc_destroy(tmp_ctx);
+	TALLOC_FREE(tmp_ctx);
 
 	return ret;
 }
@@ -3245,7 +3245,11 @@ static int net_ads_kerberos_kinit(struct net_context *c, int argc, const char **
 	if (ret) {
 		d_printf(_("failed to kinit password: %s\n"),
 			nt_errstr(status));
+		return ret;
 	}
+
+	d_printf("Stored Kerberos TGT in: %s\n", c->opt_krb5_ccache);
+
 	return ret;
 }
 

@@ -201,18 +201,24 @@ static int dochild(int master, const char *slavedev, const struct passwd *pass,
 
 	/* Make slave stdin/out/err of child. */
 
-	if (dup2(slave, STDIN_FILENO) != STDIN_FILENO)
+	if ((slave != STDIN_FILENO) &&
+	    (dup2(slave, STDIN_FILENO) != STDIN_FILENO))
 	{
+		close(slave);
 		DEBUG(3, ("Could not re-direct stdin\n"));
 		return (False);
 	}
-	if (dup2(slave, STDOUT_FILENO) != STDOUT_FILENO)
+	if ((slave != STDOUT_FILENO) &&
+	    (dup2(slave, STDOUT_FILENO) != STDOUT_FILENO))
 	{
+		close(slave);
 		DEBUG(3, ("Could not re-direct stdout\n"));
 		return (False);
 	}
-	if (dup2(slave, STDERR_FILENO) != STDERR_FILENO)
+	if ((slave != STDERR_FILENO) &&
+	    (dup2(slave, STDERR_FILENO) != STDERR_FILENO))
 	{
+		close(slave);
 		DEBUG(3, ("Could not re-direct stderr\n"));
 		return (False);
 	}
@@ -477,12 +483,6 @@ while we were waiting\n", WTERMSIG(wstat)));
 #endif
 	} else {
 		/* CHILD */
-
-		/*
-		 * Lose any elevated privileges.
-		 */
-		drop_effective_capability(KERNEL_OPLOCK_CAPABILITY);
-		drop_effective_capability(DMAPI_ACCESS_CAPABILITY);
 
 		/* make sure it doesn't freeze */
 		alarm(20);

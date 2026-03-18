@@ -29,6 +29,7 @@
 #include "libcli/util/ntstatus.h"
 #include "lib/util/time.h"
 #include "lib/util/data_blob.h"
+#include "source4/lib/tls/tls.h"
 
 struct smbXcli_transport;
 struct smbXcli_conn;
@@ -44,20 +45,25 @@ struct smb311_capabilities;
 struct samba_sockaddr;
 struct tstream_context;
 
-struct smbXcli_transport *smbXcli_transport_tstream(TALLOC_CTX *mem_ctx,
-						    struct tstream_context **pstream,
-						    const struct samba_sockaddr *laddr,
-						    const struct samba_sockaddr *raddr,
-						    const struct smb_transport *tp);
+struct smbXcli_transport *smbXcli_transport_tstream(
+	TALLOC_CTX *mem_ctx,
+	struct tstream_context **pstream,
+	enum tls_verify_peer_state verify_peer,
+	const struct samba_sockaddr *laddr,
+	const struct samba_sockaddr *raddr,
+	const struct smb_transport *tp);
 
-struct smbXcli_transport *smbXcli_transport_bsd(TALLOC_CTX *mem_ctx,
-						int *_fd,
-						const struct smb_transport *tp);
+struct smbXcli_transport *smbXcli_transport_bsd(
+	TALLOC_CTX *mem_ctx,
+	int *_fd,
+	enum tls_verify_peer_state verify_peer,
+	const struct smb_transport *tp);
 
 struct smbXcli_transport *smbXcli_transport_bsd_tstream(
-						TALLOC_CTX *mem_ctx,
-						int *fd,
-						const struct smb_transport *tp);
+	TALLOC_CTX *mem_ctx,
+	int *fd,
+	enum tls_verify_peer_state verify_peer,
+	const struct smb_transport *tp);
 
 struct smbXcli_conn *smbXcli_conn_create(TALLOC_CTX *mem_ctx,
 					 struct smbXcli_transport **ptransport,
@@ -223,23 +229,6 @@ NTSTATUS smb1cli_trans_recv(struct tevent_req *req, TALLOC_CTX *mem_ctx,
 			    uint32_t *num_param,
 			    uint8_t **data, uint32_t min_data,
 			    uint32_t *num_data);
-NTSTATUS smb1cli_trans(TALLOC_CTX *mem_ctx, struct smbXcli_conn *conn,
-		uint8_t trans_cmd,
-		uint8_t additional_flags, uint8_t clear_flags,
-		uint16_t additional_flags2, uint16_t clear_flags2,
-		uint32_t timeout_msec,
-		uint32_t pid,
-		struct smbXcli_tcon *tcon,
-		struct smbXcli_session *session,
-		const char *pipe_name, uint16_t fid, uint16_t function,
-		int flags,
-		uint16_t *setup, uint8_t num_setup, uint8_t max_setup,
-		uint8_t *param, uint32_t num_param, uint32_t max_param,
-		uint8_t *data, uint32_t num_data, uint32_t max_data,
-		uint16_t *recv_flags2,
-		uint16_t **rsetup, uint8_t min_rsetup, uint8_t *num_rsetup,
-		uint8_t **rparam, uint32_t min_rparam, uint32_t *num_rparam,
-		uint8_t **rdata, uint32_t min_rdata, uint32_t *num_rdata);
 
 struct tevent_req *smb1cli_echo_send(TALLOC_CTX *mem_ctx,
 				     struct tevent_context *ev,
@@ -248,8 +237,6 @@ struct tevent_req *smb1cli_echo_send(TALLOC_CTX *mem_ctx,
 				     uint16_t num_echos,
 				     DATA_BLOB data);
 NTSTATUS smb1cli_echo_recv(struct tevent_req *req);
-NTSTATUS smb1cli_echo(struct smbXcli_conn *conn, uint32_t timeout_msec,
-		      uint16_t num_echos, DATA_BLOB data);
 
 struct tevent_req *smb1cli_session_setup_lm21_send(TALLOC_CTX *mem_ctx,
 				struct tevent_context *ev,

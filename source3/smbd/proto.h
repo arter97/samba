@@ -157,7 +157,6 @@ bool conn_using_smb2(struct smbd_server_connection *sconn);
 connection_struct *conn_new(struct smbd_server_connection *sconn);
 bool conn_idle_all(struct smbd_server_connection *sconn, time_t t);
 void conn_clear_vuid_caches(struct smbd_server_connection *sconn, uint64_t vuid);
-void conn_free(connection_struct *conn);
 void conn_setup_case_options(connection_struct *conn);
 void conn_force_tdis(
 	struct smbd_server_connection *sconn,
@@ -221,7 +220,7 @@ NTSTATUS dos_mode_at_recv(struct tevent_req *req, uint32_t *dosmode);
 int file_set_dosmode(connection_struct *conn,
 		     struct smb_filename *smb_fname,
 		     uint32_t dosmode,
-		     struct smb_filename *parent_dir,
+		     struct files_struct *dirfsp,
 		     bool newfile);
 NTSTATUS file_set_sparse(connection_struct *conn,
 			 struct files_struct *fsp,
@@ -304,11 +303,6 @@ uint32_t filename_create_ucf_flags(struct smb_request *req,
 NTSTATUS canonicalize_snapshot_path(struct smb_filename *smb_fname,
 				    uint32_t ucf_flags,
 				    NTTIME twrp);
-NTSTATUS get_real_filename_full_scan_at(struct files_struct *dirfsp,
-					const char *name,
-					bool mangled,
-					TALLOC_CTX *mem_ctx,
-					char **found_name);
 char *get_original_lcomp(TALLOC_CTX *ctx,
 			connection_struct *conn,
 			const char *filename_in,
@@ -320,9 +314,8 @@ NTSTATUS get_real_filename_at(struct files_struct *dirfsp,
 
 /* The following definitions come from smbd/files.c  */
 
-NTSTATUS fsp_new(struct connection_struct *conn, TALLOC_CTX *mem_ctx,
-		 files_struct **result);
-void fsp_set_gen_id(files_struct *fsp);
+struct files_struct *fsp_new(TALLOC_CTX *mem_ctx,
+			     struct connection_struct *conn);
 NTSTATUS file_new(struct smb_request *req, connection_struct *conn,
 		  files_struct **result);
 NTSTATUS fsp_bind_smb(struct files_struct *fsp, struct smb_request *req);
@@ -349,17 +342,14 @@ struct files_struct *file_find_one_fsp_from_lease_key(
 bool file_find_subpath(files_struct *dir_fsp);
 void fsp_unbind_smb(struct smb_request *req, files_struct *fsp);
 void file_free(struct smb_request *req, files_struct *fsp);
-files_struct *file_fsp(struct smb_request *req, uint16_t fid);
 struct files_struct *file_fsp_get(struct smbd_smb2_request *smb2req,
 				  uint64_t persistent_id,
 				  uint64_t volatile_id);
 struct files_struct *file_fsp_smb2(struct smbd_smb2_request *smb2req,
 				   uint64_t persistent_id,
 				   uint64_t volatile_id);
-NTSTATUS file_name_hash(connection_struct *conn,
-			const char *name, uint32_t *p_name_hash);
-NTSTATUS fsp_set_smb_fname(struct files_struct *fsp,
-			   const struct smb_filename *smb_fname_in);
+bool fsp_set_smb_fname(struct files_struct *fsp,
+		       const struct smb_filename *smb_fname_in);
 size_t fsp_fullbasepath(struct files_struct *fsp, char *buf, size_t buflen);
 void fsp_set_base_fsp(struct files_struct *fsp, struct files_struct *base_fsp);
 bool fsp_is_alternate_stream(const struct files_struct *fsp);
@@ -379,8 +369,9 @@ NTSTATUS open_internal_dirfsp(connection_struct *conn,
 			      int open_flags,
 			      struct files_struct **_fsp);
 
-NTSTATUS open_rootdir_pathref_fsp(connection_struct *conn,
-				  struct files_struct **_fsp);
+NTSTATUS openat_pathref_fsp_rootdir(TALLOC_CTX *mem_ctx,
+				    struct connection_struct *conn,
+				    struct smb_filename **_root);
 NTSTATUS openat_pathref_fsp(const struct files_struct *dirfsp,
 			    struct smb_filename *smb_fname);
 NTSTATUS open_stream_pathref_fsp(
@@ -806,11 +797,6 @@ NTSTATUS set_unix_posix_default_acl(connection_struct *conn,
 NTSTATUS set_unix_posix_acl(connection_struct *conn, files_struct *fsp,
 				uint16_t num_acls,
 				const char *pdata);
-int posix_sys_acl_blob_get_file(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				TALLOC_CTX *mem_ctx,
-				char **blob_description,
-				DATA_BLOB *blob);
 int posix_sys_acl_blob_get_fd(vfs_handle_struct *handle,
 			      files_struct *fsp,
 			      TALLOC_CTX *mem_ctx,
@@ -940,22 +926,23 @@ ssize_t sendfile_short_send(struct smbXsrv_connection *xconn,
 			    size_t headersize,
 			    size_t smb_maxcnt);
 NTSTATUS rename_internals_fsp(connection_struct *conn,
-			files_struct *fsp,
-			struct share_mode_lock **lck,
-			struct smb_filename *smb_fname_dst_in,
-			const char *dst_original_lcomp,
-			uint32_t attrs,
-			bool replace_if_exists);
+			      struct files_struct *src_dirfsp,
+			      files_struct *fsp,
+			      struct smb_filename *smb_fname_src_rel,
+			      struct share_mode_lock **lck,
+			      uint32_t attrs,
+			      const char *newname,
+			      bool replace_if_exists);
 NTSTATUS rename_internals(TALLOC_CTX *ctx,
-			connection_struct *conn,
-			struct smb_request *req,
-			struct files_struct *src_dirfsp,
-			struct smb_filename *smb_fname_src,
-			struct smb_filename *smb_fname_dst,
-			const char *dst_original_lcomp,
-			uint32_t attrs,
-			bool replace_if_exists,
-			uint32_t access_mask);
+			  connection_struct *conn,
+			  struct smb_request *req,
+			  struct files_struct *src_dirfsp,
+			  struct smb_filename *smb_fname_src,
+			  struct smb_filename *smb_fname_src_rel,
+			  uint32_t attrs,
+			  const char *newname,
+			  bool replace_if_exists,
+			  uint32_t access_mask);
 NTSTATUS copy_file(TALLOC_CTX *ctx,
 			connection_struct *conn,
 			struct smb_filename *smb_fname_src,
@@ -1097,11 +1084,15 @@ NTSTATUS set_ea(connection_struct *conn, files_struct *fsp,
 		struct ea_list *ea_list);
 unsigned char *create_volume_objectid(connection_struct *conn, unsigned char objid[16]);
 NTSTATUS hardlink_internals(TALLOC_CTX *ctx,
-		connection_struct *conn,
-		struct smb_request *req,
-		bool overwrite_if_exists,
-		const struct smb_filename *smb_fname_old,
-		struct smb_filename *smb_fname_new);
+			    connection_struct *conn,
+			    struct smb_request *req,
+			    bool overwrite_if_exists,
+			    struct files_struct *dirfsp_old,
+			    const struct smb_filename *smb_fname_old,
+			    struct smb_filename *smb_fname_old_rel,
+			    struct files_struct *dirfsp_new,
+			    struct smb_filename *smb_fname_new,
+			    struct smb_filename *smb_fname_new_rel);
 NTSTATUS smb_set_file_time(connection_struct *conn,
 			   files_struct *fsp,
 			   struct smb_filename *smb_fname,
@@ -1137,12 +1128,9 @@ NTSTATUS smb2_parse_file_rename_information(TALLOC_CTX *ctx,
 					    struct smb_request *req,
 					    const char *pdata,
 					    int total_data,
-					    files_struct *fsp,
-					    struct smb_filename *smb_fname_src,
-					    bool *overwrite,
-					    struct files_struct **_dst_dirfsp,
-					    struct smb_filename **_smb_fname_dst,
-					    char **_dst_original_lcomp);
+					    bool posix,
+					    char **_newname,
+					    bool *overwrite);
 
 /* The following definitions come from smbd/uid.c  */
 

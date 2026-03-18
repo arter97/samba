@@ -82,6 +82,7 @@
 #include "source3/librpc/gen_ndr/ads.h"
 #include "lib/util/time_basic.h"
 #include "libds/common/flags.h"
+#include "source3/smbd/globals.h"
 
 #ifdef HAVE_SYS_SYSCTL_H
 #include <sys/sysctl.h>
@@ -249,7 +250,7 @@ static const struct loadparm_service _sDefault =
 	.aio_read_size = 1,
 	.aio_write_size = 1,
 	.map_readonly = MAP_READONLY_NO,
-	.server_smb_encrypt = SMB_ENCRYPTION_DEFAULT,
+	._server_smb_encrypt = SMB_ENCRYPTION_DEFAULT,
 	.kernel_share_modes = false,
 	.durable_handles = true,
 	.check_parent_directory_delete_on_close = false,
@@ -890,7 +891,11 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 
 	Globals.server_services = str_list_make_v3_const(NULL, "s3fs rpc nbt wrepl ldap cldap kdc drepl ft_scanner winbindd ntp_signd kcc dnsupdate dns", NULL);
 
-	Globals.dcerpc_endpoint_servers = str_list_make_v3_const(NULL, "epmapper wkssvc samr netlogon lsarpc drsuapi dssetup unixinfo browser eventlog6 backupkey dnsserver", NULL);
+	Globals.dcerpc_endpoint_servers = str_list_make_v3_const(
+		NULL,
+		"epmapper samr netlogon lsarpc drsuapi dssetup unixinfo "
+		"browser eventlog6 backupkey dnsserver",
+		NULL);
 
 	Globals.tls_enabled = true;
 	Globals.tls_verify_peer = TLS_VERIFY_PEER_AS_STRICT_AS_POSSIBLE;
@@ -955,6 +960,14 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 	Globals.kpasswd_port = 464;
 
 	Globals.kdc_enable_fast = true;
+	Globals.strong_certificate_binding_enforcement
+		= KDC_CERT_BINDING_FULL;
+	Globals.certificate_backdating_compensation = 0;
+	Globals.kdc_always_include_pac = true;
+	Globals.krb5_acceptor_report_canonical_client_name = true;
+
+	Globals.kdc_name_match_implicit_dollar_without_canonicalization = true;
+	Globals.kdc_require_canonicalization = false;
 
 	Globals.winbind_debug_traceid = true;
 
@@ -1006,12 +1019,8 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 
 	Globals.acl_claims_evaluation = ACL_CLAIMS_EVALUATION_AD_DC_ONLY;
 
-	/* Set the default Himmelblaud globals */
-	lpcfg_string_set(Globals.ctx,
-			&Globals.himmelblaud_hsm_pin_path,
-			get_dyn_HIMMELBLAUD_HSM_PIN_PATH());
-	Globals.himmelblaud_hello_enabled = false;
-	Globals.himmelblaud_sfa_fallback = false;
+	Globals.server_smb_encryption_over_quic = true;
+	Globals.client_smb_encryption_over_quic = true;
 
 	/* Now put back the settings that were set with lp_set_cmdline() */
 	apply_lp_set_cmdline();
@@ -1530,7 +1539,6 @@ static void free_service_byindex(int idx)
 static int add_a_service(const struct loadparm_service *pservice, const char *name)
 {
 	int i;
-	struct loadparm_service **tsp = NULL;
 
 	/* it might already exist */
 	if (name) {
@@ -1547,13 +1555,14 @@ static int add_a_service(const struct loadparm_service *pservice, const char *na
 		}
 	}
 	if (i == iNumServices) {
+		struct loadparm_service **tsp = NULL;
+
 		/* if not, then create one */
 		tsp = talloc_realloc(NULL, ServicePtrs,
 				     struct loadparm_service *,
 				     iNumServices + 1);
 		if (tsp == NULL) {
-			DEBUG(0, ("add_a_service: failed to enlarge "
-				  "ServicePtrs!\n"));
+			DBG_ERR("failed to enlarge ServicePtrs!\n");
 			return (-1);
 		}
 		ServicePtrs = tsp;
@@ -1561,7 +1570,7 @@ static int add_a_service(const struct loadparm_service *pservice, const char *na
 	}
 	ServicePtrs[i] = talloc_zero(ServicePtrs, struct loadparm_service);
 	if (!ServicePtrs[i]) {
-		DEBUG(0,("add_a_service: out of memory!\n"));
+		DBG_ERR("out of memory!\n");
 		return (-1);
 	}
 
@@ -1572,8 +1581,7 @@ static int add_a_service(const struct loadparm_service *pservice, const char *na
 		lpcfg_string_set(ServicePtrs[i], &ServicePtrs[i]->szService,
 				 name);
 
-	DEBUG(8,("add_a_service: Creating snum = %d for %s\n",
-		i, ServicePtrs[i]->szService));
+	DBG_DEBUG("Creating snum = %d for %s\n", i, ServicePtrs[i]->szService);
 
 	if (!hash_a_service(ServicePtrs[i]->szService, i)) {
 		return (-1);
@@ -1591,17 +1599,12 @@ char *canonicalize_servicename(TALLOC_CTX *ctx, const char *src)
 	char *result;
 
 	if ( !src ) {
-		DEBUG(0,("canonicalize_servicename: NULL source name!\n"));
+		DBG_ERR("NULL source name!\n");
 		return NULL;
 	}
 
-	result = talloc_strdup(ctx, src);
+	result = strlower_talloc(ctx, src);
 	SMB_ASSERT(result != NULL);
-
-	if (!strlower_m(result)) {
-		TALLOC_FREE(result);
-		return NULL;
-	}
 	return result;
 }
 
@@ -2494,7 +2497,7 @@ bool lp_file_list_changed(void)
 			}
 
 			if (mod_time.tv_sec > 0 &&
-			    ((timespec_compare(&mod_time, &f->modtime) != 0) ||
+			    (!timespec_equal(&mod_time, &f->modtime) ||
 			     (f->subfname == NULL) ||
 			     (strcmp(n2, f->subfname) != 0)))
 			{
@@ -3540,8 +3543,9 @@ static int process_usershare_file(const char *dir_name, const char *file_name, i
 	}
 
 	if (iService != -1 &&
-	    timespec_compare(&ServicePtrs[iService]->usershare_last_mod,
-			     &lsbuf.st_ex_mtime) == 0) {
+	    timespec_equal(&ServicePtrs[iService]->usershare_last_mod,
+			   &lsbuf.st_ex_mtime))
+	{
 		/* Nothing changed - Mark valid and return. */
 		DEBUG(10,("process_usershare_file: service %s not changed.\n",
 			canon_name ));
@@ -4928,4 +4932,19 @@ int lp_smb3_directory_leases(void)
 	dirleases &= lp_oplocks(GLOBAL_SECTION_SNUM);
 	dirleases &= !lp_kernel_oplocks(GLOBAL_SECTION_SNUM);
 	return dirleases;
+}
+
+int lp_server_smb_encrypt(struct smbXsrv_connection *xconn, int snum)
+{
+	enum smb_encryption_setting enc = lp__server_smb_encrypt(snum);
+
+	if (xconn->transport.trusted_quic) {
+		/*
+		 * Our transport is already encrypted in a trustworthy
+		 * way, don't request SMB level double-encryption
+		 */
+		enc = MIN(enc, SMB_ENCRYPTION_IF_REQUIRED);
+	}
+
+	return enc;
 }

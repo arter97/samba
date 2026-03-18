@@ -51,6 +51,7 @@ struct smbXcli_transport {
 	struct smb_transport transport;
 	int sock_fd;
 	struct tstream_context *tstream;
+	enum tls_verify_peer_state verify_peer;
 	struct samba_sockaddr laddr;
 	struct samba_sockaddr raddr;
 
@@ -148,6 +149,7 @@ struct smbXcli_conn {
 			uint16_t security_mode;
 			struct GUID guid;
 			struct smb311_capabilities smb3_capabilities;
+			bool requested_transport_level_security;
 		} client;
 
 		struct {
@@ -163,6 +165,7 @@ struct smbXcli_conn {
 			uint16_t sign_algo;
 			uint16_t cipher;
 			bool smb311_posix;
+			bool transport_trusted;
 		} server;
 
 		uint64_t mid;
@@ -423,11 +426,13 @@ static int smbXcli_transport_tstream_monitor_recv(struct tevent_req *req)
 	return sys_errno;
 }
 
-struct smbXcli_transport *smbXcli_transport_tstream(TALLOC_CTX *mem_ctx,
-						    struct tstream_context **pstream,
-						    const struct samba_sockaddr *laddr,
-						    const struct samba_sockaddr *raddr,
-						    const struct smb_transport *tp)
+struct smbXcli_transport *smbXcli_transport_tstream(
+	TALLOC_CTX *mem_ctx,
+	struct tstream_context **pstream,
+	enum tls_verify_peer_state verify_peer,
+	const struct samba_sockaddr *laddr,
+	const struct samba_sockaddr *raddr,
+	const struct smb_transport *tp)
 {
 	struct smbXcli_transport *xtp = NULL;
 
@@ -438,6 +443,7 @@ struct smbXcli_transport *smbXcli_transport_tstream(TALLOC_CTX *mem_ctx,
 
 	xtp->transport = *tp;
 	xtp->sock_fd = -1;
+	xtp->verify_peer = verify_peer;
 
 	xtp->laddr = *laddr;
 	xtp->raddr = *raddr;
@@ -508,9 +514,11 @@ static int smbXcli_transport_bsd_monitor_recv(struct tevent_req *req)
 	return wait_for_error_recv(req);
 }
 
-struct smbXcli_transport *smbXcli_transport_bsd(TALLOC_CTX *mem_ctx,
-						int *_fd,
-						const struct smb_transport *tp)
+struct smbXcli_transport *smbXcli_transport_bsd(
+	TALLOC_CTX *mem_ctx,
+	int *_fd,
+	enum tls_verify_peer_state verify_peer,
+	const struct smb_transport *tp)
 {
 	struct smbXcli_transport *xtp = NULL;
 	int fd = *_fd;
@@ -523,6 +531,7 @@ struct smbXcli_transport *smbXcli_transport_bsd(TALLOC_CTX *mem_ctx,
 
 	xtp->transport = *tp;
 	xtp->sock_fd = fd;
+	xtp->verify_peer = verify_peer;
 
 	xtp->laddr.sa_socklen = sizeof(xtp->laddr.u);
 	ret = getsockname(fd, &xtp->laddr.u.sa, &xtp->laddr.sa_socklen);
@@ -557,9 +566,10 @@ struct smbXcli_transport *smbXcli_transport_bsd(TALLOC_CTX *mem_ctx,
 }
 
 struct smbXcli_transport *smbXcli_transport_bsd_tstream(
-						TALLOC_CTX *mem_ctx,
-						int *fd,
-						const struct smb_transport *tp)
+	TALLOC_CTX *mem_ctx,
+	int *fd,
+	enum tls_verify_peer_state verify_peer,
+	const struct smb_transport *tp)
 {
 	struct samba_sockaddr laddr = {
 		.sa_socklen = sizeof(struct sockaddr_storage),
@@ -593,7 +603,8 @@ struct smbXcli_transport *smbXcli_transport_bsd_tstream(
 	*fd = -1;
 	tstream_bsd_optimize_readv(tstream, true);
 
-	xtp = smbXcli_transport_tstream(mem_ctx, &tstream, &laddr, &raddr, tp);
+	xtp = smbXcli_transport_tstream(
+		mem_ctx, &tstream, verify_peer, &laddr, &raddr, tp);
 	TALLOC_FREE(tstream);
 	return xtp;
 }
@@ -3567,6 +3578,14 @@ struct tevent_req *smb2cli_req_create(TALLOC_CTX *mem_ctx,
 		}
 	}
 
+	if (conn->smb2.server.transport_trusted) {
+		/*
+		 * We as a client agreed with the server that quic
+		 * encryption is enough
+		 */
+		state->smb2.should_encrypt = false;
+	}
+
 	if (state->smb2.should_encrypt) {
 		state->smb2.should_sign = false;
 	}
@@ -5334,6 +5353,7 @@ static size_t smbXcli_padding_helper(uint32_t offset, size_t n)
 
 static struct tevent_req *smbXcli_negprot_smb2_subreq(struct smbXcli_negprot_state *state)
 {
+	struct smbXcli_conn *conn = state->conn;
 	size_t i;
 	uint8_t *buf;
 	uint16_t dialect_count = 0;
@@ -5343,11 +5363,11 @@ static struct tevent_req *smbXcli_negprot_smb2_subreq(struct smbXcli_negprot_sta
 		bool ok;
 		uint8_t val[2];
 
-		if (smb2cli_prots[i].proto < state->conn->min_protocol) {
+		if (smb2cli_prots[i].proto < conn->min_protocol) {
 			continue;
 		}
 
-		if (smb2cli_prots[i].proto > state->conn->max_protocol) {
+		if (smb2cli_prots[i].proto > conn->max_protocol) {
 			continue;
 		}
 
@@ -5364,27 +5384,28 @@ static struct tevent_req *smbXcli_negprot_smb2_subreq(struct smbXcli_negprot_sta
 	buf = state->smb2.fixed;
 	SSVAL(buf, 0, 36);
 	SSVAL(buf, 2, dialect_count);
-	SSVAL(buf, 4, state->conn->smb2.client.security_mode);
+	SSVAL(buf, 4, conn->smb2.client.security_mode);
 	SSVAL(buf, 6, 0);	/* Reserved */
-	if (state->conn->max_protocol >= PROTOCOL_SMB3_00) {
-		SIVAL(buf, 8, state->conn->smb2.client.capabilities);
+	if (conn->max_protocol >= PROTOCOL_SMB3_00) {
+		SIVAL(buf, 8, conn->smb2.client.capabilities);
 	} else {
 		SIVAL(buf, 8, 0); 	/* Capabilities */
 	}
-	if (state->conn->max_protocol >= PROTOCOL_SMB2_10) {
+	if (conn->max_protocol >= PROTOCOL_SMB2_10) {
 		struct GUID_ndr_buf guid_buf = { .buf = {0}, };
 
-		GUID_to_ndr_buf(&state->conn->smb2.client.guid, &guid_buf);
+		GUID_to_ndr_buf(&conn->smb2.client.guid, &guid_buf);
 		memcpy(buf+12, guid_buf.buf, 16); /* ClientGuid */
 	} else {
 		memset(buf+12, 0, 16);	/* ClientGuid */
 	}
 
-	if (state->conn->max_protocol >= PROTOCOL_SMB3_11) {
+	if (conn->max_protocol >= PROTOCOL_SMB3_11) {
 		const struct smb3_signing_capabilities *client_sign_algos =
-			&state->conn->smb2.client.smb3_capabilities.signing;
+			&conn->smb2.client.smb3_capabilities.signing;
 		const struct smb3_encryption_capabilities *client_ciphers =
-			&state->conn->smb2.client.smb3_capabilities.encryption;
+			&conn->smb2.client.smb3_capabilities.encryption;
+		enum tls_verify_peer_state verify_peer;
 		NTSTATUS status;
 		struct smb2_negotiate_contexts c = { .num_contexts = 0, };
 		uint8_t *netname_utf16 = NULL;
@@ -5445,10 +5466,38 @@ static struct tevent_req *smbXcli_negprot_smb2_subreq(struct smbXcli_negprot_sta
 			}
 		}
 
-		ok = convert_string_talloc(state, CH_UNIX, CH_UTF16,
-					   state->conn->remote_name,
-					   strlen(state->conn->remote_name),
-					   &netname_utf16, &netname_utf16_len);
+		verify_peer = conn->transport->verify_peer;
+
+		if (tstream_tls_verify_peer_trusted(verify_peer) &&
+		    !conn->smb2.client.smb3_capabilities
+			     .smb_encryption_over_quic)
+		{
+			uint8_t cap_buf[sizeof(uint32_t)];
+
+			PUSH_LE_U32(cap_buf,
+				    0,
+				    SMB2_ACCEPT_TRANSPORT_LEVEL_SECURITY);
+
+			status = smb2_negotiate_context_add(
+				state,
+				&c,
+				SMB2_TRANSPORT_CAPABILITIES,
+				cap_buf,
+				sizeof(cap_buf));
+			if (!NT_STATUS_IS_OK(status)) {
+				return NULL;
+			}
+			conn->smb2.client
+				.requested_transport_level_security = true;
+		}
+
+		ok = convert_string_talloc(state,
+					   CH_UNIX,
+					   CH_UTF16,
+					   conn->remote_name,
+					   strlen(conn->remote_name),
+					   &netname_utf16,
+					   &netname_utf16_len);
 		if (!ok) {
 			return NULL;
 		}
@@ -5505,13 +5554,19 @@ static struct tevent_req *smbXcli_negprot_smb2_subreq(struct smbXcli_negprot_sta
 		SBVAL(buf, 28, 0);	/* Reserved/ClientStartTime */
 	}
 
-	return smb2cli_req_send(state, state->ev,
-				state->conn, SMB2_OP_NEGPROT,
-				0, 0, /* flags */
+	return smb2cli_req_send(state,
+				state->ev,
+				conn,
+				SMB2_OP_NEGPROT,
+				0, /* additional_flags */
+				0, /* clear_flags */
 				state->timeout_msec,
-				NULL, NULL, /* tcon, session */
-				state->smb2.fixed, sizeof(state->smb2.fixed),
-				dyn.data, dyn.length,
+				NULL, /* tcon */
+				NULL, /* session */
+				state->smb2.fixed,
+				sizeof(state->smb2.fixed),
+				dyn.data,
+				dyn.length,
 				UINT16_MAX); /* max_dyn_len */
 }
 
@@ -5547,6 +5602,7 @@ static void smbXcli_negprot_smb2_done(struct tevent_req *subreq)
 	struct smb2_negotiate_context *sign_algo = NULL;
 	struct smb2_negotiate_context *cipher = NULL;
 	struct smb2_negotiate_context *posix = NULL;
+	struct smb2_negotiate_context *transport_caps = NULL;
 	struct iovec sent_iov[3] = {{0}, {0}, {0}};
 	static const struct smb2cli_req_expected_response expected[] = {
 	{
@@ -5912,6 +5968,25 @@ static void smbXcli_negprot_smb2_done(struct tevent_req *subreq)
 		}
 
 		conn->smb2.server.cipher = cipher_selected;
+	}
+
+	if (conn->smb2.client.requested_transport_level_security) {
+		transport_caps = smb2_negotiate_context_find(
+			state->out_ctx, SMB2_TRANSPORT_CAPABILITIES);
+	}
+	if (transport_caps != NULL) {
+		uint32_t caps;
+
+		if (transport_caps->data.length != sizeof(uint32_t)) {
+			tevent_req_nterror(req,
+					   NT_STATUS_INVALID_NETWORK_RESPONSE);
+			return;
+		}
+
+		caps = PULL_LE_U32(transport_caps->data.data, 0);
+
+		conn->smb2.server.transport_trusted =
+			(caps & SMB2_ACCEPT_TRANSPORT_LEVEL_SECURITY) != 0;
 	}
 
 	posix = smb2_negotiate_context_find(

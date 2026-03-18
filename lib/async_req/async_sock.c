@@ -141,8 +141,8 @@ struct async_connect_state {
 	socklen_t address_len;
 	struct sockaddr_storage address;
 
-	void (*before_connect)(void *private_data);
-	void (*after_connect)(void *private_data);
+	void (*before_connect)(int fd, void *private_data);
+	void (*after_connect)(int fd, void *private_data);
 	void *private_data;
 };
 
@@ -168,8 +168,8 @@ static void async_connect_connected(struct tevent_context *ev,
 struct tevent_req *async_connect_send(
 	TALLOC_CTX *mem_ctx, struct tevent_context *ev, int fd,
 	const struct sockaddr *address, socklen_t address_len,
-	void (*before_connect)(void *private_data),
-	void (*after_connect)(void *private_data),
+	void (*before_connect)(int fd, void *private_data),
+	void (*after_connect)(int fd, void *private_data),
 	void *private_data)
 {
 	struct tevent_req *req;
@@ -213,13 +213,13 @@ struct tevent_req *async_connect_send(
 	}
 
 	if (state->before_connect != NULL) {
-		state->before_connect(state->private_data);
+		state->before_connect(fd, state->private_data);
 	}
 
 	state->result = connect(fd, address, address_len);
 
 	if (state->after_connect != NULL) {
-		state->after_connect(state->private_data);
+		state->after_connect(fd, state->private_data);
 	}
 
 	if (state->result == 0) {
@@ -439,7 +439,7 @@ static bool writev_cancel(struct tevent_req *req)
 
 static void writev_do(struct tevent_req *req, struct writev_state *state)
 {
-	ssize_t written;
+	ssize_t written = -1;
 	bool ok;
 
 	if (state->is_sock) {
@@ -627,7 +627,7 @@ static void read_packet_do(struct tevent_req *req,
 	struct read_packet_state *state =
 		tevent_req_data(req, struct read_packet_state);
 	size_t total;
-	ssize_t nread, more;
+	ssize_t nread = -1, more;
 	uint8_t *tmp;
 
 retry:

@@ -28,9 +28,10 @@ from selftesthelpers import bindir, srcdir, scriptdir, binpath
 from selftesthelpers import plantestsuite, samba3srcdir
 from selftesthelpers import planpythontestsuite
 from selftesthelpers import smbtorture3, configuration, smbclient3, smbtorture4
-from selftesthelpers import net, wbinfo, dbwrap_tool, rpcclient, python
-from selftesthelpers import smbget, smbcacls, smbcquotas, ntlm_auth3
-from selftesthelpers import valgrindify, smbtorture4_testsuites
+from selftesthelpers import net, wbinfo, dbwrap_tool, rpcclient
+from selftesthelpers import read_config_h
+from selftesthelpers import smbget, smbcacls, smbcquotas
+from selftesthelpers import smbtorture4_testsuites
 from selftesthelpers import smbtorture4_options
 from selftesthelpers import smbcontrol
 from selftesthelpers import smbstatus
@@ -71,25 +72,11 @@ def compare_versions(version1, version2):
             return -1
     return 0
 
-# find config.h
-try:
-    config_h = os.environ["CONFIG_H"]
-except KeyError:
-    samba4bindir = bindir()
-    config_h = os.path.join(samba4bindir, "default/include/config.h")
 
 bbdir = os.path.join(srcdir(), "testprogs/blackbox")
 
 # check available features
-config_hash = dict()
-f = open(config_h, 'r')
-try:
-    lines = f.readlines()
-    config_hash = dict((x[0], ' '.join(x[1:]))
-                       for x in map(lambda line: line.strip().split(' ')[1:],
-                                    filter(lambda line: (line[0:7] == '#define') and (len(line.split(' ')) > 2), lines)))
-finally:
-    f.close()
+config_hash = read_config_h()
 
 linux_kernel_version = None
 if platform.system() == 'Linux':
@@ -1038,6 +1025,8 @@ if with_pthreadpool and have_ldwrap:
                   [os.path.join(bindir(), "pthreadpooltest_cmocka")])
     plantestsuite("samba3.pthreadpool_unit_test_cmocka", "none",
                   [os.path.join(bindir(), "pthreadpool_unit_test_cmocka")])
+    plantestsuite("samba3.pthreadpool_tevent_cmocka_unit_test", "none",
+                  [os.path.join(bindir(), "pthreadpool_tevent_cmocka_unit_test")])
 
 if with_pthreadpool:
     plantestsuite("samba3.libwbclient_threads",
@@ -1069,9 +1058,6 @@ if is_module_enabled("vfs_gpfs"):
 plantestsuite(
     "samba3.resolvconf", "none",
     [os.path.join(samba3srcdir, "script/tests/test_resolvconf.sh")])
-
-plantestsuite("samba3.tevent_glib_glue", "none",
-    [os.path.join(samba3srcdir, "script/tests/test_tevent_glib_glue.sh")])
 
 plantestsuite("samba3.async_req", "nt4_dc",
               [os.path.join(samba3srcdir, "script/tests/test_async_req.sh")])
@@ -1699,6 +1685,15 @@ plantestsuite("samba3.blackbox.aio-outstanding", "simpleserver:local",
                os.path.join(bindir(), "smbclient"),
                '$SERVER_IP',
                "aio_delay_inject"])
+
+plantestsuite("samba3.blackbox.aio_ratelimit", "simpleserver:local",
+              [os.path.join(samba3srcdir,
+                            "script/tests/test_aio_ratelimit.sh"),
+               configuration,
+               os.path.join(bindir(), "smbclient"),
+               '$SERVER_IP',
+               '$LOCAL_PATH',
+               "aio_ratelimit"])
 
 plantestsuite("samba3.blackbox.deadtime", "simpleserver:local",
               [os.path.join(samba3srcdir, "script/tests/test_deadtime.sh"),

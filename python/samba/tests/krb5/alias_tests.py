@@ -31,6 +31,7 @@ from samba.tests.krb5.kdc_base_test import KDCBaseTest
 from samba.tests.krb5.rfc4120_constants import (
     AES256_CTS_HMAC_SHA1_96,
     ARCFOUR_HMAC_MD5,
+    KDC_ERR_C_PRINCIPAL_UNKNOWN,
     KDC_ERR_TGT_REVOKED,
     NT_PRINCIPAL,
 )

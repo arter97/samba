@@ -84,7 +84,6 @@ from samba.dsdb import (
     DS_GUID_DOMAIN_CONTROLLERS_CONTAINER,
     DS_GUID_MANAGED_SERVICE_ACCOUNTS_CONTAINER,
     DS_GUID_USERS_CONTAINER,
-    DSDB_SYNTAX_BINARY_DN,
     GTYPE_SECURITY_DOMAIN_LOCAL_GROUP,
     GTYPE_SECURITY_GLOBAL_GROUP,
     GTYPE_SECURITY_UNIVERSAL_GROUP,
@@ -102,7 +101,7 @@ from samba.dsdb import (
 from samba.join import DCJoinContext
 from samba.ndr import ndr_pack, ndr_unpack
 from samba.param import LoadParm
-from samba.samdb import SamDB, dsdb_Dn
+from samba.samdb import SamDB, BinaryDn
 from samba.security import (
     claims_tf_policy_parse_rules,
     claims_tf_policy_wrap_xml,
@@ -110,6 +109,8 @@ from samba.security import (
 
 rc4_bit = security.KERB_ENCTYPE_RC4_HMAC_MD5
 aes256_sk_bit = security.KERB_ENCTYPE_AES256_CTS_HMAC_SHA1_96_SK
+aes128_bit = security.KERB_ENCTYPE_AES128_CTS_HMAC_SHA1_96
+aes256_bit = security.KERB_ENCTYPE_AES256_CTS_HMAC_SHA1_96
 
 import samba.tests.krb5.kcrypto as kcrypto
 import samba.tests.krb5.rfc4120_pyasn1 as krb5_asn1
@@ -139,6 +140,7 @@ from samba.tests.krb5.rfc4120_constants import (
     PADATA_ENC_TIMESTAMP,
     PADATA_ENCRYPTED_CHALLENGE,
     PADATA_ETYPE_INFO2,
+    errmap
 )
 
 global_asn1_print = False
@@ -1524,8 +1526,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
             self.assertFalse(revealed)
             return
 
-        revealed_dns = set(str(dsdb_Dn(samdb, str(user),
-                                       syntax_oid=DSDB_SYNTAX_BINARY_DN).dn)
+        revealed_dns = set(str(BinaryDn(samdb, str(user)).dn)
                            for user in revealed_users)
 
         if revealed:
@@ -1648,6 +1649,21 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
         return keys
 
+    def default_supported_enctypes(self):
+        default_supported_enctypes = self.default_etypes
+        if default_supported_enctypes is None:
+            lp = self.get_lp()
+            default_supported_enctypes = lp.get(
+                'kdc default domain supported enctypes')
+            if default_supported_enctypes == 0:
+                if self.get_domain_functional_level() >= DS_DOMAIN_FUNCTION_2008:
+                    # AES keys are available.
+                    default_supported_enctypes = aes128_bit | aes256_bit
+                else:
+                    default_supported_enctypes = rc4_bit | aes256_sk_bit
+
+        return default_supported_enctypes
+
     def creds_set_keys(self, creds, keys):
         if keys is not None:
             for enctype, key in keys.items():
@@ -1664,12 +1680,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
         supported_enctypes = res[0].get('msDS-SupportedEncryptionTypes', idx=0)
 
         if supported_enctypes is None:
-            supported_enctypes = self.default_etypes
-        if supported_enctypes is None:
-            lp = self.get_lp()
-            supported_enctypes = lp.get('kdc default domain supported enctypes')
-            if supported_enctypes == 0:
-                supported_enctypes = rc4_bit | aes256_sk_bit
+            supported_enctypes = self.default_supported_enctypes()
         supported_enctypes = int(supported_enctypes)
 
         if extra_bits is not None:
@@ -2538,6 +2549,7 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
             'logon_hours': None,
             'smartcard_required': False,
             'enabled': True,
+            'keycredlink' : None,
         }
 
         account_opts = {
@@ -2597,7 +2609,8 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
                             assigned_silo,
                             logon_hours,
                             smartcard_required,
-                            enabled):
+                            enabled,
+                            keycredlink):
         self.assertNotEqual(account_type, self.AccountType.TRUST)
         if account_type is self.AccountType.USER:
             self.assertIsNone(delegation_to_spn)
@@ -2668,6 +2681,9 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
 
         if assigned_silo is not None:
             details['msDS-AssignedAuthNPolicySilo'] = assigned_silo
+
+        if keycredlink is not None:
+            details['msDS-KeyCredentialLink'] = keycredlink
 
         if selective_auth_allowed_sid is not None:
             if account_type is self.AccountType.GROUP_MANAGED_SERVICE:
@@ -3383,11 +3399,16 @@ class KDCBaseTest(TestCaseInTempDir, RawKerberosTest):
             error-code specified.
         """
         self.assertIsNotNone(rep)
-        self.assertEqual(rep['msg-type'], KRB_ERROR, "rep = {%s}" % rep)
-        if isinstance(expected, collections.abc.Container):
-            self.assertIn(rep['error-code'], expected, "rep = {%s}" % rep)
-        else:
-            self.assertEqual(rep['error-code'], expected, "rep = {%s}" % rep)
+        self.assertEqual(rep['msg-type'], KRB_ERROR,
+                         f"rep {{{rep}}} is not KRB_ERROR")
+
+        if not isinstance(expected, collections.abc.Container):
+            expected = [expected]
+
+        ec = rep['error-code']
+        self.assertIn(ec, expected,
+                      f"rep {{{rep}}}: error {errmap.get(ec, ec)}, "
+                      f"expected {', '.join(errmap.get(x, x) for x in expected)}")
 
     def tgs_req(self, cname, sname, realm, ticket, key, etypes,
                 expected_error_mode=0, padata=None, kdc_options=0,

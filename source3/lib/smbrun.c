@@ -76,12 +76,6 @@ static int smbrun_internal(const char *cmd, int *outfd, bool sanitize,
 	gid_t gid = current_user.ut.gid;
 	void (*saved_handler)(int);
 
-	/*
-	 * Lose any elevated privileges.
-	 */
-	drop_effective_capability(KERNEL_OPLOCK_CAPABILITY);
-	drop_effective_capability(DMAPI_ACCESS_CAPABILITY);
-
 	/* point our stdout at the file we want output to go into */
 
 	if (outfd && ((*outfd = setup_out_fd()) == -1)) {
@@ -97,7 +91,7 @@ static int smbrun_internal(const char *cmd, int *outfd, bool sanitize,
 	 */
 
 	saved_handler = CatchChildLeaveStatus();
-                                   	
+
 	if ((pid=fork()) < 0) {
 		DEBUG(0,("smbrun: fork failed with error %s\n", strerror(errno) ));
 		(void)CatchSignal(SIGCLD, saved_handler);
@@ -115,7 +109,7 @@ static int smbrun_internal(const char *cmd, int *outfd, bool sanitize,
 		int status=0;
 		pid_t wpid;
 
-		
+
 		/* the parent just waits for the child to exit */
 		while((wpid = waitpid(pid,&status,0)) < 0) {
 			if(errno == EINTR) {
@@ -149,13 +143,13 @@ static int smbrun_internal(const char *cmd, int *outfd, bool sanitize,
 
 		return status;
 	}
-	
+
 	(void)CatchChild();
-	
+
 	/* we are in the child. we exec /bin/sh to do the work for us. we
 	   don't directly exec the command we want because it may be a
 	   pipeline or anything else the config file specifies */
-	
+
 	/* point our stdout at the file we want output to go into */
 	if (outfd) {
 		close(1);
@@ -204,7 +198,7 @@ static int smbrun_internal(const char *cmd, int *outfd, bool sanitize,
 
 		SAFE_FREE(newcmd);
 	}
-	
+
 	/* not reached */
 	exit(83);
 	return 1;
@@ -241,12 +235,6 @@ int smbrunsecret(const char *cmd, const char *secret)
 	gid_t gid = current_user.ut.gid;
 	int ifd[2];
 	void (*saved_handler)(int);
-	
-	/*
-	 * Lose any elevated privileges.
-	 */
-	drop_effective_capability(KERNEL_OPLOCK_CAPABILITY);
-	drop_effective_capability(DMAPI_ACCESS_CAPABILITY);
 
 	/* build up an input pipe */
 	if(pipe(ifd)) {
@@ -262,7 +250,7 @@ int smbrunsecret(const char *cmd, const char *secret)
 	 */
 
 	saved_handler = CatchChildLeaveStatus();
-                                   	
+
 	if ((pid=fork()) < 0) {
 		DEBUG(0, ("smbrunsecret: fork failed with error %s\n", strerror(errno)));
 		(void)CatchSignal(SIGCLD, saved_handler);
@@ -277,7 +265,7 @@ int smbrunsecret(const char *cmd, const char *secret)
 		pid_t wpid;
 		size_t towrite;
 		ssize_t wrote;
-		
+
 		close(ifd[0]);
 		/* send the secret */
 		towrite = strlen(secret);
@@ -312,13 +300,13 @@ int smbrunsecret(const char *cmd, const char *secret)
 
 		return status;
 	}
-	
+
 	(void)CatchChild();
-	
+
 	/* we are in the child. we exec /bin/sh to do the work for us. we
 	   don't directly exec the command we want because it may be a
 	   pipeline or anything else the config file specifies */
-	
+
 	close(ifd[1]);
 	close(0);
 	if (dup2(ifd[0], 0) != 0) {
@@ -346,7 +334,7 @@ int smbrunsecret(const char *cmd, const char *secret)
 	   2 point to /dev/null from the startup code */
 	closefrom(3);
 
-	execl("/bin/sh", "sh", "-c", cmd, NULL);  
+	execl("/bin/sh", "sh", "-c", cmd, NULL);
 
 	/* not reached */
 	exit(82);

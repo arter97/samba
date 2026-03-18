@@ -23,24 +23,12 @@ from selftesthelpers import bindir, srcdir, python
 from selftesthelpers import planpythontestsuite, samba4srcdir
 from selftesthelpers import plantestsuite, bbdir
 from selftesthelpers import configuration, valgrindify
-from selftesthelpers import skiptestsuite
+from selftesthelpers import skiptestsuite, read_config_h
 
 samba4bindir = bindir()
-try:
-    config_h = os.environ["CONFIG_H"]
-except KeyError:
-    config_h = os.path.join(samba4bindir, "default/include/config.h")
 
 # check available features
-config_hash = dict()
-f = open(config_h, 'r')
-try:
-    lines = f.readlines()
-    config_hash = dict((x[0], ' '.join(x[1:]))
-                       for x in map(lambda line: line.strip().split(' ')[1:],
-                                    list(filter(lambda line: (line[0:7] == '#define') and (len(line.split(' ')) > 2), lines))))
-finally:
-    f.close()
+config_hash = read_config_h()
 
 have_man_pages_support = ("XSLTPROC_MANPAGES" in config_hash)
 with_pam = ("WITH_PAM" in config_hash)
@@ -66,12 +54,6 @@ if have_man_pages_support:
         environ={'LD_PRELOAD': ''}
     )
 
-try:
-    import testscenarios
-except ImportError:
-    skiptestsuite("subunit", "testscenarios not available")
-else:
-    planpythontestsuite("none", "subunit.tests.test_suite")
 planpythontestsuite("none", "samba.tests.blackbox.ndrdump")
 planpythontestsuite("none", "samba.tests.blackbox.check_output")
 
@@ -198,6 +180,7 @@ planpythontestsuite("none", "samba.tests.param")
 planpythontestsuite("none", "samba.tests.upgrade")
 planpythontestsuite("none", "samba.tests.core")
 planpythontestsuite("none", "samba.tests.common")
+planpythontestsuite("none", "samba.tests.dsdb_dn")
 planpythontestsuite("none", "samba.tests.provision")
 planpythontestsuite("none", "samba.tests.password_quality")
 planpythontestsuite("none", "samba.tests.strings")
@@ -542,6 +525,12 @@ plantestsuite("samba.unittests.smb1cli_session", "none",
 plantestsuite("samba.unittests.smb_util_translate", "none",
               [os.path.join(bindir(), "default/libcli/smb/test_util_translate")])
 
+plantestsuite(
+    "samba.unittests.memset_explicit",
+    "none",
+    [os.path.join(bindir(), "default/lib/replace/test_memset_explicit")],
+)
+
 plantestsuite("samba.unittests.talloc_keep_secret", "none",
               [os.path.join(bindir(), "default/lib/util/test_talloc_keep_secret")])
 
@@ -635,6 +624,8 @@ plantestsuite("samba.unittests.cmdline", "none",
 if have_heimdal_support:
     plantestsuite("samba.source4.kdc.tests.db_glue", "none",
                 [os.path.join(bindir(), "default/source4/kdc/test_db_glue")])
+    plantestsuite("samba.source4.kdc.tests.sdb_to_hdb", "none",
+                [os.path.join(bindir(), "default/source4/kdc/test_sdb_to_hdb")])
 
 # Run the Rust cargo tests
 planpythontestsuite("none", "samba.tests.rust")

@@ -1711,7 +1711,8 @@ WERROR _srvsvc_NetSessDel(struct pipes_struct *p,
 
 		ntstat = messaging_send(p->msg_ctx,
 					session_list[snum].pid,
-					MSG_SHUTDOWN, &data_blob_null);
+					MSG_SHUTDOWN,
+					NULL);
 
 		if (NT_STATUS_IS_OK(ntstat))
 			werr = WERR_OK;
@@ -1870,6 +1871,39 @@ WERROR _srvsvc_NetShareGetInfo(struct pipes_struct *p,
 	DEBUG(5,("_srvsvc_NetShareGetInfo: %d\n", __LINE__));
 
 	return status;
+}
+
+/*******************************************************************
+ Check a given DOS pathname is valid for a share.
+********************************************************************/
+
+static char *valid_share_pathname(TALLOC_CTX *ctx, const char *dos_pathname)
+{
+	char *ptr = NULL;
+
+	if (!dos_pathname) {
+		return NULL;
+	}
+
+	ptr = talloc_strdup(ctx, dos_pathname);
+	if (!ptr) {
+		return NULL;
+	}
+	string_replace(ptr, '\\', '/');
+	ptr = unix_clean_name(ctx, ptr);
+	if (!ptr) {
+		return NULL;
+	}
+
+	/* NT is braindead - it wants a C: prefix to a pathname ! So strip it. */
+	if (strlen(ptr) > 2 && ptr[1] == ':' && ptr[0] != '/')
+		ptr += 2;
+
+	/* Only absolute paths allowed. */
+	if (*ptr != '/')
+		return NULL;
+
+	return ptr;
 }
 
 /*******************************************************************

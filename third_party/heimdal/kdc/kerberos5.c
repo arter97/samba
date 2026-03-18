@@ -32,6 +32,8 @@
  */
 
 #include "kdc_locl.h"
+#include "krb5_err.h"
+#include "krb5_locl.h"
 
 #ifdef TIME_T_SIGNED
 #if SIZEOF_TIME_T == 4
@@ -558,11 +560,12 @@ pa_pkinit_validate(astgs_request_t r, const PA_DATA *pa)
 
     ret = _kdc_pk_rd_padata(r, pa, &pkp);
     if (ret || pkp == NULL) {
-	if (ret == HX509_CERT_REVOKED) {
-	    ret = KRB5_KDC_ERR_CLIENT_NOT_TRUSTED;	
-	} else {
-	    ret = KRB5KRB_AP_ERR_BAD_INTEGRITY;
-	}
+        if (ret == HX509_CERT_REVOKED ||
+            ret == KRB5_KDC_ERR_CLIENT_NOT_TRUSTED) {
+            ret = KRB5_KDC_ERR_CLIENT_NOT_TRUSTED;
+        } else if (ret != KRB5_KDC_ERR_CERTIFICATE_MISMATCH) {
+            ret = KRB5KRB_AP_ERR_BAD_INTEGRITY;
+        }
 	_kdc_r_log(r, 4, "Failed to decode PKINIT PA-DATA -- %s",
 		   r->cname);
 	goto out;
@@ -2216,6 +2219,9 @@ get_pac_attributes(krb5_context context, KDC_REQ *req)
 
     pac_attributes = pacreq.include_pac ? KRB5_PAC_WAS_REQUESTED : 0;
     free_PA_PAC_REQUEST(&pacreq);
+    if (pac_attributes == 0 && context->flags & KRB5_CTX_F_ALWAYS_INCLUDE_PAC) {
+	pac_attributes = KRB5_PAC_WAS_GIVEN_IMPLICITLY;
+    }
     return pac_attributes;
 }
 

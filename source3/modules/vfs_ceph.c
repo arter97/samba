@@ -472,7 +472,9 @@ static int cephwrap_openat(struct vfs_handle_struct *handle,
 	int result = -ENOENT;
 	int dirfd = -1;
 
-	if ((how->resolve & ~VFS_OPEN_HOW_WITH_BACKUP_INTENT) != 0) {
+	if ((how->resolve & ~(VFS_OPEN_HOW_WITH_BACKUP_INTENT |
+			      VFS_OPEN_HOW_RESOLVE_NO_XDEV)) != 0)
+	{
 		errno = ENOSYS;
 		return -1;
 	}
@@ -710,11 +712,11 @@ static ssize_t cephwrap_recvfile(struct vfs_handle_struct *handle,
 }
 
 static int cephwrap_renameat(struct vfs_handle_struct *handle,
-			files_struct *srcfsp,
-			const struct smb_filename *smb_fname_src,
-			files_struct *dstfsp,
-			const struct smb_filename *smb_fname_dst,
-			const struct vfs_rename_how *how)
+			     files_struct *src_dirfsp,
+			     const struct smb_filename *smb_fname_src,
+			     files_struct *dst_dirfsp,
+			     const struct smb_filename *smb_fname_dst,
+			     const struct vfs_rename_how *how)
 {
 	struct smb_filename *full_fname_src = NULL;
 	struct smb_filename *full_fname_dst = NULL;
@@ -732,15 +734,15 @@ static int cephwrap_renameat(struct vfs_handle_struct *handle,
 	}
 
 	full_fname_src = full_path_from_dirfsp_atname(talloc_tos(),
-						  srcfsp,
-						  smb_fname_src);
+						      src_dirfsp,
+						      smb_fname_src);
 	if (full_fname_src == NULL) {
 		errno = ENOMEM;
 		return -1;
 	}
 	full_fname_dst = full_path_from_dirfsp_atname(talloc_tos(),
-						  dstfsp,
-						  smb_fname_dst);
+						      dst_dirfsp,
+						      smb_fname_dst);
 	if (full_fname_dst == NULL) {
 		TALLOC_FREE(full_fname_src);
 		errno = ENOMEM;
@@ -1126,7 +1128,7 @@ static struct smb_filename *cephwrap_getwd(struct vfs_handle_struct *handle,
 {
 	const char *cwd = ceph_getcwd(handle->data);
 	DBG_DEBUG("[CEPH] getwd(%p) = %s\n", handle, cwd);
-	return synthetic_smb_fname(ctx, cwd, NULL, NULL, 0, 0);
+	return cp_smb_basename(ctx, cwd);
 }
 
 static int strict_allocate_ftruncate(struct vfs_handle_struct *handle,
@@ -1315,25 +1317,25 @@ static int cephwrap_readlinkat(struct vfs_handle_struct *handle,
 }
 
 static int cephwrap_linkat(struct vfs_handle_struct *handle,
-		files_struct *srcfsp,
-		const struct smb_filename *old_smb_fname,
-		files_struct *dstfsp,
-		const struct smb_filename *new_smb_fname,
-		int flags)
+			   files_struct *src_dirfsp,
+			   const struct smb_filename *old_smb_fname,
+			   files_struct *dst_dirfsp,
+			   const struct smb_filename *new_smb_fname,
+			   int flags)
 {
 	struct smb_filename *full_fname_old = NULL;
 	struct smb_filename *full_fname_new = NULL;
 	int result = -1;
 
 	full_fname_old = full_path_from_dirfsp_atname(talloc_tos(),
-					srcfsp,
-					old_smb_fname);
+						      src_dirfsp,
+						      old_smb_fname);
 	if (full_fname_old == NULL) {
 		return -1;
 	}
 	full_fname_new = full_path_from_dirfsp_atname(talloc_tos(),
-					dstfsp,
-					new_smb_fname);
+						      dst_dirfsp,
+						      new_smb_fname);
 	if (full_fname_new == NULL) {
 		TALLOC_FREE(full_fname_old);
 		return -1;
@@ -1408,7 +1410,7 @@ static struct smb_filename *cephwrap_realpath(struct vfs_handle_struct *handle,
 	}
 
 	DBG_DEBUG("[CEPH] realpath(%p, %s) = %s\n", handle, path, result);
-	result_fname = synthetic_smb_fname(ctx, result, NULL, NULL, 0, 0);
+	result_fname = cp_smb_basename(ctx, result);
 	TALLOC_FREE(result);
 	return result_fname;
 }
@@ -1425,14 +1427,6 @@ static NTSTATUS cephwrap_get_real_filename_at(
 	 * between a full directory scan and an actual case-insensitive stat.
 	 */
 	return NT_STATUS_NOT_SUPPORTED;
-}
-
-static const char *cephwrap_connectpath(
-	struct vfs_handle_struct *handle,
-	const struct files_struct *dirfsp,
-	const struct smb_filename *smb_fname)
-{
-	return handle->conn->connectpath;
 }
 
 static NTSTATUS cephwrap_fget_dos_attributes(struct vfs_handle_struct *handle,
@@ -1836,7 +1830,6 @@ static struct vfs_fn_pointers ceph_fns = {
 	.realpath_fn = cephwrap_realpath,
 	.fchflags_fn = vfs_not_implemented_fchflags,
 	.get_real_filename_at_fn = cephwrap_get_real_filename_at,
-	.connectpath_fn = cephwrap_connectpath,
 	.fget_dos_attributes_fn = cephwrap_fget_dos_attributes,
 	.fset_dos_attributes_fn = cephwrap_fset_dos_attributes,
 

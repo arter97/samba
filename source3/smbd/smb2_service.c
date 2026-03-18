@@ -78,16 +78,32 @@ bool set_conn_connectpath(connection_struct *conn, const char *connectpath)
 	 * start as conn->connectpath.
 	 */
 	TALLOC_FREE(conn->cwd_fsp->fsp_name);
-	conn->cwd_fsp->fsp_name = synthetic_smb_fname(conn,
-				conn->connectpath,
-				NULL,
-				NULL,
-				0,
-				0);
+	conn->cwd_fsp->fsp_name = cp_smb_basename(conn, conn->connectpath);
 	if (conn->cwd_fsp->fsp_name == NULL) {
 		return false;
 	}
 	return true;
+}
+
+static char *utok_string(TALLOC_CTX *mem_ctx,
+			 const struct security_unix_token *tok)
+{
+	char *str;
+	uint32_t i;
+
+	str = talloc_asprintf(mem_ctx,
+			      "uid=%ju, gid=%ju, %" PRIu32 " groups:",
+			      (uintmax_t)(tok->uid),
+			      (uintmax_t)(tok->gid),
+			      tok->ngroups);
+
+	for (i = 0; i < tok->ngroups; i++) {
+		talloc_asprintf_addbuf(&str,
+				       " %ju",
+				       (uintmax_t)tok->groups[i]);
+	}
+
+	return str;
 }
 
 bool chdir_current_service(connection_struct *conn)
@@ -126,7 +142,7 @@ bool chdir_current_service(connection_struct *conn)
 }
 
 /****************************************************************************
- do some basic sainity checks on the share.
+ do some basic sanity checks on the share.
  This function modifies dev, ecode.
 ****************************************************************************/
 
@@ -535,18 +551,19 @@ NTSTATUS make_connection_snum(struct smbXsrv_connection *xconn,
 	/* Case options for the share. */
 	conn_setup_case_options(conn);
 
-	conn->encrypt_level = lp_server_smb_encrypt(snum);
-	if (conn->encrypt_level > SMB_ENCRYPTION_OFF) {
-		if (lp_server_smb_encrypt(-1) == SMB_ENCRYPTION_OFF) {
-			if (conn->encrypt_level == SMB_ENCRYPTION_REQUIRED) {
-				DBG_ERR("Service [%s] requires encryption, but "
-					"it is disabled globally!\n",
-					lp_const_servicename(snum));
-				status = NT_STATUS_ACCESS_DENIED;
-				goto err_root_exit;
-			}
-			conn->encrypt_level = SMB_ENCRYPTION_OFF;
+	conn->encrypt_level = lp_server_smb_encrypt(xconn, snum);
+
+	if ((conn->encrypt_level > SMB_ENCRYPTION_OFF) &&
+	    (lp_server_smb_encrypt(xconn, -1) == SMB_ENCRYPTION_OFF)) {
+
+		if (conn->encrypt_level == SMB_ENCRYPTION_REQUIRED) {
+			DBG_ERR("Service [%s] requires encryption, but "
+				"it is disabled globally!\n",
+				lp_const_servicename(snum));
+			status = NT_STATUS_ACCESS_DENIED;
+			goto err_root_exit;
 		}
+		conn->encrypt_level = SMB_ENCRYPTION_OFF;
 	}
 
 	conn->veto_list = NULL;
@@ -903,7 +920,7 @@ connection_struct *make_connection_smb2(struct smbd_smb2_request *req,
 					req->session,
 					pdev);
 	if (!NT_STATUS_IS_OK(*pstatus)) {
-		conn_free(conn);
+		TALLOC_FREE(conn);
 		return NULL;
 	}
 	return conn;
@@ -974,5 +991,5 @@ void close_cnum(connection_struct *conn,
 		TALLOC_FREE(cmd);
 	}
 
-	conn_free(conn);
+	TALLOC_FREE(conn);
 }

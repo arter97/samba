@@ -911,13 +911,38 @@ bool tstream_tls_params_enabled(struct tstream_tls_params *tls_params)
 
 bool tstream_tls_params_quic_enabled(struct tstream_tls_params *tls_params)
 {
-	bool quic = false;
 #ifdef HAVE_LIBQUIC
+
 	struct tstream_tls_params_internal *tlsp = tls_params->internal;
 
-	quic = tlsp->quic;
+	return tlsp->quic;
+
+#else /* HAVE_LIBQUIC */
+
+	return false;
+
 #endif /* HAVE_LIBQUIC */
-	return quic;
+}
+
+enum tls_verify_peer_state tstream_tls_params_verify_peer(
+	struct tstream_tls_params *tls_params)
+{
+#ifdef HAVE_LIBQUIC
+
+	struct tstream_tls_params_internal *tlsp = tls_params->internal;
+
+	return tlsp->verify_peer;
+
+#else /* HAVE_LIBQUIC */
+
+	return TLS_VERIFY_PEER_NO_CHECK;
+
+#endif /* HAVE_LIBQUIC */
+}
+
+bool tstream_tls_verify_peer_trusted(enum tls_verify_peer_state verify_peer)
+{
+	return (verify_peer >= TLS_VERIFY_PEER_CA_AND_NAME);
 }
 
 const char *tstream_tls_params_peer_name(
@@ -2586,7 +2611,7 @@ static int tstream_ngtcp2_acked_stream_data_offset_cb(ngtcp2_conn *conn,
 		  "offset[%"PRIu64"] pushed[%"PRIu64"][%zd]\n",
 		  si->stream_id, si->writev.pushed_offset,
 		  si->writev.pushed ? si->writev.pushed->offset : 0,
-		  si->writev.pushed ? si->writev.pushed->length : -1);
+		  si->writev.pushed ? (ssize_t)si->writev.pushed->length : -1);
 
 	return 0;
 }

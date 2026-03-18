@@ -157,6 +157,7 @@ static const struct mask2txt access_mask[] = {
 	{SEC_STD_DELETE, "DELETE"},
 	{SEC_STD_READ_CONTROL, "READ_CONTROL"},
 	{SEC_STD_WRITE_DAC, "WRITE_DAC"},
+	{SEC_STD_WRITE_OWNER, "WRITE_OWNER"},
 	{SEC_STD_SYNCHRONIZE, "SYNCHRONIZE"},
 	{SEC_FLAG_SYSTEM_SECURITY, "ACCESS_SYSTEM_SECURITY"},
 	{0, NULL}
@@ -1382,7 +1383,7 @@ bool print_notify_rec_json(struct traverse_state *state,
 
 	TALLOC_CTX *tmp_ctx = talloc_stackframe();
 	if (tmp_ctx == NULL) {
-		return -1;
+		return false;
 	}
 
 	sub_json = json_new_object();

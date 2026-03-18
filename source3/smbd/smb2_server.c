@@ -2829,21 +2829,6 @@ NTSTATUS smbd_smb2_request_verify_sizes(struct smbd_smb2_request *req,
 	return NT_STATUS_OK;
 }
 
-bool smbXsrv_is_encrypted(uint8_t encryption_flags)
-{
-	return (!(encryption_flags & SMBXSRV_PROCESSED_UNENCRYPTED_PACKET)
-		&&
-		(encryption_flags & (SMBXSRV_PROCESSED_ENCRYPTED_PACKET |
-				     SMBXSRV_ENCRYPTION_DESIRED |
-				     SMBXSRV_ENCRYPTION_REQUIRED)));
-}
-
-bool smbXsrv_is_partially_encrypted(uint8_t encryption_flags)
-{
-	return ((encryption_flags & SMBXSRV_PROCESSED_ENCRYPTED_PACKET) &&
-		(encryption_flags & SMBXSRV_PROCESSED_UNENCRYPTED_PACKET));
-}
-
 /* Set a flag if not already set, return true if set */
 bool smbXsrv_set_crypto_flag(uint8_t *flags, uint8_t flag)
 {
@@ -2910,23 +2895,6 @@ out:
 	*update_session_globalp = update_session;
 	*update_tcon_globalp = update_tcon;
 	return;
-}
-
-bool smbXsrv_is_signed(uint8_t signing_flags)
-{
-	/*
-	 * Signing is always enabled, so unless we got an unsigned
-	 * packet and at least one signed packet that was not
-	 * encrypted, the session or tcon is "signed".
-	 */
-	return (!(signing_flags & SMBXSRV_PROCESSED_UNSIGNED_PACKET) &&
-		(signing_flags & SMBXSRV_PROCESSED_SIGNED_PACKET));
-}
-
-bool smbXsrv_is_partially_signed(uint8_t signing_flags)
-{
-	return ((signing_flags & SMBXSRV_PROCESSED_UNSIGNED_PACKET) &&
-		(signing_flags & SMBXSRV_PROCESSED_SIGNED_PACKET));
 }
 
 static NTSTATUS smbd_smb2_request_dispatch_update_counts(
@@ -3138,11 +3106,13 @@ NTSTATUS smbd_smb2_request_dispatch(struct smbd_smb2_request *req)
 
 	req->async_internal = false;
 	req->do_signing = false;
-	if (opcode != SMB2_OP_SESSSETUP) {
-		req->do_encryption = encryption_desired;
-	} else {
+
+	if (opcode == SMB2_OP_SESSSETUP) {
 		req->do_encryption = false;
+	} else {
+		req->do_encryption = encryption_desired;
 	}
+
 	req->was_encrypted = false;
 	if (intf_v->iov_len == SMB2_TF_HDR_SIZE) {
 		const uint8_t *intf = SMBD_SMB2_IN_TF_PTR(req);
@@ -4001,8 +3971,8 @@ void smbd_smb2_request_dispatch_immediate(struct tevent_context *ctx,
 	TALLOC_FREE(im);
 
 	if (DEBUGLEVEL >= 10) {
-		DEBUG(10,("smbd_smb2_request_dispatch_immediate: idx[%d] of %d vectors\n",
-			req->current_idx, req->in.vector_count));
+		DBG_DEBUG("idx[%d] of %d vectors\n",
+			  req->current_idx, req->in.vector_count);
 		print_req_vectors(req);
 	}
 
@@ -4744,8 +4714,7 @@ NTSTATUS smbd_smb2_process_negprot(struct smbXsrv_connection *xconn,
 	NTSTATUS status;
 	struct smbd_smb2_request *req = NULL;
 
-	DEBUG(10,("smbd_smb2_first_negprot: packet length %u\n",
-		 (unsigned int)size));
+	DBG_DEBUG("packet length %zu\n", size);
 
 	status = smbd_initialize_smb2(xconn, expected_seq_low);
 	if (!NT_STATUS_IS_OK(status)) {

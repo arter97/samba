@@ -42,6 +42,7 @@ NTSTATUS open_np_file(struct smb_request *smb_req, const char *name,
 	struct smb_filename *smb_fname = NULL;
 	struct auth_session_info *session_info = conn->session_info;
 	NTSTATUS status;
+	bool ok;
 
 	status = file_new(smb_req, conn, &fsp);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -55,21 +56,16 @@ NTSTATUS open_np_file(struct smb_request *smb_req, const char *name,
 	fsp->fsp_flags.can_lock = false;
 	fsp->access_mask = FILE_READ_DATA | FILE_WRITE_DATA;
 
-	smb_fname = synthetic_smb_fname(talloc_tos(),
-					name,
-					NULL,
-					NULL,
-					0,
-					0);
+	smb_fname = cp_smb_basename(talloc_tos(), name);
 	if (smb_fname == NULL) {
 		file_free(smb_req, fsp);
 		return NT_STATUS_NO_MEMORY;
 	}
-	status = fsp_set_smb_fname(fsp, smb_fname);
+	ok = fsp_set_smb_fname(fsp, smb_fname);
 	TALLOC_FREE(smb_fname);
-	if (!NT_STATUS_IS_OK(status)) {
+	if (!ok) {
 		file_free(smb_req, fsp);
-		return status;
+		return NT_STATUS_NO_MEMORY;
 	}
 
 	if (smb_req->smb2req != NULL && smb_req->smb2req->was_encrypted) {
@@ -79,7 +75,6 @@ NTSTATUS open_np_file(struct smb_request *smb_req, const char *name,
 		uint16_t cipher = xconn->smb2.server.cipher;
 		struct dom_sid smb3_sid = global_sid_Samba_SMB3;
 		size_t num_smb3_sids;
-		bool ok;
 
 		session_info = copy_session_info(fsp, conn->session_info);
 		if (session_info == NULL) {

@@ -1,20 +1,20 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
 
    transport layer security handling code
 
    Copyright (C) Andrew Tridgell 2005
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
@@ -91,6 +91,9 @@ NTSTATUS tstream_tls_params_server_lpcfg(TALLOC_CTX *mem_ctx,
 
 bool tstream_tls_params_enabled(struct tstream_tls_params *params);
 bool tstream_tls_params_quic_enabled(struct tstream_tls_params *params);
+enum tls_verify_peer_state tstream_tls_params_verify_peer(
+	struct tstream_tls_params *tls_params);
+bool tstream_tls_verify_peer_trusted(enum tls_verify_peer_state verify_peer);
 const char *tstream_tls_params_peer_name(
 	const struct tstream_tls_params *params);
 
@@ -154,6 +157,11 @@ NTSTATUS tstream_tls_quic_handshake(struct tstream_tls_params *tlsp,
 				    const char *alpn,
 				    int sockfd);
 
+#define tstream_tls_ngtcp2_connect_send(mem_ctx, ev, tls_params, \
+					timeout_msec, alpn, sockfd) \
+	_tstream_tls_ngtcp2_connect_send(mem_ctx, ev, tls_params, \
+					 timeout_msec, alpn, sockfd, \
+					 __location__)
 struct tevent_req *_tstream_tls_ngtcp2_connect_send(TALLOC_CTX *mem_ctx,
 						    struct tevent_context *ev,
 						    struct tstream_tls_params *tlsp,
@@ -165,10 +173,5 @@ int tstream_tls_ngtcp2_connect_recv(struct tevent_req *req,
 				    int *perrno,
 				    TALLOC_CTX *mem_ctx,
 				    struct tstream_context **quic_stream);
-#define tstream_tls_ngtcp2_connect_send(mem_ctx, ev, tls_params, \
-					timeout_msec, alpn, sockfd) \
-	_tstream_tls_ngtcp2_connect_send(mem_ctx, ev, tls_params, \
-					 timeout_msec, alpn, sockfd, \
-					 __location__)
 
 #endif /* _TLS_H_ */

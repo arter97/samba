@@ -449,6 +449,7 @@ again:
 
 	for (i = 0; i < count; i++) {
 		char server[INET6_ADDRSTRLEN];
+		bool has_entry = false;
 		int ret;
 
 		if (is_zero_addr(&sa_list[i].u.ss)) {
@@ -457,8 +458,8 @@ again:
 
 		print_sockaddr(server, sizeof(server), &sa_list[i].u.ss);
 
-		status = check_negative_conn_cache(domain, server);
-		if (!NT_STATUS_IS_OK(status)) {
+		has_entry = has_negative_conn_cache_entry(domain, server);
+		if (has_entry) {
 			continue;
 		}
 
@@ -544,10 +545,10 @@ again:
 		cldap_reply = &responses[i]->data.nt5_ex;
 
 		if (cldap_reply->pdc_dns_name != NULL) {
-			status = check_negative_conn_cache(
+			bool has_entry = has_negative_conn_cache_entry(
 				domain,
 				cldap_reply->pdc_dns_name);
-			if (!NT_STATUS_IS_OK(status)) {
+			if (has_entry) {
 				/*
 				 * only use the server if it's not black listed
 				 * by name
@@ -644,11 +645,14 @@ static NTSTATUS resolve_and_ping_netbios(ADS_STRUCT *ads,
 	if (*realm) {
 		for (i = 0; i < count; ++i) {
 			char server[INET6_ADDRSTRLEN];
+			bool has_entry;
 
 			print_sockaddr(server, sizeof(server), &sa_list[i].u.ss);
 
-			if(!NT_STATUS_IS_OK(
-				check_negative_conn_cache(realm, server))) {
+			has_entry = has_negative_conn_cache_entry(
+					realm,
+					server);
+			if (has_entry) {
 				/* Ensure we add the workgroup name for this
 				   IP address as negative too. */
 				add_failed_connection_entry(
@@ -1556,7 +1560,7 @@ static ADS_STATUS ads_do_paged_search_args(ADS_STRUCT *ads,
 	ldap_controls_free(rcontrols);
 
 done:
-	talloc_destroy(ctx);
+	TALLOC_FREE(ctx);
 
 	if (ext_be) {
 		ber_free(ext_be, 1);
@@ -1769,7 +1773,7 @@ ADS_STATUS ads_do_search_all_fn(ADS_STRUCT *ads, const char *bind_path,
 	}
 
  done:
-	talloc_destroy(ctx);
+	TALLOC_FREE(ctx);
 	/* if/when we decide to utf8-encode attrs, take out this next line */
 	TALLOC_FREE(search_attrs);
 	return ADS_ERROR(rc);
@@ -2405,7 +2409,7 @@ ADS_STATUS ads_clear_service_principal_names(ADS_STRUCT *ads, const char *machin
 	}
 
 	if (!(mods = ads_init_mods(ctx))) {
-		talloc_destroy(ctx);
+		TALLOC_FREE(ctx);
 		ads_msgfree(ads, res);
 		return ADS_ERROR(LDAP_NO_MEMORY);
 	}
@@ -2413,12 +2417,12 @@ ADS_STATUS ads_clear_service_principal_names(ADS_STRUCT *ads, const char *machin
 	if (!ADS_ERR_OK(ret)) {
 		DEBUG(1,("ads_clear_service_principal_names: Error creating strlist.\n"));
 		ads_msgfree(ads, res);
-		talloc_destroy(ctx);
+		TALLOC_FREE(ctx);
 		return ret;
 	}
 	dn_string = ads_get_dn(ads, talloc_tos(), res);
 	if (!dn_string) {
-		talloc_destroy(ctx);
+		TALLOC_FREE(ctx);
 		ads_msgfree(ads, res);
 		return ADS_ERROR(LDAP_NO_MEMORY);
 	}
@@ -2428,12 +2432,12 @@ ADS_STATUS ads_clear_service_principal_names(ADS_STRUCT *ads, const char *machin
 		DEBUG(1,("ads_clear_service_principal_names: Error: Updating Service Principals for machine %s in LDAP\n",
 			machine_name));
 		ads_msgfree(ads, res);
-		talloc_destroy(ctx);
+		TALLOC_FREE(ctx);
 		return ret;
 	}
 
 	ads_msgfree(ads, res);
-	talloc_destroy(ctx);
+	TALLOC_FREE(ctx);
 	return ret;
 }
 
@@ -2874,12 +2878,14 @@ ADS_STATUS ads_create_machine_acct(ADS_STRUCT *ads,
 	}
 
 	/* Make sure to NULL terminate the array */
-	spn_array = talloc_realloc(ctx, spn_array, const char *, num_spns + 1);
+	spn_array = talloc_realloc_zero(ctx,
+					spn_array,
+					const char *,
+					num_spns + 1);
 	if (spn_array == NULL) {
 		ret = ADS_ERROR(LDAP_NO_MEMORY);
 		goto done;
 	}
-	spn_array[num_spns] = NULL;
 
 	controlstr = talloc_asprintf(ctx, "%u", acct_control);
 	if (controlstr == NULL) {
@@ -2904,7 +2910,7 @@ ADS_STATUS ads_create_machine_acct(ADS_STRUCT *ads,
 
 done:
 	SAFE_FREE(machine_escaped);
-	talloc_destroy(ctx);
+	TALLOC_FREE(ctx);
 
 	return ret;
 }
@@ -3200,7 +3206,7 @@ static bool ads_dump_field(ADS_STRUCT *ads, char *field, void **values, void *da
 		fn(ads, NULL, NULL, data_area); /* completed an entry */
 
 	}
-	talloc_destroy(ctx);
+	TALLOC_FREE(ctx);
 }
 
 /**

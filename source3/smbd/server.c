@@ -496,6 +496,7 @@ static bool smbd_notifyd_init(struct messaging_context *msg, bool interactive,
 	}
 
 	process_set_title("smbd-notifyd", "notifyd");
+	set_remote_machine_name("notifyd", false);
 
 	reopen_logs();
 
@@ -715,6 +716,9 @@ static bool cleanupd_init(struct messaging_context *msg, bool interactive,
 	}
 
 	process_set_title("smbd-cleanupd", "cleanupd");
+	set_remote_machine_name("cleanupd", false);
+
+	reopen_logs();
 
 	se = tevent_add_signal(ev,
 			       ev,
@@ -866,7 +870,7 @@ static void cleanupd_started(struct tevent_req *req)
 	status = messaging_send(parent->msg_ctx,
 				parent->cleanupd,
 				MSG_SMB_NOTIFY_CLEANUP,
-				&data_blob_null);
+				NULL);
 	if (!NT_STATUS_IS_OK(status)) {
 		DBG_ERR("messaging_send returned %s\n",
 			nt_errstr(status));
@@ -945,7 +949,7 @@ static void remove_child_pid(struct smbd_parent_context *parent,
 		status = messaging_send(parent->msg_ctx,
 					parent->cleanupd,
 					MSG_SMB_NOTIFY_CLEANUP,
-					&data_blob_null);
+					NULL);
 		if (!NT_STATUS_IS_OK(status)) {
 			DBG_ERR("messaging_send returned %s\n",
 				nt_errstr(status));
@@ -1314,7 +1318,6 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 	const struct smb_transports *ts = &parent->transports;
 	uint8_t ti;
 	int num_interfaces = iface_count();
-	int i;
 	unsigned dns_port = 0;
 
 #ifdef HAVE_ATEXIT
@@ -1362,6 +1365,7 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 		   told to only bind to those interfaces. Create a
 		   socket per interface and bind to only these.
 		*/
+		int i;
 
 		/* Now open a listen socket for each of the
 		   interfaces. */
@@ -1393,6 +1397,7 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 #endif
 			"0.0.0.0",
 		};
+		size_t i;
 
 		for (i = 0; i < ARRAY_SIZE(sock_addrs); i++) {
 			const char *sock_tok = sock_addrs[i];
@@ -2552,8 +2557,11 @@ quic_disabled:
 		smbd_init_addrchange(NULL, ev_ctx, msg_ctx, parent);
 	}
 
-	if (!open_sockets_smbd(parent, ev_ctx, msg_ctx))
-		exit_server("open_sockets_smbd() failed");
+	if (!open_sockets_smbd(parent, ev_ctx, msg_ctx)) {
+		DBG_ERR("smbd could not bind to a socket, which can be caused "
+			"by a bad 'interfaces' line in smb.conf\n");
+		exit_server("Could not bind to any sockets\n");
+	}
 
 	TALLOC_FREE(frame);
 	/* make sure we always have a valid stackframe */

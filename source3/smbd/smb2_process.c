@@ -741,8 +741,7 @@ bool init_smb1_request(struct smb_request *req,
 
 	/* Ensure we have at least smb_size bytes. */
 	if (req_size < smb_size) {
-		DEBUG(0,("init_smb1_request: invalid request size %u\n",
-			(unsigned int)req_size ));
+		DBG_ERR("invalid request size %zu\n", req_size);
 		return false;
 	}
 
@@ -780,18 +779,18 @@ bool init_smb1_request(struct smb_request *req,
 
 	/* Ensure we have at least wct words and 2 bytes of bcc. */
 	if (smb_size + req->wct*2 > req_size) {
-		DEBUG(0,("init_smb1_request: invalid wct number %u (size %u)\n",
-			(unsigned int)req->wct,
-			(unsigned int)req_size));
+		DBG_ERR("invalid wct number %" PRIu8 " (size %zu)\n",
+			req->wct,
+			req_size);
 		return false;
 	}
 	/* Ensure bcc is correct. */
 	if (((const uint8_t *)smb_buf_const(inbuf)) + req->buflen > inbuf + req_size) {
-		DEBUG(0,("init_smb1_request: invalid bcc number %u "
-			"(wct = %u, size %u)\n",
-			(unsigned int)req->buflen,
-			(unsigned int)req->wct,
-			(unsigned int)req_size));
+		DBG_ERR("invalid bcc number %" PRIu16 " "
+			"(wct = %" PRIu8 ", size %zu)\n",
+			req->buflen,
+			req->wct,
+			req_size);
 		return false;
 	}
 
@@ -939,8 +938,9 @@ static void smbd_smb2_server_connection_read_handler(
 		xconn->client->sconn->trans_num++;
 		xconn->client->sconn->num_requests++;
 		return;
+	}
 
-	} else if (!smbd_is_smb2_header(buffer, bufferlen)) {
+	if (!smbd_is_smb2_header(buffer, bufferlen)) {
 		exit_server_cleanly("Invalid initial SMB2 packet");
 		return;
 	}
@@ -1616,7 +1616,8 @@ static bool deadtime_fn(const struct timeval *now, void *private_data)
 		DEBUG( 2, ( "Closing idle connection\n" ) );
 		messaging_send(sconn->msg_ctx,
 			       messaging_server_id(sconn->msg_ctx),
-			       MSG_SHUTDOWN, &data_blob_null);
+			       MSG_SHUTDOWN,
+			       NULL);
 		return False;
 	}
 

@@ -193,8 +193,8 @@ DIR *sys_fdopendir(int fd);
 int sys_mknod(const char *path, mode_t mode, SMB_DEV_T dev);
 int sys_mknodat(int dirfd, const char *path, mode_t mode, SMB_DEV_T dev);
 char *sys_getwd(void);
-void set_effective_capability(enum smbd_capability capability);
-void drop_effective_capability(enum smbd_capability capability);
+void set_dmapi_capability(bool enable);
+void set_dac_override_capability(bool enable);
 long sys_random(void);
 void sys_srandom(unsigned int seed);
 int getgroups_max(void);
@@ -204,9 +204,6 @@ int sys_setgroups(gid_t UNUSED(primary_gid), int setlen, gid_t *gidset);
 uint32_t unix_dev_major(SMB_DEV_T dev);
 uint32_t unix_dev_minor(SMB_DEV_T dev);
 char *sys_realpath(const char *path);
-#if 0
-int sys_get_number_of_cores(void);
-#endif
 
 struct sys_proc_fd_path_buf {
 	char buf[35]; /* "/proc/self/fd/" + strlen(2^64) + 0-terminator */
@@ -369,8 +366,6 @@ bool split_domain_user(TALLOC_CTX *mem_ctx,
 		       char **user);
 const char *strip_hostname(const char *s);
 bool any_nt_status_not_ok(NTSTATUS err1, NTSTATUS err2, NTSTATUS *result);
-int timeval_to_msec(struct timeval t);
-char *valid_share_pathname(TALLOC_CTX *ctx, const char *dos_pathname);
 bool is_executable(const char *fname);
 bool map_open_params_to_ntcreate(const char *smb_base_fname,
 				 int deny_mode, int open_func,
@@ -381,7 +376,6 @@ bool map_open_params_to_ntcreate(const char *smb_base_fname,
 				 uint32_t *pprivate_flags);
 struct security_unix_token *copy_unix_token(TALLOC_CTX *ctx, const struct security_unix_token *tok);
 struct security_unix_token *root_unix_token(TALLOC_CTX *mem_ctx);
-char *utok_string(TALLOC_CTX *mem_ctx, const struct security_unix_token *tok);
 bool dir_check_ftype(uint32_t mode, uint32_t dirtype);
 
 /* The following definitions come from lib/util_builtin.c  */
@@ -501,7 +495,10 @@ struct tevent_req *open_socket_out_send(TALLOC_CTX *mem_ctx,
 					int protocol,
 					const struct sockaddr_storage *pss,
 					uint16_t port,
-					int timeout);
+					int timeout,
+					void (*before_connect)(int fd, void *private_data),
+					void (*after_connect)(int fd, void *private_data),
+					void *private_data);
 NTSTATUS open_socket_out_recv(struct tevent_req *req, int *pfd);
 const char *get_peer_addr(int fd, char *addr, size_t addr_len);
 
@@ -543,7 +540,6 @@ bool strlower_m(char *s);
 bool strupper_m(char *s);
 int fstr_sprintf(fstring s, const char *fmt, ...);
 
-uint64_t STR_TO_SMB_BIG_UINT(const char *nptr, const char **entptr);
 uint64_t conv_str_size(const char * str);
 char *talloc_asprintf_strupper_m(TALLOC_CTX *t, const char *fmt, ...)
 				 PRINTF_ATTRIBUTE(2,3);
@@ -577,7 +573,7 @@ unsigned wins_srv_count_tag(const char *tag);
 
 /* The following definitions come from libsmb/conncache.c  */
 
-NTSTATUS check_negative_conn_cache( const char *domain, const char *server);
+bool has_negative_conn_cache_entry( const char *domain, const char *server);
 void add_failed_connection_entry(const char *domain, const char *server, NTSTATUS result) ;
 void flush_negative_conn_cache_for_domain(const char *domain);
 
@@ -713,6 +709,7 @@ struct smb_filename *cp_smb_filename(TALLOC_CTX *mem_ctx,
 				     const struct smb_filename *in);
 struct smb_filename *cp_smb_filename_nostream(TALLOC_CTX *mem_ctx,
 				     const struct smb_filename *in);
+struct smb_filename *cp_smb_basename(TALLOC_CTX *mem_ctx, const char *fname);
 bool is_ntfs_stream_smb_fname(const struct smb_filename *smb_fname);
 bool is_ntfs_default_stream_smb_fname(const struct smb_filename *smb_fname);
 bool is_named_stream(const struct smb_filename *smb_fname);

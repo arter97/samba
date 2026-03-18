@@ -46,21 +46,19 @@ import pyasn1.type.univ
 
 from pyasn1.error import PyAsn1Error
 
-from samba import unix2nttime
+from samba import asn1, unix2nttime
 from samba.common import get_string
 from samba.credentials import Credentials
 from samba.dcerpc import claims, krb5pac, netlogon, samr, security, krb5ccache
 from samba.gensec import FEATURE_SEAL
 from samba.ndr import ndr_pack, ndr_unpack
+from samba.param import LoadParm
 from samba.dcerpc.misc import (
     SEC_CHAN_WKSTA,
     SEC_CHAN_BDC,
     SEC_CHAN_RODC,
     SEC_CHAN_DOMAIN,
     SEC_CHAN_DNS_DOMAIN,
-)
-from samba.dsdb import (
-    UF_SMARTCARD_REQUIRED
 )
 import samba.tests
 from samba.tests import TestCase
@@ -131,6 +129,8 @@ from samba.tests.krb5.rfc4120_constants import (
     PADATA_PW_SALT,
     PADATA_REQ_ENC_PA_REP,
     PADATA_SUPPORTED_ETYPES,
+    TD_CMS_DIGEST_ALGORITHMS,
+    errmap
 )
 import samba.tests.krb5.kcrypto as kcrypto
 
@@ -863,6 +863,27 @@ class RawKerberosTest(TestCase):
         if padata_checking is None:
             padata_checking = '1'
         cls.padata_checking = bool(int(padata_checking))
+
+        cls.uncanonicalized_implicit_dollar = cls.get_server_param(
+            "kdc name match implicit dollar without canonicalization", True)
+
+        cls.require_canonicalization = cls.get_server_param(
+            "kdc require canonicalization", True)
+
+        using_embedded_heimdal = samba.tests.env_get_var_value(
+            'USING_EMBEDDED_HEIMDAL',
+            allow_missing=True)
+        if using_embedded_heimdal is None:
+            using_embedded_heimdal = False
+        else:
+            using_embedded_heimdal = bool(int(using_embedded_heimdal))
+        cls.always_include_pac = False
+        # Always generating the PAC is currently only supported by
+        # the Embedded heimdal
+        if using_embedded_heimdal:
+            cls.always_include_pac = cls.get_server_param(
+                "kdc always include pac",
+                True)
 
         kadmin_is_tgs = samba.tests.env_get_var_value('KADMIN_IS_TGS',
                                                       allow_missing=True)
@@ -2500,6 +2521,14 @@ class RawKerberosTest(TestCase):
 
         return self.der_encode(pk_as_req_obj, asn1Spec=asn1_spec())
 
+    def Attribute_create(self,
+                         attr_type,
+                         attr_values):
+        return {
+            'type': attr_type,
+            'values': attr_values,
+        }
+
     def SignerInfo_create(self,
                           signer_id,
                           digest_algorithm,
@@ -2593,72 +2622,6 @@ class RawKerberosTest(TestCase):
             domain_params_obj['validationParms'] = validation_parms
 
         return domain_params_obj
-
-    def length_in_bytes(self, value):
-        """Return the length in bytes of an integer once it is encoded as
-        bytes."""
-
-        self.assertGreaterEqual(value, 0, 'value must be positive')
-        self.assertIsInstance(value, int)
-
-        length_in_bits = max(1, math.log2(value + 1))
-        length_in_bytes = math.ceil(length_in_bits / 8)
-        return length_in_bytes
-
-    def bytes_from_int(self, value, *, length=None):
-        """Return an integer encoded big-endian into bytes of an optionally
-        specified length.
-        """
-        if length is None:
-            length = self.length_in_bytes(value)
-        return value.to_bytes(length, 'big')
-
-    def int_from_bytes(self, data):
-        """Return an integer decoded from bytes in big-endian format."""
-        return int.from_bytes(data, 'big')
-
-    def int_from_bit_string(self, string):
-        """Return an integer decoded from a bitstring."""
-        return int(string, base=2)
-
-    def bit_string_from_int(self, value):
-        """Return a bitstring encoding of an integer."""
-
-        string = f'{value:b}'
-
-        # The bitstring must be padded to a multiple of 8 bits in length, or
-        # pyasn1 will interpret it incorrectly (as if the padding bits were
-        # present, but on the wrong end).
-        length = len(string)
-        padding_len = math.ceil(length / 8) * 8 - length
-        return '0' * padding_len + string
-
-    def bit_string_from_bytes(self, data):
-        """Return a bitstring encoding of bytes in big-endian format."""
-        value = self.int_from_bytes(data)
-        return self.bit_string_from_int(value)
-
-    def bytes_from_bit_string(self, string):
-        """Return big-endian format bytes encoded from a bitstring."""
-        value = self.int_from_bit_string(string)
-        length = math.ceil(len(string) / 8)
-        return value.to_bytes(length, 'big')
-
-    def asn1_length(self, data):
-        """Return the ASN.1 encoding of the length of some data."""
-
-        length = len(data)
-
-        self.assertGreater(length, 0)
-        if length < 0x80:
-            return bytes([length])
-
-        encoding_len = self.length_in_bytes(length)
-        self.assertLess(encoding_len, 0x80,
-                        'item is too long to be ASN.1 encoded')
-
-        data = self.bytes_from_int(length, length=encoding_len)
-        return bytes([0x80 | encoding_len]) + data
 
     @staticmethod
     def octetstring2key(x, enctype):
@@ -3783,7 +3746,7 @@ class RawKerberosTest(TestCase):
                     # Windows encodes the ASN.1 incorrectly, neglecting to add
                     # the SEQUENCE tag. We’ll have to prepend it ourselves in
                     # order for the decoding to work.
-                    encoded_len = self.asn1_length(decrypted_content)
+                    encoded_len = asn1.asn1_length(decrypted_content)
                     decrypted_content = bytes([0x30]) + encoded_len + (
                         decrypted_content)
 
@@ -3891,7 +3854,7 @@ class RawKerberosTest(TestCase):
                 self.assertElementEqual(dh_key_info, 'nonce',
                                         kdc_exchange_dict['pk_nonce'])
 
-                dh_public_key_data = self.bytes_from_bit_string(
+                dh_public_key_data = asn1.bytes_from_bit_string(
                     dh_key_info['subjectPublicKey'])
                 dh_public_key_decoded = self.der_decode(
                     dh_public_key_data, asn1Spec=krb5_asn1.DHPublicKey())
@@ -3906,7 +3869,7 @@ class RawKerberosTest(TestCase):
                 shared_secret = dh_private_key.exchange(dh_public_key)
 
                 # Pad the shared secret out to the length of ‘p’.
-                p_len = self.length_in_bytes(dh_numbers.p)
+                p_len = asn1.length_in_bytes(dh_numbers.p)
                 padding_len = p_len - len(shared_secret)
                 self.assertGreaterEqual(padding_len, 0)
                 padded_shared_secret = bytes(padding_len) + shared_secret
@@ -4370,7 +4333,7 @@ class RawKerberosTest(TestCase):
             pac_data = self.get_ticket_pac(ticket_creds, expect_pac=expect_pac)
             if expect_pac is True:
                 self.assertIsNotNone(pac_data)
-            elif expect_pac is False:
+            elif expect_pac is False and self.always_include_pac is False:
                 self.assertIsNone(pac_data)
 
             if pac_data is not None:
@@ -4886,8 +4849,9 @@ class RawKerberosTest(TestCase):
 
                 self.assertEqual(expect_pac_attrs_pac_request is True,
                                  requested_pac)
-                self.assertEqual(expect_pac_attrs_pac_request is None,
-                                 given_pac)
+                if not self.always_include_pac:
+                    self.assertEqual(expect_pac_attrs_pac_request is None,
+                                    given_pac)
 
             elif (pac_buffer.type == krb5pac.PAC_TYPE_REQUESTER_SID
                       and expect_requester_sid):
@@ -5116,7 +5080,9 @@ class RawKerberosTest(TestCase):
         self.assertElementEqual(rep, 'pvno', 5)
         self.assertElementEqual(rep, 'msg-type', KRB_ERROR)
         error_code = self.getElementValue(rep, 'error-code')
-        self.assertIn(error_code, expected_error_mode)
+        self.assertIn(error_code, expected_error_mode,
+                      f"{errmap.get(error_code)} not in "
+                      f"{[errmap.get(e) for e in expected_error_mode]}")
         if self.strict_checking:
             self.assertElementMissing(rep, 'ctime')
             self.assertElementMissing(rep, 'cusec')
@@ -5423,7 +5389,6 @@ class RawKerberosTest(TestCase):
                 require_strict.add(PADATA_ENCRYPTED_CHALLENGE)
 
             got_patypes = tuple(pa['padata-type'] for pa in rep_padata)
-            TD_CMS_DIGEST_ALGORITHMS = 111
             self.assertSequenceElementsEqual(expected_patypes, got_patypes,
                                              require_strict=require_strict,
                                              unchecked={PADATA_PW_SALT,TD_CMS_DIGEST_ALGORITHMS})

@@ -536,7 +536,7 @@ void add_to_large_array(TALLOC_CTX *mem_ctx, size_t element_size,
 			goto error;
 		}
 
-		*array = TALLOC(mem_ctx, element_size * (*array_size));
+		*array = talloc_size(mem_ctx, element_size * (*array_size));
 		if (*array == NULL) {
 			goto error;
 		}
@@ -549,8 +549,9 @@ void add_to_large_array(TALLOC_CTX *mem_ctx, size_t element_size,
 			goto error;
 		}
 
-		*array = TALLOC_REALLOC(mem_ctx, *array,
-					element_size * (*array_size));
+		*array = talloc_realloc_size(mem_ctx,
+					     *array,
+					     element_size * (*array_size));
 
 		if (*array == NULL) {
 			goto error;
@@ -1530,45 +1531,6 @@ bool any_nt_status_not_ok(NTSTATUS err1, NTSTATUS err2, NTSTATUS *result)
 	return false;
 }
 
-int timeval_to_msec(struct timeval t)
-{
-	return t.tv_sec * 1000 + (t.tv_usec+999) / 1000;
-}
-
-/*******************************************************************
- Check a given DOS pathname is valid for a share.
-********************************************************************/
-
-char *valid_share_pathname(TALLOC_CTX *ctx, const char *dos_pathname)
-{
-	char *ptr = NULL;
-
-	if (!dos_pathname) {
-		return NULL;
-	}
-
-	ptr = talloc_strdup(ctx, dos_pathname);
-	if (!ptr) {
-		return NULL;
-	}
-	/* Convert any '\' paths to '/' */
-	unix_format(ptr);
-	ptr = unix_clean_name(ctx, ptr);
-	if (!ptr) {
-		return NULL;
-	}
-
-	/* NT is braindead - it wants a C: prefix to a pathname ! So strip it. */
-	if (strlen(ptr) > 2 && ptr[1] == ':' && ptr[0] != '/')
-		ptr += 2;
-
-	/* Only absolute paths allowed. */
-	if (*ptr != '/')
-		return NULL;
-
-	return ptr;
-}
-
 /*******************************************************************
  Return True if the filename is one of the special executable types.
 ********************************************************************/
@@ -1788,26 +1750,6 @@ struct security_unix_token *root_unix_token(TALLOC_CTX *mem_ctx)
 	};
 
 	return t;
-}
-
-char *utok_string(TALLOC_CTX *mem_ctx, const struct security_unix_token *tok)
-{
-	char *str;
-	uint32_t i;
-
-	str = talloc_asprintf(
-		mem_ctx,
-		"uid=%ju, gid=%ju, %"PRIu32" groups:",
-		(uintmax_t)(tok->uid),
-		(uintmax_t)(tok->gid),
-		tok->ngroups);
-
-	for (i=0; i<tok->ngroups; i++) {
-		talloc_asprintf_addbuf(
-			&str, " %ju", (uintmax_t)tok->groups[i]);
-	}
-
-	return str;
 }
 
 /****************************************************************************

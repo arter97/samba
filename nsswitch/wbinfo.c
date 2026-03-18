@@ -1119,7 +1119,7 @@ static bool wbinfo_xids_to_sids(const char *arg)
 	p = arg;
 
 	while (next_token_talloc(frame, &p, &idstr, LIST_SEP)) {
-		xids = talloc_realloc(xids,
+		xids = talloc_realloc(frame,
 				      xids,
 				      struct wbcUnixId,
 				      num_xids + 1);
@@ -2037,10 +2037,9 @@ static bool wbinfo_pam_logon(char *username, bool verbose)
 			d_printf(" %s", buf);
 		}
 		d_printf("\n");
-
-		wbcFreeMemory(info);
-		info = NULL;
 	}
+	wbcFreeMemory(info);
+	info = NULL;
 
 	wbcFreeMemory(params.blobs);
 

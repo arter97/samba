@@ -2841,7 +2841,11 @@ struct loadparm_context *loadparm_init(TALLOC_CTX *mem_ctx)
 	lpcfg_do_global_parameter(lp_ctx, "ntvfs handler", "unixuid default");
 	lpcfg_do_global_parameter(lp_ctx, "max connections", "0");
 
-	lpcfg_do_global_parameter(lp_ctx, "dcerpc endpoint servers", "epmapper wkssvc samr netlogon lsarpc drsuapi dssetup unixinfo browser eventlog6 backupkey dnsserver");
+	lpcfg_do_global_parameter(
+		lp_ctx,
+		"dcerpc endpoint servers",
+		"epmapper samr netlogon lsarpc drsuapi dssetup unixinfo "
+		"browser eventlog6 backupkey dnsserver");
 	lpcfg_do_global_parameter(lp_ctx, "server services", "s3fs rpc nbt wrepl ldap cldap kdc drepl ft_scanner winbindd ntp_signd kcc dnsupdate dns");
 	lpcfg_do_global_parameter(lp_ctx, "kccsrv:samba_kcc", "true");
 	/* the winbind method for domain controllers is for both RODC
@@ -2953,6 +2957,13 @@ struct loadparm_context *loadparm_init(TALLOC_CTX *mem_ctx)
 	lpcfg_do_global_parameter_var(lp_ctx, "dns port", "%d", DNS_SERVICE_PORT);
 
 	lpcfg_do_global_parameter(lp_ctx, "kdc enable fast", "True");
+	lpcfg_do_global_parameter(lp_ctx, "strong certificate binding enforcement", "full");
+	lpcfg_do_global_parameter(lp_ctx, "certificate backdating compensation", "0");
+	lpcfg_do_global_parameter(lp_ctx, "kdc always include pac", "True");
+	lpcfg_do_global_parameter(lp_ctx, "kdc name match implicit dollar without canonicalization",
+				  "yes");
+	lpcfg_do_global_parameter(lp_ctx, "kdc require canonicalization", "no");
+	lpcfg_do_global_parameter(lp_ctx, "krb5 acceptor report canonical client name", "yes");
 
 	lpcfg_do_global_parameter(lp_ctx, "nt status support", "True");
 
@@ -3278,16 +3289,13 @@ struct loadparm_context *loadparm_init(TALLOC_CTX *mem_ctx)
 				  "acl claims evaluation",
 				  "AD DC only");
 
-	/* Set the default Himmelblaud globals */
 	lpcfg_do_global_parameter(lp_ctx,
-				  "himmelblaud hsm pin path",
-				  get_dyn_HIMMELBLAUD_HSM_PIN_PATH());
+				  "server smb encryption over quic",
+				  "yes");
+
 	lpcfg_do_global_parameter(lp_ctx,
-				  "himmelblaud hello enabled",
-				  "false");
-	lpcfg_do_global_parameter(lp_ctx,
-				  "himmelblaud sfa fallback",
-				  "false");
+				  "client smb encryption over quic",
+				  "yes");
 
 	for (i = 0; parm_table[i].label; i++) {
 		if (!(lp_ctx->flags[i] & FLAG_CMDLINE)) {

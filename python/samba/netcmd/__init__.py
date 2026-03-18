@@ -300,8 +300,9 @@ class Command(object):
 
         return parser, optiongroups
 
-    def message(self, text):
-        self.outf.write(text + "\n")
+    def message(self, *text):
+        for t in text:
+            print(t, file=self.outf)
 
     def _resolve(self, path, *argv, outf=None, errf=None):
         """This is a leaf node, the command that will actually run."""
@@ -500,3 +501,39 @@ class CommandError(Exception):
 
     def __repr__(self):
         return "CommandError(%s)" % self.message
+
+
+def exception_to_command_error(*exceptions, verbose=False):
+    """If you think all instances of a particular exceptions can be
+    turning to a CommandError, do this:
+
+    @exception_to_command_error(ValueError, LdbError):
+    def run(self, username, ...):
+        # continue as normal
+
+    Add the verbose=True flag during development if it is doing your
+    head in.
+    """
+    def wrap2(f):
+        def wrap(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except exceptions as e:
+                if verbose:
+                    print(colour.c_DARK_RED("↓" * 20 + "DEBUG" + "↓" * 20),
+                          file=sys.stderr)
+                    print(f"converting «e» raised in {f} "
+                          "to CommandError\n",
+                          file=sys.stderr)
+                    traceback.print_exc()
+                    print("\nThis message is here because "
+                          "exception_to_command_error() has the verbose=True"
+                          " debugging option set.",
+                          file=sys.stderr)
+                    print("Below this is what you would normally see:",
+                          file=sys.stderr)
+                    print(colour.c_DARK_RED("↑" * 20 + "DEBUG" + "↑" * 20),
+                          file=sys.stderr)
+                raise CommandError(e)
+        return wrap
+    return wrap2

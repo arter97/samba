@@ -367,13 +367,13 @@ const char *get_winbind_netbios_name(void)
 
 }
 
-DATA_BLOB get_challenge(void)
+DATA_BLOB get_challenge(TALLOC_CTX *mem_ctx)
 {
 	static DATA_BLOB chal;
 	if (opt_challenge.length)
 		return opt_challenge;
 
-	chal = data_blob(NULL, 8);
+	chal = data_blob_talloc(mem_ctx, NULL, 8);
 
 	generate_random_buffer(chal.data, chal.length);
 	return chal;
@@ -1456,7 +1456,7 @@ static void manage_gensec_request(enum stdio_helper_mode stdio_helper_mode,
 				  char *buf, int length, void **private1)
 {
 	DATA_BLOB in;
-	DATA_BLOB out = data_blob(NULL, 0);
+	DATA_BLOB out = {};
 	char *out_base64 = NULL;
 	const char *reply_arg = NULL;
 	struct gensec_ntlm_state {
@@ -2007,11 +2007,8 @@ static void manage_ntlm_server_1_request(enum stdio_helper_mode stdio_helper_mod
 		}
 		/* clear out the state */
 		data_blob_free(&challenge);
-		challenge = data_blob_null;
 		data_blob_free(&nt_response);
-		nt_response = data_blob_null;
 		data_blob_free(&lm_response);
-		lm_response = data_blob_null;
 		SAFE_FREE(full_username);
 		SAFE_FREE(username);
 		SAFE_FREE(domain);
@@ -2830,7 +2827,7 @@ enum {
 			}
 		}
 		fprintf(stderr, "unknown helper protocol [%s]\n\n"
-			"Valid helper protools:\n\n", helper_protocol);
+			"Valid helper protocols:\n\n", helper_protocol);
 
 		for (i=0; i<NUM_HELPER_MODES; i++) {
 			fprintf(stderr, "%s\n",

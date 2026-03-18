@@ -1649,17 +1649,17 @@ static void call_trans2qfsinfo(connection_struct *conn,
 
 	info_level = SVAL(params,0);
 
-	if (ENCRYPTION_REQUIRED(conn) && !req->encrypted) {
-		if (info_level != SMB_QUERY_CIFS_UNIX_INFO) {
-			DEBUG(0,("call_trans2qfsinfo: encryption required "
-				"and info level 0x%x sent.\n",
-				(unsigned int)info_level));
-			reply_nterror(req, NT_STATUS_ACCESS_DENIED);
-			return;
-		}
+	if (ENCRYPTION_REQUIRED(conn) && !req->encrypted &&
+	    (info_level != SMB_QUERY_CIFS_UNIX_INFO))
+	{
+		DBG_WARNING("encryption required and info level 0x%" PRIx16
+			    " sent.\n",
+			    info_level);
+		reply_nterror(req, NT_STATUS_ACCESS_DENIED);
+		return;
 	}
 
-	DEBUG(3,("call_trans2qfsinfo: level = %d\n", info_level));
+	DBG_NOTICE("level = %" PRIu16 "\n", info_level);
 
 	status = smbd_do_qfsinfo(req->xconn, conn, req,
 				 info_level,
@@ -1677,10 +1677,9 @@ static void call_trans2qfsinfo(connection_struct *conn,
 	send_trans2_replies(conn, req, NT_STATUS_OK, params, 0, *ppdata, data_len,
 			    max_data_bytes);
 
-	DEBUG( 4, ( "%s info_level = %d\n",
-		    smb_fn_name(req->cmd), info_level) );
-
-	return;
+	DBG_NOTICE("%s info_level = %" PRIu16 "\n",
+		   smb_fn_name(req->cmd),
+		   info_level);
 }
 
 /****************************************************************************
@@ -1805,7 +1804,7 @@ static void call_trans2setfsinfo(connection_struct *conn,
 					return;
 				}
 
-				if (lp_server_smb_encrypt(SNUM(conn)) ==
+				if (lp_server_smb_encrypt(xconn, SNUM(conn)) ==
 				    SMB_ENCRYPTION_OFF) {
 					reply_nterror(
 						req,
@@ -3700,12 +3699,16 @@ static NTSTATUS smb_set_file_unix_link(connection_struct *conn,
 
 static NTSTATUS smb_set_file_unix_hlink(connection_struct *conn,
 					struct smb_request *req,
-					const char *pdata, int total_data,
-					struct smb_filename *smb_fname_new)
+					const char *pdata,
+					int total_data,
+					struct files_struct *dirfsp_new,
+					struct smb_filename *smb_fname_new,
+					struct smb_filename *smb_fname_new_rel)
 {
 	char *oldname = NULL;
 	struct files_struct *src_dirfsp = NULL;
 	struct smb_filename *smb_fname_old = NULL;
+	struct smb_filename *smb_fname_old_rel = NULL;
 	uint32_t ucf_flags = ucf_flags_from_smb_request(req);
 	NTTIME old_twrp = 0;
 	TALLOC_CTX *ctx = talloc_tos();
@@ -3743,8 +3746,9 @@ static NTSTATUS smb_set_file_unix_hlink(connection_struct *conn,
 		return status;
 	}
 
-	DEBUG(10,("smb_set_file_unix_hlink: SMB_SET_FILE_UNIX_LINK doing hard link %s -> %s\n",
-		smb_fname_str_dbg(smb_fname_new), oldname));
+	DBG_DEBUG("SMB_SET_FILE_UNIX_LINK doing hard link %s -> %s\n",
+		  smb_fname_str_dbg(smb_fname_new),
+		  oldname);
 
 	if (ucf_flags & UCF_GMT_PATHNAME) {
 		extract_snapshot_token(oldname, &old_twrp);
@@ -3753,13 +3757,15 @@ static NTSTATUS smb_set_file_unix_hlink(connection_struct *conn,
 	if (!NT_STATUS_IS_OK(status)) {
 		return status;
 	}
-	status = filename_convert_dirfsp(ctx,
-					 conn,
-					 oldname,
-					 ucf_flags,
-					 old_twrp,
-					 &src_dirfsp,
-					 &smb_fname_old);
+	status = filename_convert_dirfsp_rel(ctx,
+					     conn,
+					     conn->cwd_fsp,
+					     oldname,
+					     ucf_flags,
+					     old_twrp,
+					     &src_dirfsp,
+					     &smb_fname_old,
+					     &smb_fname_old_rel);
 	if (!NT_STATUS_IS_OK(status)) {
 		return status;
 	}
@@ -3768,8 +3774,12 @@ static NTSTATUS smb_set_file_unix_hlink(connection_struct *conn,
 				  conn,
 				  req,
 				  false,
+				  src_dirfsp,
 				  smb_fname_old,
-				  smb_fname_new);
+				  smb_fname_old_rel,
+				  dirfsp_new,
+				  smb_fname_new,
+				  smb_fname_new_rel);
 }
 
 /****************************************************************************
@@ -4334,6 +4344,7 @@ static void call_trans2setpathinfo(
 {
 	uint16_t info_level;
 	struct smb_filename *smb_fname = NULL;
+	struct smb_filename *smb_fname_rel = NULL;
 	struct files_struct *dirfsp = NULL;
 	struct files_struct *fsp = NULL;
 	char *params = *pparams;
@@ -4405,13 +4416,15 @@ static void call_trans2setpathinfo(
 		reply_nterror(req, status);
 		return;
 	}
-	status = filename_convert_dirfsp(req,
-					 conn,
-					 fname,
-					 ucf_flags,
-					 twrp,
-					 &dirfsp,
-					 &smb_fname);
+	status = filename_convert_dirfsp_rel(req,
+					     conn,
+					     conn->cwd_fsp,
+					     fname,
+					     ucf_flags,
+					     twrp,
+					     &dirfsp,
+					     &smb_fname,
+					     &smb_fname_rel);
 	if (!NT_STATUS_IS_OK(status)) {
 		if (NT_STATUS_EQUAL(status,NT_STATUS_PATH_NOT_COVERED)) {
 			reply_botherror(req,
@@ -4456,8 +4469,13 @@ static void call_trans2setpathinfo(
 		break;
 
 	case SMB_SET_FILE_UNIX_HLINK:
-		status = smb_set_file_unix_hlink(
-			conn, req, *ppdata, total_data, smb_fname);
+		status = smb_set_file_unix_hlink(conn,
+						 req,
+						 *ppdata,
+						 total_data,
+						 dirfsp,
+						 smb_fname,
+						 smb_fname_rel);
 		break;
 
 	case SMB_SET_FILE_UNIX_BASIC:

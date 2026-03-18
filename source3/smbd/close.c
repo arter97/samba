@@ -538,8 +538,11 @@ static NTSTATUS close_remove_share_mode(files_struct *fsp,
 			 (unsigned int)lck_state.del_token->uid);
 
 		if (!push_sec_ctx()) {
-			smb_panic("close_remove_share_mode: file %s. failed to push "
-				  "sec_ctx.\n");
+			char *msg = talloc_asprintf(
+				talloc_tos(),
+				"close_remove_share_mode: file %s. "
+				"failed to push sec_ctx.\n", fsp_str_dbg(fsp));
+			smb_panic(msg);
 		}
 
 		set_sec_ctx(lck_state.del_token->uid,
@@ -849,12 +852,7 @@ static NTSTATUS close_normal_file(struct smb_request *req, files_struct *fsp,
 			NT_STATUS_RANGE_NOT_LOCKED);
 	}
 
-	/*
-	 * If we're flushing on a close we can get a write
-	 * error here, we must remember this.
-	 */
-
-	if (NT_STATUS_IS_OK(status) && fsp->op != NULL) {
+	if (fsp->op != NULL) {
 		is_durable = fsp->op->global->durable;
 	}
 

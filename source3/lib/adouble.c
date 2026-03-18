@@ -183,7 +183,7 @@ struct ad_entry_order {
 
 /* Netatalk AppleDouble metadata xattr */
 static const
-struct ad_entry_order entry_order_meta_xattr[ADEID_NUM_XATTR + 1] = {
+struct ad_entry_order entry_order_meta_xattr[] = {
 	{ADEID_FINDERI,    ADEDOFF_FINDERI_XATTR,    ADEDLEN_FINDERI},
 	{ADEID_COMMENT,    ADEDOFF_COMMENT_XATTR,    0},
 	{ADEID_FILEDATESI, ADEDOFF_FILEDATESI_XATTR, ADEDLEN_FILEDATESI},
@@ -197,7 +197,7 @@ struct ad_entry_order entry_order_meta_xattr[ADEID_NUM_XATTR + 1] = {
 
 /* AppleDouble resource fork file (the ones prefixed by "._") */
 static const
-struct ad_entry_order entry_order_dot_und[ADEID_NUM_DOT_UND + 1] = {
+struct ad_entry_order entry_order_dot_und[] = {
 	{ADEID_FINDERI,    ADEDOFF_FINDERI_DOT_UND,  ADEDLEN_FINDERI},
 	{ADEID_RFORK,      ADEDOFF_RFORK_DOT_UND,    0},
 	{0, 0, 0}
@@ -271,8 +271,8 @@ size_t ad_setentryoff(struct adouble *ad, int eid, size_t off)
 
 /*
  * All entries besides FinderInfo and resource fork must fit into the
- * buffer. FinderInfo is special as it may be larger then the default 32 bytes
- * if it contains marshalled xattrs, which we will fixup that in
+ * buffer. FinderInfo is special as it may be larger than the default 32 bytes
+ * if it contains marshalled xattrs, which we will fix up in
  * ad_convert(). The first 32 bytes however must also be part of the buffer.
  *
  * The resource fork is never accessed directly by the ad_data buf.
@@ -553,16 +553,13 @@ static bool ad_pack_xattrs(struct vfs_handle_struct *handle,
 
 	oldsize = talloc_get_size(ad->ad_data);
 	if (oldsize < AD_XATTR_MAX_HDR_SIZE) {
-		ad->ad_data = talloc_realloc(ad,
-					     ad->ad_data,
-					     char,
-					     AD_XATTR_MAX_HDR_SIZE);
+		ad->ad_data = talloc_realloc_zero(ad,
+						  ad->ad_data,
+						  char,
+						  AD_XATTR_MAX_HDR_SIZE);
 		if (ad->ad_data == NULL) {
 			return false;
 		}
-		memset(ad->ad_data + oldsize,
-		       0,
-		       AD_XATTR_MAX_HDR_SIZE - oldsize);
 	}
 
 	/*
@@ -2179,11 +2176,10 @@ static ssize_t ad_read_meta(vfs_handle_struct *handle,
 	/* Now parse entries */
 	ok = ad_unpack(ad, ADEID_NUM_XATTR, AD_DATASZ_XATTR);
 	if (!ok) {
-		DBG_WARNING(
-			"Invalid AppleDouble xattr metadata (%s) in file: %s - "
-			"Consider deleting the corrupted file.\n",
-			smb_fname->base_name,
-			ad->ad_fsp->fsp_name->base_name);
+		DBG_WARNING("Invalid AppleDouble xattr metadata (%s) in file: "
+			    "%s - Consider deleting the corrupted file.\n",
+			    smb_fname->base_name,
+			    fsp_str_dbg(ad->ad_fsp));
 		errno = EINVAL;
 		rc = -1;
 		goto exit;
@@ -2372,9 +2368,7 @@ static ssize_t ad_read_rsrc_adouble(vfs_handle_struct *handle,
 	}
 
 	to_read = ad->ad_fsp->fsp_name->st.st_ex_size;
-	if (to_read > AD_XATTR_MAX_HDR_SIZE) {
-		to_read = AD_XATTR_MAX_HDR_SIZE;
-	}
+	to_read = MIN(to_read, AD_XATTR_MAX_HDR_SIZE);
 
 	len = SMB_VFS_NEXT_PREAD(handle,
 				 ad->ad_fsp,
@@ -2395,7 +2389,7 @@ static ssize_t ad_read_rsrc_adouble(vfs_handle_struct *handle,
 		DBG_WARNING("Invalid AppleDouble resource (%s) in file: %s - "
 			    "Consider deleting the corrupted file.\n",
 			    smb_fname->base_name,
-			    ad->ad_fsp->fsp_name->base_name);
+			    fsp_str_dbg(ad->ad_fsp));
 		errno = EINVAL;
 		return -1;
 	}
@@ -2407,7 +2401,7 @@ static ssize_t ad_read_rsrc_adouble(vfs_handle_struct *handle,
 		DBG_WARNING("Invalid AppleDouble resource (%s) in file: %s - "
 			    "Consider deleting the corrupted file.\n",
 			    smb_fname->base_name,
-			    ad->ad_fsp->fsp_name->base_name);
+			    fsp_str_dbg(ad->ad_fsp));
 		errno = EINVAL;
 		return -1;
 	}
@@ -2811,13 +2805,15 @@ struct smb_filename *adouble_name(TALLOC_CTX *mem_ctx,
  **/
 AfpInfo *afpinfo_new(TALLOC_CTX *ctx)
 {
-	AfpInfo *ai = talloc_zero(ctx, AfpInfo);
+	AfpInfo *ai = talloc(ctx, AfpInfo);
 	if (ai == NULL) {
 		return NULL;
 	}
-	ai->afpi_Signature = AFP_Signature;
-	ai->afpi_Version = AFP_Version;
-	ai->afpi_BackupTime = AD_DATE_START;
+	*ai = (AfpInfo){
+		.afpi_Signature = AFP_Signature,
+		.afpi_Version = AFP_Version,
+		.afpi_BackupTime = AD_DATE_START,
+	};
 	return ai;
 }
 
@@ -2871,4 +2867,65 @@ AfpInfo *afpinfo_unpack(TALLOC_CTX *ctx, const void *data, bool validate)
 	}
 
 	return ai;
+}
+
+bool adouble_buf_parse(const uint8_t *buf,
+		       size_t buflen,
+		       struct adouble_buf *ad)
+{
+	size_t i, nentries;
+
+	if (buflen < AD_HEADER_LEN) {
+		return false;
+	}
+
+	*ad = (struct adouble_buf){
+		.magic = PULL_BE_U32(buf, ADEDOFF_MAGIC),
+		.version = PULL_BE_U32(buf, ADEDOFF_VERSION),
+	};
+
+	if ((ad->magic != AD_MAGIC) || (ad->version != AD_VERSION)) {
+		return false;
+	}
+
+	nentries = PULL_BE_U16(buf, ADEDOFF_NENTRIES);
+
+	/*
+	 * no overflow, nentries is just 16 bits
+	 */
+
+	if ((AD_HEADER_LEN + (AD_ENTRY_LEN * (size_t)nentries)) > buflen) {
+		return false;
+	}
+
+	for (i = 0; i < nentries; i++) {
+		size_t eoff = AD_HEADER_LEN + i * AD_ENTRY_LEN;
+		uint32_t id = get_eid(PULL_BE_U32(buf, eoff));
+		uint32_t off = PULL_BE_U32(buf, eoff + 4);
+		uint32_t len = PULL_BE_U32(buf, eoff + 8);
+		bool ok;
+
+		if ((id == 0) || (id >= ADEID_MAX)) {
+			return false;
+		}
+
+		ok = ad_entry_check_size(id, buflen, off, len);
+		if (!ok) {
+			return false;
+		}
+
+		if (ad->entries[id].data != NULL) {
+			/*
+			 * Duplicate id
+			 */
+			return false;
+		}
+
+		ad->entries[i] = (DATA_BLOB){
+			.data = discard_const_p(uint8_t, buf) + off,
+			.length = len,
+		};
+	}
+
+	return true;
 }

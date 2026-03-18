@@ -151,12 +151,7 @@ static int ceph_snap_fill_label(struct vfs_handle_struct *handle,
 		return -EINVAL;
 	}
 
-	smb_fname = synthetic_smb_fname(tmp_ctx,
-					snap_path,
-					NULL,
-					NULL,
-					0,
-					0);
+	smb_fname = cp_smb_basename(tmp_ctx, snap_path);
 	if (smb_fname == NULL) {
 		return -ENOMEM;
 	}
@@ -414,8 +409,7 @@ static int ceph_snap_get_shadow_copy_data(struct vfs_handle_struct *handle,
 						   "ceph", "snapdir",
 						   CEPH_SNAP_SUBDIR_DEFAULT);
 
-	DBG_DEBUG("getting shadow copy data for %s\n",
-		  fsp->fsp_name->base_name);
+	DBG_DEBUG("getting shadow copy data for %s\n", fsp_str_dbg(fsp));
 
 	tmp_ctx = talloc_new(fsp);
 	if (tmp_ctx == NULL) {
@@ -606,12 +600,7 @@ static int ceph_snap_gmt_convert_dir(struct vfs_handle_struct *handle,
 			goto err_out;
 		}
 
-		smb_fname = synthetic_smb_fname(tmp_ctx,
-						_converted_buf,
-						NULL,
-						NULL,
-						0,
-						0);
+		smb_fname = cp_smb_basename(tmp_ctx, _converted_buf);
 		if (smb_fname == NULL) {
 			ret = -ENOMEM;
 			goto err_out;
@@ -753,11 +742,11 @@ static int ceph_snap_gmt_convert(struct vfs_handle_struct *handle,
 }
 
 static int ceph_snap_gmt_renameat(vfs_handle_struct *handle,
-			files_struct *srcfsp,
-			const struct smb_filename *smb_fname_src,
-			files_struct *dstfsp,
-			const struct smb_filename *smb_fname_dst,
-			const struct vfs_rename_how *how)
+				  files_struct *src_dirfsp,
+				  const struct smb_filename *smb_fname_src,
+				  files_struct *dst_dirfsp,
+				  const struct smb_filename *smb_fname_dst,
+				  const struct vfs_rename_how *how)
 {
 	int ret;
 	time_t timestamp_src, timestamp_dst;
@@ -785,11 +774,11 @@ static int ceph_snap_gmt_renameat(vfs_handle_struct *handle,
 		return -1;
 	}
 	return SMB_VFS_NEXT_RENAMEAT(handle,
-				srcfsp,
-				smb_fname_src,
-				dstfsp,
-				smb_fname_dst,
-				how);
+				     src_dirfsp,
+				     smb_fname_src,
+				     dst_dirfsp,
+				     smb_fname_dst,
+				     how);
 }
 
 /* block links from writeable shares to snapshots for now, like other modules */
@@ -829,9 +818,9 @@ static int ceph_snap_gmt_symlinkat(vfs_handle_struct *handle,
 }
 
 static int ceph_snap_gmt_linkat(vfs_handle_struct *handle,
-				files_struct *srcfsp,
+				files_struct *src_dirfsp,
 				const struct smb_filename *old_smb_fname,
-				files_struct *dstfsp,
+				files_struct *dst_dirfsp,
 				const struct smb_filename *new_smb_fname,
 				int flags)
 {
@@ -860,11 +849,11 @@ static int ceph_snap_gmt_linkat(vfs_handle_struct *handle,
 		return -1;
 	}
 	return SMB_VFS_NEXT_LINKAT(handle,
-			srcfsp,
-			old_smb_fname,
-			dstfsp,
-			new_smb_fname,
-			flags);
+				   src_dirfsp,
+				   old_smb_fname,
+				   dst_dirfsp,
+				   new_smb_fname,
+				   flags);
 }
 
 static int ceph_snap_gmt_stat(vfs_handle_struct *handle,

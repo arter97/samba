@@ -28,7 +28,7 @@ from selftesthelpers import planpythontestsuite, planperltestsuite
 from selftesthelpers import plantestsuite_loadlist
 from selftesthelpers import skiptestsuite, source4dir, valgrindify
 from selftesthelpers import smbtorture4_options, smbtorture4_testsuites
-from selftesthelpers import smbtorture4, samba3srcdir
+from selftesthelpers import smbtorture4, samba3srcdir, read_config_h
 
 
 print("OPTIONS %s" % " ".join(smbtorture4_options), file=sys.stderr)
@@ -99,22 +99,7 @@ for auth_type in ['', '-k no', '-k yes']:
         options = creds + ' ' + auth_type + ' ' + auth_level
         plantestsuite("samba4.ldb.ldap with options %r(ad_dc_default)" % options, "ad_dc_default", "%s/test_ldb.sh ldap $SERVER %s" % (bbdir, options))
 
-# see if we support ADS on the Samba3 side
-try:
-    config_h = os.environ["CONFIG_H"]
-except KeyError:
-    config_h = os.path.join(samba4bindir, "default/include/config.h")
-
-# check available features
-config_hash = dict()
-f = open(config_h, 'r')
-try:
-    lines = f.readlines()
-    config_hash = dict((x[0], ' '.join(x[1:]))
-                       for x in map(lambda line: line.strip().split(' ')[1:],
-                                    list(filter(lambda line: (line[0:7] == '#define') and (len(line.split(' ')) > 2), lines))))
-finally:
-    f.close()
+config_hash = read_config_h()
 
 have_heimdal_support = ("SAMBA4_USES_HEIMDAL" in config_hash)
 have_gnutls_fips_mode_support = ("HAVE_GNUTLS_FIPS_MODE_SUPPORTED" in config_hash)
@@ -464,6 +449,8 @@ for t in libsmbclient:
         url = "smb://$USERNAME:$PASSWORD@$SERVER"
     if t == "libsmbclient.utimes":
         url += "/utimes.txt"
+    if t == "libsmbclient.posix_extensions" or t == "libsmbclient.posix_hardlinks":
+        url = "smb://$USERNAME:$PASSWORD@$SERVER/smb3_posix_share"
 
     libsmbclient_testargs = [
         '//$SERVER/tmp',
@@ -504,13 +491,49 @@ for t in smbtorture4_testsuites("rap."):
 
 # Tests against the NTVFS CIFS backend
 for t in base + raw:
-    plansmbtorture4testsuite(t, "ad_dc_ntvfs", ['//$NETBIOSNAME/cifs', '-U$USERNAME%$PASSWORD', '--kerberos=yes'] + ntvfsargs, modname="samba4.ntvfs.cifs.krb5.%s" % t)
+    plansmbtorture4testsuite(
+        t,
+        "ad_dc_ntvfs",
+        [
+            '//$NETBIOSNAME/cifs',
+            '-U$USERNAME%$PASSWORD',
+            '--use-kerberos=required'
+        ] + ntvfsargs,
+        modname="samba4.ntvfs.cifs.krb5.%s" % t
+    )
 
 # Test NTVFS CIFS backend with S4U2Self and S4U2Proxy
 t = "base.unlink"
-plansmbtorture4testsuite(t, "ad_dc_ntvfs", ['//$NETBIOSNAME/cifs', '-U$USERNAME%$PASSWORD', '--kerberos=no'] + ntvfsargs, "samba4.ntvfs.cifs.ntlm.%s" % t)
-plansmbtorture4testsuite(t, "rpc_proxy", ['//$NETBIOSNAME/cifs_to_dc', '-U$DC_USERNAME%$DC_PASSWORD', '--kerberos=yes'] + ntvfsargs, "samba4.ntvfs.cifs.krb5.%s" % t)
-plansmbtorture4testsuite(t, "rpc_proxy", ['//$NETBIOSNAME/cifs_to_dc', '-U$DC_USERNAME%$DC_PASSWORD', '--kerberos=no'] + ntvfsargs, "samba4.ntvfs.cifs.ntlm.%s" % t)
+plansmbtorture4testsuite(
+    t,
+    "ad_dc_ntvfs",
+    [
+        '//$NETBIOSNAME/cifs',
+        '-U$USERNAME%$PASSWORD',
+        '--use-kerberos=disabled'
+    ] + ntvfsargs,
+    "samba4.ntvfs.cifs.ntlm.%s" % t
+)
+plansmbtorture4testsuite(
+    t,
+    "rpc_proxy",
+    [
+        '//$NETBIOSNAME/cifs_to_dc',
+        '-U$DC_USERNAME%$DC_PASSWORD',
+        '--use-kerberos=required'
+    ] + ntvfsargs,
+    "samba4.ntvfs.cifs.krb5.%s" % t
+)
+plansmbtorture4testsuite(
+    t,
+    "rpc_proxy",
+    [
+        '//$NETBIOSNAME/cifs_to_dc',
+        '-U$DC_USERNAME%$DC_PASSWORD',
+        '--use-kerberos=disabled'
+    ] + ntvfsargs,
+    "samba4.ntvfs.cifs.ntlm.%s" % t
+)
 
 plansmbtorture4testsuite('echo.udp', 'ad_dc_ntvfs:local', '//$SERVER/whatever')
 
@@ -1195,6 +1218,8 @@ planpythontestsuite("ad_dc_default:local", "samba.tests.samba_tool.processes")
 planpythontestsuite("ad_dc_ntvfs:local", "samba.tests.samba_tool.user")
 planpythontestsuite("ad_dc_default", "samba.tests.samba_tool.user_auth_policy")
 planpythontestsuite("ad_dc_default", "samba.tests.samba_tool.user_auth_silo")
+planpythontestsuite("ad_dc_default", "samba.tests.samba_tool.user_keytrust")
+planpythontestsuite("ad_dc_default", "samba.tests.samba_tool.user_generate_csr")
 for env in ["ad_dc_default:local", "ad_dc_no_ntlm:local"]:
     planpythontestsuite(env, "samba.tests.samba_tool.user_wdigest")
 for env, nt_hash in [("ad_dc:local", True),
@@ -1258,6 +1283,7 @@ planoldpythontestsuite("ad_member", "samba.tests.gpo_member", extra_args=['-U"$U
 planoldpythontestsuite("ad_dc:local", "samba.tests.dckeytab", extra_args=['-U"$USERNAME%$PASSWORD"'])
 
 planoldpythontestsuite("ad_dc", "samba.tests.sid_strings")
+planoldpythontestsuite("ad_dc", "samba.tests.key_credential_link_samdb")
 
 # Run the import test in environments that may not have the ad-dc built
 envs = ['fileserver_smb1', 'nt4_member', 'ktest', 'nt4_dc', 'nt4_dc_smb1_done', 'nt4_dc_smb1', 'simpleserver', 'fileserver_smb1_done', 'fileserver', 'maptoguest', 'nt4_dc_schannel']
@@ -1281,6 +1307,7 @@ check_padata = int('SAMBA4_USES_HEIMDAL' in config_hash)
 expect_nt_status = int('SAMBA4_USES_HEIMDAL' in config_hash)
 as_req_logging_support = int('SAMBA4_USES_HEIMDAL' in config_hash)
 tgs_req_logging_support = int('SAMBA4_USES_HEIMDAL' in config_hash)
+embedded_heimdal = int('USING_EMBEDDED_HEIMDAL' in config_hash)
 
 ca_dir = os.path.join('selftest', 'manage-ca', 'CA-samba.example.com')
 
@@ -1318,6 +1345,7 @@ krb5_environ = {
     'CA_CERT': ca_cert_path,
     'CA_PRIVATE_KEY': ca_private_key_path,
     'CA_PASS': ca_pass,
+    'USING_EMBEDDED_HEIMDAL' : embedded_heimdal,
 }
 planoldpythontestsuite("none", "samba.tests.krb5.kcrypto")
 planoldpythontestsuite("none", "samba.tests.krb5.claims_in_pac")
@@ -1717,6 +1745,8 @@ for env in all_fl_envs + ["schema_dc"]:
     plantestsuite_loadlist("samba4.ldap.acl.python(%s)" % env, env, ["STRICT_CHECKING=0", python, os.path.join(DSDB_PYTEST_DIR, "acl.py"), '$SERVER', '-U"$USERNAME%$PASSWORD"', '--workgroup=$DOMAIN', '$LOADLIST', '$LISTOPT'])
     plantestsuite_loadlist("samba4.ldap.acl_modify.python(%s)" % env, env, ["STRICT_CHECKING=0", python, os.path.join(DSDB_PYTEST_DIR, "acl_modify.py"), '$SERVER', '-U"$USERNAME%$PASSWORD"', '--workgroup=$DOMAIN', '$LOADLIST', '$LISTOPT'])
 
+plantestsuite_loadlist("samba4.ldap.key_credential_link.python", "schema_dc", ["STRICT_CHECKING=0", python, os.path.join(DSDB_PYTEST_DIR, "key_credential_link.py"), '$SERVER', '-U"$USERNAME%$PASSWORD"', '--workgroup=$DOMAIN', '$LOADLIST', '$LISTOPT'])
+
 for env in all_fl_envs + ["schema_dc", "ad_dc_no_ntlm"]:
     if env != "fl2000dc":
         # This test makes excessive use of the "userPassword" attribute which
@@ -2020,6 +2050,63 @@ for env in ["rodc", "promoted_dc", "fl2000dc", "fl2008r2dc"]:
                                                             '--option=torture:expect_machine_account=true'] + extra_options,
                              "samba4.krb5.kdc with machine account")
 
+plansmbtorture4testsuite('krb5.kdc', "ad_dc_ntvfs:local",
+                         ['ncacn_np:$SERVER_IP', "-k", "yes", '-P',
+                          '--workgroup=$DOMAIN', '--realm=$REALM',
+                          '--option=torture:krb5-hostname=$SERVER',
+                          '--option=torture:run_removedollar_test=true',
+                          '--option=torture:expect_machine_account=true'],
+                         "samba4.krb5.kdc with machine account no dollar extension")
+
+planpythontestsuite(
+    "ad_dc_ntvfs",
+    "samba.tests.krb5.ms_kile_client_principal_lookup_tests",
+    environ=krb5_environ)
+planpythontestsuite(
+    "ad_dc_ntvfs",
+    "samba.tests.krb5.spn_tests",
+    environ=krb5_environ)
+planpythontestsuite(
+    "ad_dc_ntvfs",
+    "samba.tests.krb5.alias_tests",
+    environ=krb5_environ)
+planpythontestsuite(
+    "ad_dc_ntvfs",
+    "samba.tests.krb5.as_canonicalization_tests",
+    environ=krb5_environ)
+planpythontestsuite(
+    "ad_dc_ntvfs",
+    "samba.tests.krb5.as_req_tests",
+    environ=krb5_environ)
+
+# schema_dc has require canonicalization = yes
+canon_env = "schema_dc"
+plansmbtorture4testsuite('krb5.kdc', f"{canon_env}:local",
+                         ['ncacn_np:$SERVER_IP', "-k", "yes", '-P',
+                          '--workgroup=$DOMAIN', '--realm=$REALM',
+                          '--option=torture:krb5-hostname=$SERVER',
+                          '--option=torture:run_removedollar_test=true',
+                          '--option=torture:expect_machine_account=true'],
+                         "samba4.krb5.kdc with machine account require canonicalization")
+
+planpythontestsuite(
+    canon_env,
+    "samba.tests.krb5.ms_kile_client_principal_lookup_tests",
+    environ=krb5_environ)
+planpythontestsuite(
+    canon_env,
+    "samba.tests.krb5.spn_tests",
+    environ=krb5_environ)
+planpythontestsuite(
+    canon_env,
+    "samba.tests.krb5.as_canonicalization_tests",
+    environ=krb5_environ)
+planpythontestsuite(
+    canon_env,
+    "samba.tests.krb5.as_req_tests",
+    environ=krb5_environ)
+
+
 planpythontestsuite("ad_dc", "samba.tests.krb5.as_canonicalization_tests",
                     environ=krb5_environ)
 for env, fast_support in [("ad_dc", True),
@@ -2033,6 +2120,10 @@ planpythontestsuite("ad_dc", "samba.tests.krb5.kdc_tests",
                     environ=krb5_environ)
 planpythontestsuite(
     "ad_dc",
+    "samba.tests.krb5.kdc_tgs_tests",
+    environ=krb5_environ)
+planpythontestsuite(
+    "fl2008r2dc",
     "samba.tests.krb5.kdc_tgs_tests",
     environ=krb5_environ)
 planpythontestsuite(
@@ -2108,6 +2199,28 @@ planoldpythontestsuite(
     'ad_dc',
     'samba.tests.krb5.pkinit_tests',
     environ=krb5_environ)
+
+# strong certificate binding enforcement = none
+planoldpythontestsuite(
+    'ad_dc',
+    'samba.tests.krb5.pkinit_certificate_mapping_tests',
+    environ=krb5_environ)
+# strong certificate binding enforcement = compatibility
+planoldpythontestsuite(
+    'ad_dc_ntvfs',
+    'samba.tests.krb5.pkinit_certificate_mapping_tests',
+    environ=krb5_environ)
+# strong certificate binding enforcement = full
+# the default.
+planoldpythontestsuite(
+    'ad_dc_smb1',
+    'samba.tests.krb5.pkinit_certificate_mapping_tests',
+    environ=krb5_environ)
+
+planoldpythontestsuite(
+    'ad_dc',
+    'samba.tests.krb5.key_trust_tests',
+    environ=krb5_environ)
 planoldpythontestsuite(
     'ad_dc',
     'samba.tests.krb5.conditional_ace_tests',
@@ -2145,24 +2258,6 @@ for env in ["ktest", "ad_member", "ad_dc_no_ntlm"]:
     planoldpythontestsuite(env, "ntlmdisabled",
                            extra_path=[os.path.join(srcdir(), 'python/samba/tests')],
                            name="samba.tests.ntlmdisabled.python(%s)" % env)
-
-# Demote the vampire DC, it must be the last test each DC, before the dbcheck
-for env in ['vampire_dc', 'promoted_dc', 'rodc']:
-    planoldpythontestsuite(env, "samba.tests.samba_tool.demote",
-                           name="samba.tests.samba_tool.demote",
-                           environ={
-                               'CONFIGFILE': '$PREFIX/%s/etc/smb.conf' % env
-                           },
-                           extra_args=['-U"$USERNAME%$PASSWORD"'],
-                           extra_path=[os.path.join(srcdir(), "samba/python")]
-                           )
-# TODO: Verifying the databases really should be a part of the
-# environment teardown.
-# check the databases are all OK. PLEASE LEAVE THIS AS THE LAST TEST
-for env in ["ad_dc", "fl2000dc", "fl2003dc", "fl2008r2dc",
-            'vampire_dc', 'promoted_dc', 'backupfromdc', 'restoredc',
-            'renamedc', 'offlinebackupdc', 'labdc']:
-    plantestsuite("samba4.blackbox.dbcheck(%s)" % env, env + ":local", ["PYTHON=%s" % python, os.path.join(bbdir, "dbcheck.sh"), '$PREFIX/provision', configuration])
 
 #
 # Tests to verify bug 13653 https://bugzilla.samba.org/show_bug.cgi?id=13653
@@ -2260,3 +2355,72 @@ if 'WITH_SYSTEMD_USERDB' in config_hash:
     planpythontestsuite("ad_dc:local", "samba.tests.varlink.getuserrecord")
     planpythontestsuite("ad_dc:local", "samba.tests.varlink.getgrouprecord")
     planpythontestsuite("ad_dc:local", "samba.tests.varlink.getmemberships")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#                     this space intentionally left blank.
+#                     the tests below want to be last, but
+#                     we keep forgetting.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Demote the vampire DC, it must be the last test each DC, before the dbcheck
+for env in ['vampire_dc', 'promoted_dc', 'rodc']:
+    planoldpythontestsuite(env, "samba.tests.samba_tool.demote",
+                           name="samba.tests.samba_tool.demote",
+                           environ={
+                               'CONFIGFILE': '$PREFIX/%s/etc/smb.conf' % env
+                           },
+                           extra_args=['-U"$USERNAME%$PASSWORD"'],
+                           extra_path=[os.path.join(srcdir(), "samba/python")]
+                           )
+# TODO: Verifying the databases really should be a part of the
+# environment teardown.
+# check the databases are all OK. PLEASE LEAVE THIS AS THE LAST TEST
+for env in ["ad_dc", "fl2000dc", "fl2003dc", "fl2008r2dc",
+            'vampire_dc', 'promoted_dc', 'backupfromdc', 'restoredc',
+            'renamedc', 'offlinebackupdc', 'labdc']:
+    plantestsuite("samba4.blackbox.dbcheck(%s)" % env, env + ":local",
+                  ["PYTHON=%s" % python,
+                   os.path.join(bbdir, "dbcheck.sh"),
+                   '$PREFIX/provision',
+                   configuration])
+
+
+#  DO NOT ADD TESTS HERE.
+# The previous tests are meant to run last.

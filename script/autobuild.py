@@ -178,10 +178,6 @@ builddirs = {
 ctdb_configure_params = " --enable-developer ${PREFIX}"
 samba_configure_params = " ${ENABLE_COVERAGE} ${PREFIX} --with-profiling-data --with-prometheus-exporter"
 
-# We cannot configure himmelblau on old systems missing openssl 3, with glibc
-# older than version 2.32, or when cargo isn't available.
-himmelblau_configure_params = ''
-
 # To test that waf copes with unknown arguments that look like
 # environment variables, we add a couple of parameters that should be
 # treated environment variables that happen to have no effect.
@@ -196,8 +192,6 @@ glibc_vers = float('.'.join(get_libc_version().split('.')[:2]))
 cargo = shutil.which('cargo')
 if glibc_vers >= 2.32 and cargo != None:
     rust_configure_param = ' --enable-rust'
-if ssl.OPENSSL_VERSION_INFO[0] >= 3 and rust_configure_param:
-    himmelblau_configure_params = rust_configure_param + ' --with-himmelblau'
 
 samba_libs_envvars = "PYTHONPATH=${PYTHON_PREFIX}:$PYTHONPATH"
 samba_libs_envvars += " PKG_CONFIG_PATH=$PKG_CONFIG_PATH:${PREFIX_DIR}/lib/pkgconfig"
@@ -348,7 +342,7 @@ tasks = {
     "samba-no-opath-build": {
         "git-clone-required": True,
         "sequence": [
-            ("configure", "ADDITIONAL_CFLAGS='-DDISABLE_OPATH=1 -DDISABLE_VFS_OPEN_HOW_RESOLVE_NO_SYMLINKS=1 -DDISABLE_PROC_FDS=1' ./configure.developer --without-ad-dc " + samba_configure_params),
+            ("configure", "ADDITIONAL_CFLAGS='-DDISABLE_OPATH=1 -DDISABLE_VFS_OPEN_HOW_RESOLVE_NO_SYMLINKS=1 -DDISABLE_VFS_OPEN_HOW_RESOLVE_NO_XDEV=1 -DDISABLE_PROC_FDS=1' ./configure.developer --without-ad-dc " + samba_configure_params),
             ("make", "make -j"),
             ("check-clean-tree", CLEAN_SOURCE_TREE_CMD),
             ("chmod-R-a-w", "chmod -R a-w ."),
@@ -808,6 +802,9 @@ tasks = {
             "ad_member_oneway",
             "fl2003dc",
             ])),
+            ("quick-test-ntvfs-krb5",
+             make_test(include_envs=["ad_dc_ntvfs"],
+                       TESTS='krb5')),
             ("lcov", LCOV_CMD),
             ("check-clean-tree", CLEAN_SOURCE_TREE_CMD),
         ],
@@ -820,6 +817,9 @@ tasks = {
             "fl2008dc",
             "fl2008r2dc",
             ])),
+            ("quick-test-schema-dc-krb5",
+             make_test(include_envs=["schema_dc"],
+                       TESTS='krb5')),
             ("lcov", LCOV_CMD),
             ("check-clean-tree", CLEAN_SOURCE_TREE_CMD),
         ],
@@ -864,7 +864,7 @@ tasks = {
     "samba-o3": {
         "sequence": [
             ("random-sleep", random_sleep(300, 900)),
-            ("configure", "ADDITIONAL_CFLAGS='" + samba_o3_cflags + "' ./configure.developer --abi-check-disable" + himmelblau_configure_params + samba_configure_params),
+            ("configure", "ADDITIONAL_CFLAGS='" + samba_o3_cflags + "' ./configure.developer --abi-check-disable" + samba_configure_params),
             ("make", "make -j"),
             ("test", make_test(cmd='make test', TESTS="--exclude=selftest/slow-none", include_envs=["none"])),
             ("quicktest", make_test(cmd='make quicktest', include_envs=["ad_dc", "ad_dc_smb1", "ad_dc_smb1_done"])),

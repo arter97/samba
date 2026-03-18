@@ -1,4 +1,4 @@
-/* 
+/*
  * Auditing VFS module for samba.  Log selected file operations to syslog
  * facility.
  *
@@ -11,12 +11,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *  
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -274,11 +274,11 @@ static int audit_close(vfs_handle_struct *handle, files_struct *fsp)
 }
 
 static int audit_renameat(vfs_handle_struct *handle,
-			files_struct *srcfsp,
-			const struct smb_filename *smb_fname_src,
-			files_struct *dstfsp,
-			const struct smb_filename *smb_fname_dst,
-			const struct vfs_rename_how *how)
+			  files_struct *src_dirfsp,
+			  const struct smb_filename *smb_fname_src,
+			  files_struct *dst_dirfsp,
+			  const struct smb_filename *smb_fname_dst,
+			  const struct vfs_rename_how *how)
 {
 	struct smb_filename *full_fname_src = NULL;
 	struct smb_filename *full_fname_dst = NULL;
@@ -286,7 +286,7 @@ static int audit_renameat(vfs_handle_struct *handle,
 	int saved_errno = 0;
 
 	full_fname_src = full_path_from_dirfsp_atname(talloc_tos(),
-						      srcfsp,
+						      src_dirfsp,
 						      smb_fname_src);
 	if (full_fname_src == NULL) {
 		errno = ENOMEM;
@@ -294,7 +294,7 @@ static int audit_renameat(vfs_handle_struct *handle,
 	}
 
 	full_fname_dst = full_path_from_dirfsp_atname(talloc_tos(),
-						      dstfsp,
+						      dst_dirfsp,
 						      smb_fname_dst);
 	if (full_fname_dst == NULL) {
 		TALLOC_FREE(full_fname_src);
@@ -303,11 +303,11 @@ static int audit_renameat(vfs_handle_struct *handle,
 	}
 
 	result = SMB_VFS_NEXT_RENAMEAT(handle,
-			srcfsp,
-			smb_fname_src,
-			dstfsp,
-			smb_fname_dst,
-			how);
+				       src_dirfsp,
+				       smb_fname_src,
+				       dst_dirfsp,
+				       smb_fname_dst,
+				       how);
 	if (result == -1) {
 		saved_errno = errno;
 	}
@@ -404,7 +404,7 @@ NTSTATUS vfs_extd_audit_init(TALLOC_CTX *ctx)
 {
 	NTSTATUS ret = smb_register_vfs(SMB_VFS_INTERFACE_VERSION,
 					"extd_audit", &vfs_extd_audit_fns);
-	
+
 	if (!NT_STATUS_IS_OK(ret))
 		return ret;
 
@@ -415,6 +415,6 @@ NTSTATUS vfs_extd_audit_init(TALLOC_CTX *ctx)
 	} else {
 		DEBUG(10, ("vfs_extd_audit: Debug class number of 'extd_audit': %d\n", vfs_extd_audit_debug_level));
 	}
-	
+
 	return ret;
 }

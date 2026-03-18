@@ -267,6 +267,7 @@ static uint8_t *internal_bytes_push_str(uint8_t *buf, bool ucs2,
 				   ucs2 ? CH_UTF16LE : CH_DOS,
 				   str, str_len, &converted,
 				   &converted_size)) {
+		TALLOC_FREE(buf);
 		TALLOC_FREE(frame);
 		return NULL;
 	}
@@ -541,9 +542,11 @@ static int32_t parse_enum_val(const struct enum_list *e,
 	return ret;
 }
 
-struct smb311_capabilities smb311_capabilities_parse(const char *role,
-				const char * const *signing_algos,
-				const char * const *encryption_algos)
+struct smb311_capabilities smb311_capabilities_parse(
+	const char *role,
+	const char *const *signing_algos,
+	const char *const *encryption_algos,
+	bool smb_encryption_over_quic)
 {
 	struct smb311_capabilities c = {
 		.signing = {
@@ -552,6 +555,7 @@ struct smb311_capabilities smb311_capabilities_parse(const char *role,
 		.encryption = {
 			.num_algos = 0,
 		},
+		.smb_encryption_over_quic = smb_encryption_over_quic,
 	};
 	char sign_param[64] = { 0, };
 	char enc_param[64] = { 0, };

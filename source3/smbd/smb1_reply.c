@@ -406,16 +406,14 @@ void reply_tcon_and_X(struct smb_request *req)
 		/*
 		 * The application key is truncated/padded to 16 bytes
 		 */
-		x->global->application_key_blob = data_blob_talloc(x->global,
-							     session_key,
-							     sizeof(session_key));
+		x->global->application_key_blob = data_blob_talloc_s(
+			x->global, session_key, sizeof(session_key));
 		ZERO_STRUCT(session_key);
 		if (x->global->application_key_blob.data == NULL) {
 			reply_nterror(req, NT_STATUS_NO_MEMORY);
 			END_PROFILE(SMBtconX);
 			return;
 		}
-		talloc_keep_secret(x->global->application_key_blob.data);
 
 		if (tcon_flags & TCONX_FLAG_EXTENDED_SIGNATURES) {
 			NTSTATUS status;
@@ -436,15 +434,14 @@ void reply_tcon_and_X(struct smb_request *req)
 		 * Place the application key into the session_info
 		 */
 		data_blob_clear_free(&session_info->session_key);
-		session_info->session_key = data_blob_dup_talloc(session_info,
-						x->global->application_key_blob);
+		session_info->session_key = data_blob_dup_talloc_s(
+			session_info, x->global->application_key_blob);
 		if (session_info->session_key.data == NULL) {
 			data_blob_clear_free(&x->global->application_key_blob);
 			reply_nterror(req, NT_STATUS_NO_MEMORY);
 			END_PROFILE(SMBtconX);
 			return;
 		}
-		talloc_keep_secret(session_info->session_key.data);
 		session_key_updated = true;
 	}
 
@@ -6342,14 +6339,11 @@ void reply_mv(struct smb_request *req)
 	TALLOC_CTX *ctx = talloc_tos();
 	struct files_struct *src_dirfsp = NULL;
 	struct smb_filename *smb_fname_src = NULL;
-	struct files_struct *dst_dirfsp = NULL;
-	struct smb_filename *smb_fname_dst = NULL;
-	const char *dst_original_lcomp = NULL;
+	struct smb_filename *smb_fname_src_rel = NULL;
 	uint32_t src_ucf_flags = ucf_flags_from_smb_request(req);
 	NTTIME src_twrp = 0;
 	uint32_t dst_ucf_flags = ucf_flags_from_smb_request(req);
 	NTTIME dst_twrp = 0;
-	bool stream_rename = false;
 
 	START_PROFILE(SMBmv);
 
@@ -6383,7 +6377,6 @@ void reply_mv(struct smb_request *req)
 				reply_nterror(req, NT_STATUS_INVALID_PARAMETER);
 				goto out;
 			}
-			stream_rename = true;
 		}
         }
 
@@ -6395,13 +6388,15 @@ void reply_mv(struct smb_request *req)
 		reply_nterror(req, status);
 		goto out;
 	}
-	status = filename_convert_dirfsp(ctx,
-					 conn,
-					 name,
-					 src_ucf_flags,
-					 src_twrp,
-					 &src_dirfsp,
-					 &smb_fname_src);
+	status = filename_convert_dirfsp_rel(ctx,
+					     conn,
+					     conn->cwd_fsp,
+					     name,
+					     src_ucf_flags,
+					     src_twrp,
+					     &src_dirfsp,
+					     &smb_fname_src,
+					     &smb_fname_src_rel);
 
 	if (!NT_STATUS_IS_OK(status)) {
 		if (NT_STATUS_EQUAL(status,NT_STATUS_PATH_NOT_COVERED)) {
@@ -6421,60 +6416,19 @@ void reply_mv(struct smb_request *req)
 		reply_nterror(req, status);
 		goto out;
 	}
-	status = filename_convert_dirfsp(ctx,
-					 conn,
-					 newname,
-					 dst_ucf_flags,
-					 dst_twrp,
-					 &dst_dirfsp,
-					 &smb_fname_dst);
 
-	if (!NT_STATUS_IS_OK(status)) {
-		if (NT_STATUS_EQUAL(status,NT_STATUS_PATH_NOT_COVERED)) {
-			reply_botherror(req, NT_STATUS_PATH_NOT_COVERED,
-					ERRSRV, ERRbadpath);
-			goto out;
-		}
-		reply_nterror(req, status);
-		goto out;
-	}
-
-	/* Get the last component of the destination for rename_internals(). */
-	dst_original_lcomp = get_original_lcomp(ctx,
-					conn,
-					newname,
-					dst_ucf_flags);
-	if (dst_original_lcomp == NULL) {
-		reply_nterror(req, NT_STATUS_NO_MEMORY);
-		goto out;
-	}
-
-	if (stream_rename) {
-		/* smb_fname_dst->base_name must be the same as
-		   smb_fname_src->base_name. */
-		TALLOC_FREE(smb_fname_dst->base_name);
-		smb_fname_dst->base_name = talloc_strdup(smb_fname_dst,
-						smb_fname_src->base_name);
-		if (!smb_fname_dst->base_name) {
-			reply_nterror(req, NT_STATUS_NO_MEMORY);
-			goto out;
-		}
-	}
-
-	DBG_NOTICE("%s -> %s\n",
-		   smb_fname_str_dbg(smb_fname_src),
-		   smb_fname_str_dbg(smb_fname_dst));
+	DBG_NOTICE("%s -> %s\n", smb_fname_str_dbg(smb_fname_src), newname);
 
 	status = rename_internals(ctx,
-				conn,
-				req,
-				src_dirfsp, /* src_dirfsp */
-				smb_fname_src,
-				smb_fname_dst,
-				dst_original_lcomp,
-				attrs,
-				false,
-				DELETE_ACCESS);
+				  conn,
+				  req,
+				  src_dirfsp, /* src_dirfsp */
+				  smb_fname_src,
+				  smb_fname_src_rel,
+				  attrs,
+				  newname,
+				  false,
+				  DELETE_ACCESS);
 	if (!NT_STATUS_IS_OK(status)) {
 		if (open_was_deferred(req->xconn, req->mid)) {
 			/* We have re-scheduled this call. */
@@ -6492,10 +6446,8 @@ void reply_mv(struct smb_request *req)
 
 	reply_smb1_outbuf(req, 0, 0);
  out:
-	TALLOC_FREE(smb_fname_src);
-	TALLOC_FREE(smb_fname_dst);
-	END_PROFILE(SMBmv);
-	return;
+	 TALLOC_FREE(smb_fname_src);
+	 END_PROFILE(SMBmv);
 }
 
 /****************************************************************************

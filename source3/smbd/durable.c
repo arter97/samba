@@ -92,7 +92,6 @@ NTSTATUS vfs_default_durable_cookie(struct files_struct *fsp,
 	}
 
 	ZERO_STRUCT(cookie);
-	cookie.allow_reconnect = false;
 	cookie.id = fsp->file_id;
 	cookie.servicepath = conn->connectpath;
 	cookie.base_name = fsp->fsp_name->base_name;
@@ -311,17 +310,17 @@ NTSTATUS vfs_default_durable_disconnect(struct files_struct *fsp,
  */
 static bool vfs_default_durable_reconnect_check_stat(
 				struct vfs_default_durable_stat *cookie_st,
-				SMB_STRUCT_STAT *fsp_st,
-				const char *name)
+				struct files_struct *fsp)
 {
-	int ret;
+	SMB_STRUCT_STAT *fsp_st = &fsp->fsp_name->st;
+	bool equal;
 
 	if (cookie_st->st_ex_mode != fsp_st->st_ex_mode) {
 		DEBUG(1, ("vfs_default_durable_reconnect (%s): "
 			  "stat_ex.%s differs: "
 			  "cookie:%llu != stat:%llu, "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_mode",
 			  (unsigned long long)cookie_st->st_ex_mode,
 			  (unsigned long long)fsp_st->st_ex_mode));
@@ -333,7 +332,7 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:%llu != stat:%llu, "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_nlink",
 			  (unsigned long long)cookie_st->st_ex_nlink,
 			  (unsigned long long)fsp_st->st_ex_nlink));
@@ -345,7 +344,7 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:%llu != stat:%llu, "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_uid",
 			  (unsigned long long)cookie_st->st_ex_uid,
 			  (unsigned long long)fsp_st->st_ex_uid));
@@ -357,7 +356,7 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:%llu != stat:%llu, "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_gid",
 			  (unsigned long long)cookie_st->st_ex_gid,
 			  (unsigned long long)fsp_st->st_ex_gid));
@@ -369,7 +368,7 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:%llu != stat:%llu, "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_rdev",
 			  (unsigned long long)cookie_st->st_ex_rdev,
 			  (unsigned long long)fsp_st->st_ex_rdev));
@@ -381,16 +380,15 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:%llu != stat:%llu, "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_size",
 			  (unsigned long long)cookie_st->st_ex_size,
 			  (unsigned long long)fsp_st->st_ex_size));
 		return false;
 	}
 
-	ret = timespec_compare(&cookie_st->st_ex_atime,
-			       &fsp_st->st_ex_atime);
-	if (ret != 0) {
+	equal = timespec_equal(&cookie_st->st_ex_atime, &fsp_st->st_ex_atime);
+	if (!equal) {
 		struct timeval tc, ts;
 		tc = convert_timespec_to_timeval(cookie_st->st_ex_atime);
 		ts = convert_timespec_to_timeval(fsp_st->st_ex_atime);
@@ -399,16 +397,15 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:'%s' != stat:'%s', "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_atime",
 			  timeval_string(talloc_tos(), &tc, true),
 			  timeval_string(talloc_tos(), &ts, true)));
 		return false;
 	}
 
-	ret = timespec_compare(&cookie_st->st_ex_mtime,
-			       &fsp_st->st_ex_mtime);
-	if (ret != 0) {
+	equal = timespec_equal(&cookie_st->st_ex_mtime, &fsp_st->st_ex_mtime);
+	if (!equal) {
 		struct timeval tc, ts;
 		tc = convert_timespec_to_timeval(cookie_st->st_ex_mtime);
 		ts = convert_timespec_to_timeval(fsp_st->st_ex_mtime);
@@ -417,16 +414,15 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:'%s' != stat:'%s', "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_mtime",
 			  timeval_string(talloc_tos(), &tc, true),
 			  timeval_string(talloc_tos(), &ts, true)));
 		return false;
 	}
 
-	ret = timespec_compare(&cookie_st->st_ex_ctime,
-			       &fsp_st->st_ex_ctime);
-	if (ret != 0) {
+	equal = timespec_equal(&cookie_st->st_ex_ctime, &fsp_st->st_ex_ctime);
+	if (!equal) {
 		struct timeval tc, ts;
 		tc = convert_timespec_to_timeval(cookie_st->st_ex_ctime);
 		ts = convert_timespec_to_timeval(fsp_st->st_ex_ctime);
@@ -435,16 +431,15 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:'%s' != stat:'%s', "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_ctime",
 			  timeval_string(talloc_tos(), &tc, true),
 			  timeval_string(talloc_tos(), &ts, true)));
 		return false;
 	}
 
-	ret = timespec_compare(&cookie_st->st_ex_btime,
-			       &fsp_st->st_ex_btime);
-	if (ret != 0) {
+	equal = timespec_equal(&cookie_st->st_ex_btime, &fsp_st->st_ex_btime);
+	if (!equal) {
 		struct timeval tc, ts;
 		tc = convert_timespec_to_timeval(cookie_st->st_ex_btime);
 		ts = convert_timespec_to_timeval(fsp_st->st_ex_btime);
@@ -453,7 +448,7 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:'%s' != stat:'%s', "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_btime",
 			  timeval_string(talloc_tos(), &tc, true),
 			  timeval_string(talloc_tos(), &ts, true)));
@@ -465,7 +460,7 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:%llu != stat:%llu, "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_calculated_birthtime",
 			  (unsigned long long)cookie_st->st_ex_iflags,
 			  (unsigned long long)fsp_st->st_ex_iflags));
@@ -477,7 +472,7 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:%llu != stat:%llu, "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_blksize",
 			  (unsigned long long)cookie_st->st_ex_blksize,
 			  (unsigned long long)fsp_st->st_ex_blksize));
@@ -489,7 +484,7 @@ static bool vfs_default_durable_reconnect_check_stat(
 			  "stat_ex.%s differs: "
 			  "cookie:%llu != stat:%llu, "
 			  "denying durable reconnect\n",
-			  name,
+			  fsp_str_dbg(fsp),
 			  "st_ex_blocks",
 			  (unsigned long long)cookie_st->st_ex_blocks,
 			  (unsigned long long)fsp_st->st_ex_blocks));
@@ -501,7 +496,7 @@ static bool vfs_default_durable_reconnect_check_stat(
 			    "stat_ex.%s differs: "
 			    "cookie:%"PRIu32" != stat:%"PRIu32", "
 			    "denying durable reconnect\n",
-			    name,
+			    fsp_str_dbg(fsp),
 			    "st_ex_flags",
 			    cookie_st->st_ex_flags,
 			    fsp_st->st_ex_flags);
@@ -566,6 +561,7 @@ static void vfs_default_durable_reconnect_fn(struct share_mode_lock *lck,
 	struct vfs_open_how how = { .flags = 0, };
 	struct file_id file_id;
 	bool have_share_mode_entry = false;
+	uint32_t dosmode;
 	int ret;
 	bool ok;
 
@@ -670,8 +666,7 @@ static void vfs_default_durable_reconnect_fn(struct share_mode_lock *lck,
 		e.pid,
 		e.share_file_id,
 		messaging_server_id(fsp->conn->sconn->msg_ctx),
-		state->smb1req->mid,
-		fh_get_gen_id(fsp->fh));
+		state->smb1req->mid);
 	if (!ok) {
 		DBG_DEBUG("Could not set new share_mode_entry values\n");
 		state->status = NT_STATUS_INTERNAL_ERROR;
@@ -735,11 +730,12 @@ static void vfs_default_durable_reconnect_fn(struct share_mode_lock *lck,
 		goto fail;
 	}
 
-	(void)fdos_mode(fsp);
+	dosmode = fdos_mode(fsp);
+	fsp->fsp_flags.is_sparse = (dosmode & FILE_ATTRIBUTE_SPARSE);
+	fsp->fsp_flags.is_sparse |= e.flags & SHARE_ENTRY_FLAG_POSIX_OPEN;
 
 	ok = vfs_default_durable_reconnect_check_stat(&state->cookie.stat_info,
-						      &fsp->fsp_name->st,
-						      fsp_str_dbg(fsp));
+						      fsp);
 	if (!ok) {
 		state->status = NT_STATUS_OBJECT_NAME_NOT_FOUND;
 		goto fail;
@@ -801,6 +797,7 @@ NTSTATUS vfs_default_durable_reconnect(struct connection_struct *conn,
 	struct file_id file_id;
 	NTSTATUS status;
 	enum ndr_err_code ndr_err;
+	bool ok;
 
 	*result = NULL;
 	*new_cookie = data_blob_null;
@@ -877,24 +874,22 @@ NTSTATUS vfs_default_durable_reconnect(struct connection_struct *conn,
 		return NT_STATUS_OBJECT_NAME_NOT_FOUND;
 	}
 
-	status = fsp_new(conn, conn, &state.fsp);
-	if (!NT_STATUS_IS_OK(status)) {
-		DBG_ERR("failed to create new fsp: %s\n",
-			nt_errstr(status));
-		return status;
+	state.fsp = fsp_new(conn, conn);
+	if (state.fsp == NULL) {
+		DBG_ERR("failed to create new fsp\n");
+		return NT_STATUS_NO_MEMORY;
 	}
 	state.fsp->file_id = file_id;
 	state.fsp->file_pid = smb1req->smbpid;
 	state.fsp->vuid = smb1req->vuid;
 	state.fsp->fnum = op->local_id;
-	fsp_set_gen_id(state.fsp);
+	fh_set_gen_id(state.fsp->fh, op->global->open_global_id);
 
-	status = fsp_set_smb_fname(state.fsp, smb_fname);
-	if (!NT_STATUS_IS_OK(status)) {
-		DBG_ERR("fsp_set_smb_fname failed: %s\n",
-			  nt_errstr(status));
+	ok = fsp_set_smb_fname(state.fsp, smb_fname);
+	if (!ok) {
+		DBG_ERR("fsp_set_smb_fname failed\n");
 		file_free(smb1req, state.fsp);
-		return status;
+		return NT_STATUS_NO_MEMORY;
 	}
 
 	/*

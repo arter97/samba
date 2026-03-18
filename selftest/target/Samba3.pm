@@ -304,6 +304,7 @@ sub setup_nt4_dc
 	server schannel require seal:torturetest\$ = no
 
 	vfs_default:VFS_OPEN_HOW_RESOLVE_NO_SYMLINKS = no
+	vfs_default:VFS_OPEN_HOW_RESOLVE_NO_XDEV = no
 
 	fss: sequence timeout = 1
 	check parent directory delete on close = yes
@@ -630,6 +631,10 @@ sub setup_clusteredmember
 	$ctx->{kdc_ipv4} = $dcvars->{SERVER_IP};
 	$ctx->{kdc_ipv6} = $dcvars->{SERVER_IPV6};
 	$ctx->{krb5_ccname} = "$prefix/krb5cc_%{uid}";
+
+	# Create lib directory for krb5.conf
+	mkdir("$prefix/lib", 0755);
+
 	Samba::mk_krb5_conf($ctx, "");
 
 	$ret->{KRB5_CONFIG} = $ctx->{krb5_conf};
@@ -2876,6 +2881,14 @@ sub provision($$)
 	##
 	symlink "$widelinks_shrdir", "$widelinks_shrdir/dot";
 
+	##
+	## Create test file with hardlinks for posix extensions testing with
+	## [smb3_posix_share]
+	##
+	create_file_chmod("$shrdir/posix_test_original.txt", 0644) or return undef;
+	link "$shrdir/posix_test_original.txt", "$shrdir/posix_test_hardlink1.txt";
+	link "$shrdir/posix_test_original.txt", "$shrdir/posix_test_hardlink2.txt";
+
 	my $conffile="$libdir/server.conf";
 	my $dfqconffile="$libdir/dfq.conf";
 	my $errorinjectconf="$libdir/error_inject.conf";
@@ -3742,6 +3755,17 @@ sub provision($$)
 	path = $smbget_sharedir
 	comment = smb username is [%U]
 	guest ok = yes
+
+[aio_ratelimit]
+	comment = Testing aio_ratelimit
+	path = $shrdir
+	vfs objects = aio_ratelimit
+	aio_ratelimit: read_iops_limit = 10
+	aio_ratelimit: read_bw_limit = 100K
+	aio_ratelimit: read_burst_mult = 15
+	aio_ratelimit: write_iops_limit = 100
+	aio_ratelimit: write_bw_limit = 100K
+	aio_ratelimit: write_burst_mult = 15
 
 include = $aliceconfdir/%U.conf
 	";

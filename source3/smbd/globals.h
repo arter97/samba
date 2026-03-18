@@ -346,6 +346,7 @@ struct smbXsrv_connection {
 		int sock;
 		struct tevent_fd *fde;
 		enum smb_transport_type type;
+		bool trusted_quic;
 
 		struct {
 			bool got_session;
@@ -582,11 +583,7 @@ NTSTATUS smbXsrv_tcon_global_traverse(
 			void *private_data);
 
 
-bool smbXsrv_is_encrypted(uint8_t encryption_flags);
-bool smbXsrv_is_partially_encrypted(uint8_t encryption_flags);
 bool smbXsrv_set_crypto_flag(uint8_t *flags, uint8_t flag);
-bool smbXsrv_is_signed(uint8_t signing_flags);
-bool smbXsrv_is_partially_signed(uint8_t signing_flags);
 
 struct smbd_smb2_send_queue {
 	struct smbd_smb2_send_queue *prev, *next;
@@ -625,6 +622,7 @@ struct smbd_smb2_request {
 	uint32_t last_tid;
 
 	int current_idx;
+	/* Should we sign? */
 	bool do_signing;
 	/* Was the request encrypted? */
 	bool was_encrypted;
@@ -655,8 +653,7 @@ struct smbd_smb2_request {
 
 	struct timeval request_time;
 
-	SMBPROFILE_IOBYTES_ASYNC_STATE(profile);
-	SMBPROFILE_IOBYTES_ASYNC_STATE(profile_x);
+	SMBPROFILE_IOBYTES_ASYNC_STATE_X(profile, profile_x);
 
 	/* fake smb1 request. */
 	struct smb_request *smb1req;

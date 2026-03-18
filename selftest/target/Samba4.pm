@@ -994,10 +994,10 @@ sub provision_raw_step2($$$)
 
 	my $cmd_env = $self->get_cmd_env_vars($ret);
 
-	my $testallowed_account = "testallowed";
+	my $testallowed_account = "testallowed account";
 	my $samba_tool_cmd = ${cmd_env};
 	$samba_tool_cmd .= Samba::bindir_path($self, "samba-tool")
-	    . " user create --configfile=$ctx->{smb_conf} $testallowed_account $ctx->{password}";
+	    . " user create --configfile=$ctx->{smb_conf} '$testallowed_account' $ctx->{password}";
 	unless (system($samba_tool_cmd) == 0) {
 		warn("Unable to add testallowed user: \n$samba_tool_cmd\n");
 		return undef;
@@ -1030,21 +1030,6 @@ sub provision_raw_step2($$$)
 	}
 
 	my $user_dn = "cn=$testallowed_account,cn=users,$base_dn";
-	$testallowed_account = "testallowed account";
-	open($ldif, "|$ldbmodify -H $ctx->{privatedir}/sam.ldb")
-	    or die "Failed to run $ldbmodify: $!";
-	print $ldif "dn: $user_dn
-changetype: modify
-replace: samAccountName
-samAccountName: $testallowed_account
--
-";
-	close($ldif);
-	unless ($? == 0) {
-	    warn("$ldbmodify failed: $?");
-	    return undef;
-	}
-
 	open($ldif, "|$ldbmodify -H $ctx->{privatedir}/sam.ldb")
             or die "Failed to run $ldbmodify: $!";
 	print $ldif "dn: $user_dn
@@ -1646,6 +1631,7 @@ sub provision_ad_dc_ntvfs($$$)
 	# override the new SMB2 only default
 	client min protocol = CORE
 	server min protocol = LANMAN1
+	kdc name match implicit dollar without canonicalization = no
 
 	server support krb5 netlogon = yes
 	CVE_2020_1472:warn_about_unused_debug_level = 3
@@ -1701,6 +1687,9 @@ sub provision_ad_dc_ntvfs($$$)
 	# needed for 'samba.tests.auth_log' tests
 	server require schannel:LOCALDC\$ = no
 	server schannel require seal:LOCALDC\$ = no
+
+	strong certificate binding enforcement = compatibility
+	certificate backdating compensation = 1500
 	";
 	push (@{$extra_provision_options},
 	      "--base-schema=2008_R2",
@@ -1882,6 +1871,9 @@ sub provision_fl2008r2dc($$$)
 	server reject aes schannel:tests4u2selfwk\$ = no
 	server reject aes schannel:torturepacbdc\$ = no
 	server reject aes schannel:torturepacwksta\$ = no
+
+	kdc always include pac = no
+	krb5 acceptor report canonical client name = no
 ";
 	my $extra_provision_options = ["--base-schema=2008_R2"];
 	my $ret = $self->provision($prefix,
@@ -2883,7 +2875,11 @@ sub _setup_ad_dc
 sub setup_ad_dc
 {
 	my ($self, $path) = @_;
-	return _setup_ad_dc($self, $path, undef, undef, undef);
+	# Disable certificate binding enforcement, to avoid
+	# breaking kerberos tests
+	my $conf_opts = "strong certificate binding enforcement = none\n";
+
+	return _setup_ad_dc($self, $path, $conf_opts, undef, undef);
 }
 
 sub setup_ad_dc_smb1
@@ -3115,7 +3111,8 @@ sub setup_schema_dc
 					 "SCHEMADOMAIN",
 					 "schema.samba.example.com",
 					 undef,
-					 "drs: max link sync = 2",
+					 "drs: max link sync = 2\n" .
+					 "kdc require canonicalization = yes",
 					 $provision_args,
 					 "2008_R2");
 	unless ($env) {

@@ -223,15 +223,7 @@ static NTSTATUS create_conn_struct_as_root(TALLOC_CTX *ctx,
 		servicename = "Unknown Service (snum == -1)";
 	}
 
-	connpath = talloc_strdup(conn, path);
-	if (!connpath) {
-		TALLOC_FREE(conn);
-		return NT_STATUS_NO_MEMORY;
-	}
-	connpath = talloc_string_sub(conn,
-				     connpath,
-				     "%S",
-				     servicename);
+	connpath = talloc_string_sub(conn, path, "%S", servicename);
 	if (!connpath) {
 		TALLOC_FREE(conn);
 		return NT_STATUS_NO_MEMORY;
@@ -280,7 +272,7 @@ static NTSTATUS create_conn_struct_as_root(TALLOC_CTX *ctx,
 				    "denied due to security "
 				    "descriptor.\n",
 				    servicename);
-			conn_free(conn);
+			TALLOC_FREE(conn);
 			return NT_STATUS_ACCESS_DENIED;
 		}
 		conn->read_only = true;
@@ -289,21 +281,21 @@ static NTSTATUS create_conn_struct_as_root(TALLOC_CTX *ctx,
 	if (!smbd_vfs_init(conn)) {
 		NTSTATUS status = map_nt_error_from_unix(errno);
 		DBG_ERR("smbd_vfs_init failed.\n");
-		conn_free(conn);
+		TALLOC_FREE(conn);
 		return status;
 	}
 
 	/* this must be the first filesystem operation that we do */
 	if (SMB_VFS_CONNECT(conn, servicename, vfs_user) < 0) {
 		DBG_ERR("VFS connect failed!\n");
-		conn_free(conn);
+		TALLOC_FREE(conn);
 		return NT_STATUS_UNSUCCESSFUL;
 	}
 
 	ok = canonicalize_connect_path(conn);
 	if (!ok) {
 		DBG_ERR("Failed to canonicalize sharepath\n");
-		conn_free(conn);
+		TALLOC_FREE(conn);
 		return NT_STATUS_ACCESS_DENIED;
 	}
 
@@ -321,7 +313,7 @@ static int conn_struct_tos_destructor(struct conn_struct_tos *c)
 		TALLOC_FREE(c->oldcwd_fname);
 	}
 	SMB_VFS_DISCONNECT(c->conn);
-	conn_free(c->conn);
+	TALLOC_FREE(c->conn);
 	return 0;
 }
 
@@ -1345,12 +1337,7 @@ bool create_msdfs_link(const struct junction_map *jucn,
 		goto out;
 	}
 
-	smb_fname = synthetic_smb_fname(frame,
-				path,
-				NULL,
-				NULL,
-				0,
-				0);
+	smb_fname = cp_smb_basename(frame, path);
 	if (smb_fname == NULL) {
 		goto out;
 	}
@@ -1431,12 +1418,7 @@ bool remove_msdfs_link(const struct junction_map *jucn,
 		return false;
 	}
 
-	smb_fname = synthetic_smb_fname(frame,
-					path,
-					NULL,
-					NULL,
-					0,
-					0);
+	smb_fname = cp_smb_basename(frame, path);
 	if (smb_fname == NULL) {
 		TALLOC_FREE(frame);
 		errno = ENOMEM;
@@ -1517,12 +1499,7 @@ static size_t count_dfs_links(TALLOC_CTX *ctx,
 		goto out;
 	}
 
-	smb_fname = synthetic_smb_fname(frame,
-					".",
-					NULL,
-					NULL,
-					0,
-					0);
+	smb_fname = cp_smb_basename(frame, ".");
 	if (smb_fname == NULL) {
 		goto out;
 	}
@@ -1540,13 +1517,7 @@ static size_t count_dfs_links(TALLOC_CTX *ctx,
 	}
 
 	while ((dname = ReadDirName(dir_hnd, &talloced)) != NULL) {
-		struct smb_filename *smb_dname =
-			synthetic_smb_fname(frame,
-					dname,
-					NULL,
-					NULL,
-					0,
-					0);
+		struct smb_filename *smb_dname = cp_smb_basename(frame, dname);
 		if (smb_dname == NULL) {
 			goto out;
 		}
@@ -1657,12 +1628,7 @@ static int form_junctions(TALLOC_CTX *ctx,
 		goto out;
 	}
 
-	smb_fname = synthetic_smb_fname(frame,
-					".",
-					NULL,
-					NULL,
-					0,
-					0);
+	smb_fname = cp_smb_basename(frame, ".");
 	if (smb_fname == NULL) {
 		goto out;
 	}
@@ -1688,12 +1654,7 @@ static int form_junctions(TALLOC_CTX *ctx,
 			TALLOC_FREE(talloced);
 			goto out;
 		}
-		smb_dname = synthetic_smb_fname(talloc_tos(),
-				dname,
-				NULL,
-				NULL,
-				0,
-				0);
+		smb_dname = cp_smb_basename(talloc_tos(), dname);
 		if (smb_dname == NULL) {
 			TALLOC_FREE(talloced);
 			goto out;

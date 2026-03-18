@@ -1,25 +1,25 @@
-/* 
+/*
    Unix SMB/CIFS implementation.
    System QUOTA function wrappers
    Copyright (C) Stefan (metze) Metzmacher	2003
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
 #include "includes.h"
-#include "lib/util_file.h"
+#include "lib/util/util_file.h"
 #include "lib/util/smb_strtox.h"
 
 #undef DBGC_CLASS
@@ -27,7 +27,7 @@
 
 #ifdef HAVE_SYS_QUOTAS
 
-#if defined(HAVE_QUOTACTL_4A) 
+#if defined(HAVE_QUOTACTL_4A)
 
 /*#endif HAVE_QUOTACTL_4A */
 #elif defined(HAVE_QUOTACTL_4B)
@@ -117,7 +117,7 @@ static int sys_path_to_bdev(const char *path, char **mntpath, char **bdev, char 
 	if (fp == NULL) {
 		goto out;
 	}
-  
+
 	while ((mnt = getmntent(fp))) {
 		if (!strequal(mnt->mnt_dir, stat_mntpath)) {
 			continue;
@@ -165,15 +165,15 @@ static int sys_path_to_bdev(const char *path, char **mntpath, char **bdev, char 
 	(*mntpath) = NULL;
 	(*bdev) = NULL;
 	(*fs) = NULL;
-	
+
 	/* find the block device file */
 
 	if ((ret=sys_stat(path, &S, false))!=0) {
 		return ret;
 	}
-	
+
 	if ((ret=devnm(S_IFBLK, S.st_ex_dev, dev_disk, 256, 1))!=0) {
-		return ret;	
+		return ret;
 	}
 
 	/* we should get the mntpath right...
@@ -188,10 +188,10 @@ static int sys_path_to_bdev(const char *path, char **mntpath, char **bdev, char 
 		SAFE_FREE(*mntpath);
 		SAFE_FREE(*bdev);
 		ret = -1;
-	}	
-	
-	
-	return ret;	
+	}
+
+
+	return ret;
 }
 
 /* #endif HAVE_DEVNM */
@@ -207,7 +207,7 @@ static int sys_path_to_bdev(const char *path, char **mntpath, char **bdev, char 
 	(*mntpath) = NULL;
 	(*bdev) = NULL;
 	(*fs) = NULL;
-	
+
 	(*mntpath) = SMB_STRDUP(path);
 	if (*mntpath) {
 		ret = 0;
@@ -247,163 +247,103 @@ static int command_get_quota(const char *path, enum SMB_QUOTA_TYPE qtype, unid_t
 {
 	const struct loadparm_substitution *lp_sub =
 		loadparm_s3_global_substitution();
-	const char *get_quota_command;
+	const char *get_quota_command = NULL;
 	char **lines = NULL;
+	char *line = NULL;
+	const char *p = NULL;
+	char *p2 = NULL;
+	int _id = -1;
+	int error = 0;
+	char **argl = NULL;
+	int ret;
 
 	get_quota_command = lp_get_quota_command(talloc_tos(), lp_sub);
-	if (get_quota_command && *get_quota_command) {
-		const char *p;
-		char *p2;
-		int _id = -1;
-		int error = 0;
-		char **argl = NULL;
-
-		switch(qtype) {
-			case SMB_USER_QUOTA_TYPE:
-			case SMB_USER_FS_QUOTA_TYPE:
-				_id = id.uid;
-				break;
-			case SMB_GROUP_QUOTA_TYPE:
-			case SMB_GROUP_FS_QUOTA_TYPE:
-				_id = id.gid;
-				break;
-			default:
-				DEBUG(0,("invalid quota type.\n"));
-				return -1;
-		}
-
-		argl = str_list_make_empty(talloc_tos());
-		str_list_add_printf(&argl, "%s", get_quota_command);
-		str_list_add_printf(&argl, "%s", path);
-		str_list_add_printf(&argl, "%d", qtype);
-		str_list_add_printf(&argl, "%d", _id);
-		if (argl == NULL) {
-			return -1;
-		}
-
-		DBG_NOTICE("Running command %s %s %d %d\n",
-			get_quota_command,
-			path,
-			qtype,
-			_id);
-
-		lines = file_lines_ploadv(talloc_tos(), argl, NULL);
-		TALLOC_FREE(argl);
-
-		if (lines) {
-			char *line = lines[0];
-
-			DEBUG (3, ("Read output from get_quota, \"%s\"\n", line));
-
-			/* we need to deal with long long unsigned here, if supported */
-
-			dp->qflags = smb_strtoul(line,
-						 &p2,
-						 10,
-						 &error,
-						 SMB_STR_STANDARD);
-			if (error != 0) {
-				goto invalid_param;
-			}
-
-			p = p2;
-			while (p && *p && isspace(*p)) {
-				p++;
-			}
-
-			if (p && *p) {
-				dp->curblocks = STR_TO_SMB_BIG_UINT(p, &p);
-			} else {
-				goto invalid_param;
-			}
-
-			while (p && *p && isspace(*p)) {
-				p++;
-			}
-
-			if (p && *p) {
-				dp->softlimit = STR_TO_SMB_BIG_UINT(p, &p);
-			} else {
-				goto invalid_param;
-			}
-
-			while (p && *p && isspace(*p)) {
-				p++;
-			}
-
-			if (p && *p) {
-				dp->hardlimit = STR_TO_SMB_BIG_UINT(p, &p);
-			} else {
-				goto invalid_param;
-			}
-
-			while (p && *p && isspace(*p)) {
-				p++;
-			}
-
-			if (p && *p) {
-				dp->curinodes = STR_TO_SMB_BIG_UINT(p, &p);
-			} else {
-				goto invalid_param;
-			}
-
-			while (p && *p && isspace(*p)) {
-				p++;
-			}
-
-			if (p && *p) {
-				dp->isoftlimit = STR_TO_SMB_BIG_UINT(p, &p);
-			} else {
-				goto invalid_param;
-			}
-
-			while (p && *p && isspace(*p)) {
-				p++;
-			}
-
-			if (p && *p) {
-				dp->ihardlimit = STR_TO_SMB_BIG_UINT(p, &p);
-			} else {
-				goto invalid_param;	
-			}
-
-			while (p && *p && isspace(*p)) {
-				p++;
-			}
-
-			if (p && *p) {
-				dp->bsize = STR_TO_SMB_BIG_UINT(p, NULL);
-			} else {
-				dp->bsize = 1024;
-			}
-
-			TALLOC_FREE(lines);
-			lines = NULL;
-
-			DEBUG (3, ("Parsed output of get_quota, ...\n"));
-
-			DEBUGADD (5,( 
-				"qflags:%"PRIu32" curblocks:%"PRIu64" softlimit:%"PRIu64" hardlimit:%"PRIu64"\n"
-				"curinodes:%"PRIu64" isoftlimit:%"PRIu64" ihardlimit:%"PRIu64" bsize:%"PRIu64"\n",
-				dp->qflags,dp->curblocks,
-				dp->softlimit,dp->hardlimit,
-				dp->curinodes,
-				dp->isoftlimit,dp->ihardlimit,
-				dp->bsize));
-			return 0;
-		}
-
-		DEBUG (0, ("get_quota_command failed!\n"));
+	if ((get_quota_command == NULL) || (get_quota_command[0] == '\0')) {
+		errno = ENOSYS;
 		return -1;
 	}
 
-	errno = ENOSYS;
-	return -1;
+	switch(qtype) {
+	case SMB_USER_QUOTA_TYPE:
+	case SMB_USER_FS_QUOTA_TYPE:
+		_id = id.uid;
+		break;
+	case SMB_GROUP_QUOTA_TYPE:
+	case SMB_GROUP_FS_QUOTA_TYPE:
+		_id = id.gid;
+		break;
+	default:
+		DBG_ERR("invalid quota type.\n");
+		return -1;
+	}
 
-invalid_param:
+	argl = str_list_make_empty(talloc_tos());
+	str_list_add_printf(&argl, "%s", get_quota_command);
+	str_list_add_printf(&argl, "%s", path);
+	str_list_add_printf(&argl, "%d", qtype);
+	str_list_add_printf(&argl, "%d", _id);
+	if (argl == NULL) {
+		return -1;
+	}
+
+	DBG_NOTICE("Running command %s %s %d %d\n",
+		   get_quota_command,
+		   path,
+		   qtype,
+		   _id);
+
+	lines = file_lines_ploadv(talloc_tos(), argl, NULL);
+	TALLOC_FREE(argl);
+
+	if ((lines == NULL) || (lines[0] == NULL)) {
+		DBG_ERR("get_quota_command failed!\n");
+		TALLOC_FREE(lines);
+		return -1;
+	}
+
+	line = lines[0];
+
+	DBG_NOTICE("Read output from get_quota, \"%s\"\n", line);
+
+	dp->bsize = 1024;
+
+	ret = sscanf(line,
+		     "%" SCNu32 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64
+		     " %" SCNu64 " %" SCNu64 " %" SCNu64,
+		     &dp->qflags,
+		     &dp->curblocks,
+		     &dp->softlimit,
+		     &dp->hardlimit,
+		     &dp->curinodes,
+		     &dp->isoftlimit,
+		     &dp->ihardlimit,
+		     &dp->bsize);
 
 	TALLOC_FREE(lines);
-	DEBUG(0,("The output of get_quota_command is invalid!\n"));
+
+	if (ret != 7) {
+		DBG_ERR("The output of get_quota_command is invalid!\n");
+		return -1;
+	}
+
+	DBG_INFO("Parsed output of get_quota, ...\n"
+		 "qflags:%" PRIu32 " curblocks:%" PRIu64 " softlimit:%" PRIu64
+		 " hardlimit:%" PRIu64 "\n"
+		 "curinodes:%" PRIu64 " isoftlimit:%" PRIu64
+		 " ihardlimit:%" PRIu64 " bsize:%" PRIu64 "\n",
+		 dp->qflags,
+		 dp->curblocks,
+		 dp->softlimit,
+		 dp->hardlimit,
+		 dp->curinodes,
+		 dp->isoftlimit,
+		 dp->ihardlimit,
+		 dp->bsize);
+	return 0;
+
+invalid_param:
+	TALLOC_FREE(lines);
+	DBG_ERR("The output of get_quota_command is invalid!\n");
 	return -1;
 }
 
@@ -411,78 +351,73 @@ static int command_set_quota(const char *path, enum SMB_QUOTA_TYPE qtype, unid_t
 {
 	const struct loadparm_substitution *lp_sub =
 		loadparm_s3_global_substitution();
-	const char *set_quota_command;
+	const char *set_quota_command = NULL;
+	char **lines = NULL;
+	int _id = -1;
+	char **argl = NULL;
 
 	set_quota_command = lp_set_quota_command(talloc_tos(), lp_sub);
-	if (set_quota_command && *set_quota_command) {
-		char **lines = NULL;
-		int _id = -1;
-		char **argl = NULL;
 
-		switch(qtype) {
-			case SMB_USER_QUOTA_TYPE:
-			case SMB_USER_FS_QUOTA_TYPE:
-				_id = id.uid;
-				break;
-			case SMB_GROUP_QUOTA_TYPE:
-			case SMB_GROUP_FS_QUOTA_TYPE:
-				_id = id.gid;
-				break;
-			default:
-				return -1;
-		}
-
-		argl = str_list_make_empty(talloc_tos());
-		str_list_add_printf(&argl, "%s", set_quota_command);
-		str_list_add_printf(&argl, "%s", path);
-		str_list_add_printf(&argl, "%d", qtype);
-		str_list_add_printf(&argl, "%d", _id);
-		str_list_add_printf(&argl, "%u", dp->qflags);
-		str_list_add_printf(
-			&argl, "%"PRIu64, dp->softlimit);
-		str_list_add_printf(
-			&argl, "%"PRIu64, dp->hardlimit);
-		str_list_add_printf(
-			&argl, "%"PRIu64, dp->isoftlimit);
-		str_list_add_printf(
-			&argl, "%"PRIu64, dp->ihardlimit);
-		str_list_add_printf(
-			&argl, "%"PRIu64, dp->bsize);
-		if (argl == NULL) {
-			return -1;
-		}
-
-		DBG_NOTICE("Running command "
-			"%s %s %d %d "
-			"%"PRIu32" %"PRIu64" %"PRIu64" "
-			"%"PRIu64" %"PRIu64" %"PRIu64"\n",
-			set_quota_command,
-			path,
-			qtype,
-			_id,
-			dp->qflags,
-			dp->softlimit,
-			dp->hardlimit,
-			dp->isoftlimit,
-			dp->ihardlimit,
-			dp->bsize);
-
-		lines = file_lines_ploadv(talloc_tos(), argl, NULL);
-		TALLOC_FREE(argl);
-		if (lines) {
-			char *line = lines[0];
-
-			DEBUG (3, ("Read output from set_quota, \"%s\"\n", line));
-
-			TALLOC_FREE(lines);
-
-			return 0;
-		}
-		DEBUG (0, ("set_quota_command failed!\n"));
+	if ((set_quota_command == NULL) || (set_quota_command[0] == '\0')) {
+		errno = ENOSYS;
 		return -1;
 	}
 
-	errno = ENOSYS;
+	switch (qtype) {
+	case SMB_USER_QUOTA_TYPE:
+	case SMB_USER_FS_QUOTA_TYPE:
+		_id = id.uid;
+		break;
+	case SMB_GROUP_QUOTA_TYPE:
+	case SMB_GROUP_FS_QUOTA_TYPE:
+		_id = id.gid;
+		break;
+	default:
+		return -1;
+	}
+
+	argl = str_list_make_empty(talloc_tos());
+	str_list_add_printf(&argl, "%s", set_quota_command);
+	str_list_add_printf(&argl, "%s", path);
+	str_list_add_printf(&argl, "%d", qtype);
+	str_list_add_printf(&argl, "%d", _id);
+	str_list_add_printf(&argl, "%u", dp->qflags);
+	str_list_add_printf(&argl, "%" PRIu64, dp->softlimit);
+	str_list_add_printf(&argl, "%" PRIu64, dp->hardlimit);
+	str_list_add_printf(&argl, "%" PRIu64, dp->isoftlimit);
+	str_list_add_printf(&argl, "%" PRIu64, dp->ihardlimit);
+	str_list_add_printf(&argl, "%" PRIu64, dp->bsize);
+	if (argl == NULL) {
+		return -1;
+	}
+
+	DBG_NOTICE("Running command "
+		   "%s %s %d %d "
+		   "%" PRIu32 " %" PRIu64 " %" PRIu64 " "
+		   "%" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
+		   set_quota_command,
+		   path,
+		   qtype,
+		   _id,
+		   dp->qflags,
+		   dp->softlimit,
+		   dp->hardlimit,
+		   dp->isoftlimit,
+		   dp->ihardlimit,
+		   dp->bsize);
+
+	lines = file_lines_ploadv(talloc_tos(), argl, NULL);
+	TALLOC_FREE(argl);
+	if (lines) {
+		char *line = lines[0];
+
+		DEBUG (3, ("Read output from set_quota, \"%s\"\n", line));
+
+		TALLOC_FREE(lines);
+
+		return 0;
+	}
+	DEBUG (0, ("set_quota_command failed!\n"));
 	return -1;
 }
 
@@ -498,7 +433,7 @@ int sys_get_quota(const char *path, enum SMB_QUOTA_TYPE qtype, unid_t id, SMB_DI
 	if (!path||!dp)
 		smb_panic("sys_get_quota: called with NULL pointer");
 
-	if (command_get_quota(path, qtype, id, dp)==0) {	
+	if (command_get_quota(path, qtype, id, dp)==0) {
 		return 0;
 	} else if (errno != ENOSYS) {
 		return -1;
@@ -523,8 +458,8 @@ int sys_get_quota(const char *path, enum SMB_QUOTA_TYPE qtype, unid_t id, SMB_DI
 					fs,mntpath,bdev,qtype,(qtype==SMB_GROUP_QUOTA_TYPE?id.gid:id.uid)));
 			}
 			ready = True;
-			break;	
-		}		
+			break;
+		}
 	}
 
 	if (!ready) {
@@ -560,7 +495,7 @@ int sys_set_quota(const char *path, enum SMB_QUOTA_TYPE qtype, unid_t id, SMB_DI
 	if (!path||!dp)
 		smb_panic("get_smb_quota: called with NULL pointer");
 
-	if (command_set_quota(path, qtype, id, dp)==0) {	
+	if (command_set_quota(path, qtype, id, dp)==0) {
 		return 0;
 	} else if (errno != ENOSYS) {
 		return -1;
@@ -572,7 +507,7 @@ int sys_set_quota(const char *path, enum SMB_QUOTA_TYPE qtype, unid_t id, SMB_DI
 	}
 
 	errno = 0;
-	DEBUG(10,("sys_set_quota() uid(%u, %u)\n", (unsigned)getuid(), (unsigned)geteuid())); 
+	DEBUG(10,("sys_set_quota() uid(%u, %u)\n", (unsigned)getuid(), (unsigned)geteuid()));
 
 	for (i=0;(fs && sys_quota_backends[i].name && sys_quota_backends[i].set_quota);i++) {
 		if (strcmp(fs,sys_quota_backends[i].name)==0) {
@@ -586,7 +521,7 @@ int sys_set_quota(const char *path, enum SMB_QUOTA_TYPE qtype, unid_t id, SMB_DI
 			}
 			ready = True;
 			break;
-		}		
+		}
 	}
 
 	if (!ready) {
@@ -605,7 +540,7 @@ int sys_set_quota(const char *path, enum SMB_QUOTA_TYPE qtype, unid_t id, SMB_DI
 	SAFE_FREE(bdev);
 	SAFE_FREE(fs);
 
-	return ret;		
+	return ret;
 }
 
 #else /* HAVE_SYS_QUOTAS */
@@ -616,4 +551,3 @@ int sys_set_quota(const char *path, enum SMB_QUOTA_TYPE qtype, unid_t id, SMB_DI
 	return;
 }
 #endif /* HAVE_SYS_QUOTAS */
-

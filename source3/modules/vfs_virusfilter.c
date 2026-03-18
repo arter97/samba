@@ -155,12 +155,7 @@ static bool quarantine_create_dir(
 
 			DBG_INFO("quarantine: creating new dir %s\n", new_dir);
 
-			smb_fname = synthetic_smb_fname(talloc_tos(),
-							new_dir,
-							NULL,
-							NULL,
-							0,
-							0);
+			smb_fname = cp_smb_basename(talloc_tos(), new_dir);
 			if (smb_fname == NULL) {
 				goto done;
 			}
@@ -1592,20 +1587,19 @@ static int virusfilter_vfs_unlinkat(struct vfs_handle_struct *handle,
 	return 0;
 }
 
-static int virusfilter_vfs_renameat(
-	struct vfs_handle_struct *handle,
-	files_struct *srcfsp,
-	const struct smb_filename *smb_fname_src,
-	files_struct *dstfsp,
-	const struct smb_filename *smb_fname_dst,
-	const struct vfs_rename_how *how)
+static int virusfilter_vfs_renameat(struct vfs_handle_struct *handle,
+				    files_struct *src_dirfsp,
+				    const struct smb_filename *smb_fname_src,
+				    files_struct *dst_dirfsp,
+				    const struct smb_filename *smb_fname_dst,
+				    const struct vfs_rename_how *how)
 {
 	int ret = SMB_VFS_NEXT_RENAMEAT(handle,
-			srcfsp,
-			smb_fname_src,
-			dstfsp,
-			smb_fname_dst,
-			how);
+					src_dirfsp,
+					smb_fname_src,
+					dst_dirfsp,
+					smb_fname_dst,
+					how);
 	struct virusfilter_config *config = NULL;
 	char *fname = NULL;
 	char *dst_fname = NULL;
@@ -1625,7 +1619,7 @@ static int virusfilter_vfs_renameat(
 	}
 
 	full_src = full_path_from_dirfsp_atname(talloc_tos(),
-						srcfsp,
+						src_dirfsp,
 						smb_fname_src);
 	if (full_src == NULL) {
 		errno = ENOMEM;
@@ -1634,7 +1628,7 @@ static int virusfilter_vfs_renameat(
 	}
 
 	full_dst = full_path_from_dirfsp_atname(talloc_tos(),
-						dstfsp,
+						dst_dirfsp,
 						smb_fname_dst);
 	if (full_dst == NULL) {
 		errno = ENOMEM;

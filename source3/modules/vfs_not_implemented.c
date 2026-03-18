@@ -318,11 +318,21 @@ ssize_t vfs_not_implemented_recvfile(vfs_handle_struct *handle, int fromfd,
 
 _PUBLIC_
 int vfs_not_implemented_renameat(vfs_handle_struct *handle,
-				 files_struct *srcfsp,
+				 files_struct *src_dirfsp,
 				 const struct smb_filename *smb_fname_src,
-				 files_struct *dstfsp,
+				 files_struct *dst_dirfsp,
 				 const struct smb_filename *smb_fname_dst,
 				 const struct vfs_rename_how *how)
+{
+	errno = ENOSYS;
+	return -1;
+}
+
+_PUBLIC_
+int vfs_not_implemented_rename_stream(struct vfs_handle_struct *handle,
+				      struct files_struct *src_fsp,
+				      const char *dst_name,
+				      bool replace_if_exists)
 {
 	errno = ENOSYS;
 	return -1;
@@ -533,11 +543,11 @@ int vfs_not_implemented_vfs_readlinkat(vfs_handle_struct *handle,
 
 _PUBLIC_
 int vfs_not_implemented_linkat(vfs_handle_struct *handle,
-			files_struct *srcfsp,
-			const struct smb_filename *old_smb_fname,
-			files_struct *dstfsp,
-			const struct smb_filename *new_smb_fname,
-			int flags)
+			       files_struct *src_dirfsp,
+			       const struct smb_filename *old_smb_fname,
+			       files_struct *dst_dirfsp,
+			       const struct smb_filename *new_smb_fname,
+			       int flags)
 {
 	errno = ENOSYS;
 	return -1;
@@ -719,16 +729,6 @@ NTSTATUS vfs_not_implemented_get_real_filename_at(
 	char **found_name)
 {
 	return NT_STATUS_NOT_IMPLEMENTED;
-}
-
-_PUBLIC_
-const char *vfs_not_implemented_connectpath(
-	struct vfs_handle_struct *handle,
-	const struct files_struct *dirfsp,
-	const struct smb_filename *smb_fname)
-{
-	errno = ENOSYS;
-	return NULL;
 }
 
 _PUBLIC_
@@ -1015,16 +1015,6 @@ bool vfs_not_implemented_aio_force(struct vfs_handle_struct *handle,
 }
 
 _PUBLIC_
-NTSTATUS vfs_not_implemented_audit_file(struct vfs_handle_struct *handle,
-					struct smb_filename *file,
-					struct security_acl *sacl,
-					uint32_t access_requested,
-					uint32_t access_denied)
-{
-	return NT_STATUS_NOT_IMPLEMENTED;
-}
-
-_PUBLIC_
 NTSTATUS vfs_not_implemented_durable_cookie(struct vfs_handle_struct *handle,
 					    struct files_struct *fsp,
 					    TALLOC_CTX *mem_ctx,
@@ -1098,6 +1088,7 @@ static struct vfs_fn_pointers vfs_not_implemented_fns = {
 	.sendfile_fn = vfs_not_implemented_sendfile,
 	.recvfile_fn = vfs_not_implemented_recvfile,
 	.renameat_fn = vfs_not_implemented_renameat,
+	.rename_stream_fn = vfs_not_implemented_rename_stream,
 	.fsync_send_fn = vfs_not_implemented_fsync_send,
 	.fsync_recv_fn = vfs_not_implemented_fsync_recv,
 	.stat_fn = vfs_not_implemented_stat,
@@ -1136,7 +1127,6 @@ static struct vfs_fn_pointers vfs_not_implemented_fns = {
 
 	.fstreaminfo_fn = vfs_not_implemented_fstreaminfo,
 	.get_real_filename_at_fn = vfs_not_implemented_get_real_filename_at,
-	.connectpath_fn = vfs_not_implemented_connectpath,
 	.brl_lock_windows_fn = vfs_not_implemented_brl_lock_windows,
 	.brl_unlock_windows_fn = vfs_not_implemented_brl_unlock_windows,
 	.strict_lock_check_fn = vfs_not_implemented_strict_lock_check,
@@ -1144,7 +1134,6 @@ static struct vfs_fn_pointers vfs_not_implemented_fns = {
 	.parent_pathname_fn = vfs_not_implemented_parent_pathname,
 	.fsctl_fn = vfs_not_implemented_fsctl,
 	.freaddir_attr_fn = vfs_not_implemented_freaddir_attr,
-	.audit_file_fn = vfs_not_implemented_audit_file,
 
 	/* DOS attributes. */
 	.get_dos_attributes_send_fn = vfs_not_implemented_get_dos_attributes_send,

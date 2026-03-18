@@ -294,6 +294,15 @@ static const struct enum_list enum_kerberos_encryption_types_vals[] = {
 	{-1, NULL}
 };
 
+/* KDC Windows KB5014754 certificate binding enforcement modes */
+
+static const struct enum_list enum_strong_cert_binding_enforcement_vals[] = {
+	{KDC_CERT_BINDING_NONE, "none"},
+	{KDC_CERT_BINDING_COMPAT, "compatibility"},
+	{KDC_CERT_BINDING_FULL, "full"},
+	{-1, NULL}
+};
+
 static const struct enum_list enum_printing[] = {
 	{PRINT_SYSV, "sysv"},
 	{PRINT_AIX, "aix"},
@@ -359,7 +368,8 @@ static const struct enum_list enum_ldap_deref[] = {
 	{SAMBA_LDAP_DEREF_SEARCHING, "searching"},
 	{SAMBA_LDAP_DEREF_FINDING, "finding"},
 	{SAMBA_LDAP_DEREF_ALWAYS, "always"},
-	{-1, "auto"}
+	{-1, "auto"},
+	{-1, NULL},
 };
 
 static const struct enum_list enum_ldap_passwd_sync[] = {
@@ -425,6 +435,7 @@ static const struct enum_list enum_nt_hash_store[] = {
 	{NT_HASH_STORE_AUTO, "auto"},
 	{NT_HASH_STORE_NEVER, "never"},
 	{NT_HASH_STORE_ALWAYS, "always"},
+	{-1, NULL},
 };
 
 
@@ -483,5 +494,5 @@ static const struct enum_list enum_client_netlogon_ping_protocol[] = {
 
 int num_parameters(void)
 {
-	return (sizeof(parm_table) / sizeof(struct parm_struct));
+	return ARRAY_SIZE(parm_table);
 }

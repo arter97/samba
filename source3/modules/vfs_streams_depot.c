@@ -729,7 +729,9 @@ static int streams_depot_openat(struct vfs_handle_struct *handle,
 			handle, dirfsp, smb_fname, fsp, how);
 	}
 
-	if ((how->resolve & ~VFS_OPEN_HOW_WITH_BACKUP_INTENT) != 0) {
+	if ((how->resolve & ~(VFS_OPEN_HOW_WITH_BACKUP_INTENT |
+			      VFS_OPEN_HOW_RESOLVE_NO_XDEV)) != 0)
+	{
 		errno = ENOSYS;
 		return -1;
 	}
@@ -809,7 +811,6 @@ static int streams_depot_unlinkat_stream(vfs_handle_struct *handle,
 					 struct files_struct *dirfsp,
 					 const struct smb_filename *smb_fname)
 {
-	struct connection_struct *conn = handle->conn;
 	struct smb_filename sname = {};
 	struct smb_filename *base_name = NULL;
 	struct smb_filename *stream_dir = NULL;
@@ -858,7 +859,7 @@ static int streams_depot_unlinkat_stream(vfs_handle_struct *handle,
 		goto done;
 	}
 
-	ret = SMB_VFS_UNLINKAT(conn, stream_dir->fsp, &sname, 0);
+	ret = SMB_VFS_NEXT_UNLINKAT(handle, stream_dir->fsp, &sname, 0);
 done:
 	{
 		int err = errno;
@@ -933,89 +934,22 @@ static int streams_depot_unlinkat(vfs_handle_struct *handle,
 	return ret;
 }
 
-static int streams_depot_renameat(vfs_handle_struct *handle,
-				  files_struct *src_dirfsp,
-				  const struct smb_filename *smb_fname_src,
-				  files_struct *dst_dirfsp,
-				  const struct smb_filename *smb_fname_dst,
-				  const struct vfs_rename_how *how)
+static int streams_depot_rename_stream(struct vfs_handle_struct *handle,
+				       struct files_struct *src_fsp,
+				       const char *dst_name,
+				       bool replace_if_exists)
 {
-	struct connection_struct *conn = handle->conn;
+	struct smb_filename *basename = src_fsp->base_fsp->fsp_name;
+	struct smb_filename *stream_dir = NULL;
 	struct smb_filename smb_fname_src_stream = {};
 	struct smb_filename smb_fname_dst_stream = {};
-	struct smb_filename *src_basename = NULL;
-	struct smb_filename dst_basename = {};
-	struct stat_ex dst_st;
-	bool src_is_stream, dst_is_stream;
-	struct smb_filename *stream_dir = NULL;
-	NTSTATUS status;
-	int ret = -1;
-
-	DEBUG(10, ("streams_depot_renameat called for %s => %s\n",
-		   smb_fname_str_dbg(smb_fname_src),
-		   smb_fname_str_dbg(smb_fname_dst)));
-
-	src_is_stream = is_ntfs_stream_smb_fname(smb_fname_src);
-	dst_is_stream = is_ntfs_stream_smb_fname(smb_fname_dst);
-	SMB_ASSERT(src_is_stream == dst_is_stream);
-
-	if (!src_is_stream) {
-		return SMB_VFS_NEXT_RENAMEAT(handle,
-					     src_dirfsp,
-					     smb_fname_src,
-					     dst_dirfsp,
-					     smb_fname_dst,
-					     how);
-	}
-
-	if (how->flags != 0) {
-		errno = EINVAL;
-		goto done;
-	}
-
-	/* for now don't allow renames from or to the default stream */
-	if (is_ntfs_default_stream_smb_fname(smb_fname_src) ||
-	    is_ntfs_default_stream_smb_fname(smb_fname_dst))
-	{
-		errno = ENOSYS;
-		goto done;
-	}
-
-	src_basename = cp_smb_filename_nostream(talloc_tos(), smb_fname_src);
-	if (src_basename == NULL) {
-		errno = ENOMEM;
-		goto done;
-	}
-
-	status = openat_pathref_fsp(src_dirfsp, src_basename);
-	if (!NT_STATUS_IS_OK(status)) {
-		ret = -1;
-		errno = map_errno_from_nt_status(status);
-		goto done;
-	}
-
-	dst_basename = (struct smb_filename){
-		.base_name = smb_fname_src->base_name,
-		.flags = smb_fname_src->flags,
-		.twrp = smb_fname_src->twrp,
-	};
-
-	ret = SMB_VFS_FSTATAT(
-		conn, dst_dirfsp, &dst_basename, &dst_st, AT_SYMLINK_NOFOLLOW);
-	if (ret == -1) {
-		goto done;
-	}
-
-	if (!check_same_dev_ino(&src_basename->st, &dst_st)) {
-		ret = -1;
-		errno = ENOSYS;
-		goto done;
-	}
+	struct vfs_rename_how how = {.flags = 0};
+	int ret;
 
 	ret = stream_dir_pathref(talloc_tos(),
 				 handle,
-				 src_basename,
-				 &src_basename->st,
+				 basename,
+				 &basename->st,
 				 false,
 				 &stream_dir);
 	if (ret != 0) {
@@ -1025,7 +959,7 @@ static int streams_depot_renameat(vfs_handle_struct *handle,
 	}
 
 	ret = stream_name(talloc_tos(),
-			  smb_fname_src->stream_name,
+			  src_fsp->fsp_name->stream_name,
 			  &smb_fname_src_stream.base_name);
 	if (ret != 0) {
 		errno = ret;
@@ -1034,7 +968,7 @@ static int streams_depot_renameat(vfs_handle_struct *handle,
 	}
 
 	ret = stream_name(talloc_tos(),
-			  smb_fname_dst->stream_name,
+			  dst_name,
 			  &smb_fname_dst_stream.base_name);
 	if (ret != 0) {
 		errno = ret;
@@ -1042,19 +976,27 @@ static int streams_depot_renameat(vfs_handle_struct *handle,
 		goto done;
 	}
 
-	/*
-	 * We must use handle->conn->cwd_fsp as
-	 * srcfsp and dstfsp directory handles here
-	 * as we used the full pathname from the cwd dir
-	 * to calculate the streams directory and filename
-	 * within.
-	 */
+	if (!replace_if_exists) {
+		struct stat_ex st;
+
+		ret = SMB_VFS_FSTATAT(handle->conn,
+				      stream_dir->fsp,
+				      &smb_fname_dst_stream,
+				      &st,
+				      AT_SYMLINK_NOFOLLOW);
+		if (ret == 0) {
+			errno = EEXIST;
+			ret = -1;
+			goto done;
+		}
+	}
+
 	ret = SMB_VFS_NEXT_RENAMEAT(handle,
 				    stream_dir->fsp,
 				    &smb_fname_src_stream,
 				    stream_dir->fsp,
 				    &smb_fname_dst_stream,
-				    how);
+				    &how);
 done:
 	{
 		int err = errno;
@@ -1237,7 +1179,7 @@ static struct vfs_fn_pointers vfs_streams_depot_fns = {
 	.lstat_fn = streams_depot_lstat,
 	.fstatat_fn = streams_depot_fstatat,
 	.unlinkat_fn = streams_depot_unlinkat,
-	.renameat_fn = streams_depot_renameat,
+	.rename_stream_fn = streams_depot_rename_stream,
 	.fstreaminfo_fn = streams_depot_fstreaminfo,
 };
 

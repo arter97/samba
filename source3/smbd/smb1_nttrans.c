@@ -1420,11 +1420,12 @@ void reply_ntrename(struct smb_request *req)
 	connection_struct *conn = req->conn;
 	struct files_struct *src_dirfsp = NULL;
 	struct smb_filename *smb_fname_old = NULL;
+	struct smb_filename *smb_fname_old_rel = NULL;
 	struct files_struct *dst_dirfsp = NULL;
 	struct smb_filename *smb_fname_new = NULL;
+	struct smb_filename *smb_fname_new_rel = NULL;
 	char *oldname = NULL;
 	char *newname = NULL;
-	const char *dst_original_lcomp = NULL;
 	const char *p;
 	NTSTATUS status;
 	uint32_t attrs;
@@ -1434,7 +1435,6 @@ void reply_ntrename(struct smb_request *req)
 	NTTIME dst_twrp = 0;
 	uint16_t rename_type;
 	TALLOC_CTX *ctx = talloc_tos();
-	bool stream_rename = false;
 
 	START_PROFILE(SMBntrename);
 
@@ -1472,18 +1472,6 @@ void reply_ntrename(struct smb_request *req)
 		goto out;
 	}
 
-	if (!req->posix_pathnames) {
-		/* The newname must begin with a ':' if the
-		   oldname contains a ':'. */
-		if (strchr_m(oldname, ':')) {
-			if (newname[0] != ':') {
-				reply_nterror(req, NT_STATUS_INVALID_PARAMETER);
-				goto out;
-			}
-			stream_rename = true;
-		}
-	}
-
 	if (ucf_flags_src & UCF_GMT_PATHNAME) {
 		extract_snapshot_token(oldname, &src_twrp);
 	}
@@ -1493,13 +1481,15 @@ void reply_ntrename(struct smb_request *req)
 		goto out;
 	}
 
-	status = filename_convert_dirfsp(ctx,
-					 conn,
-					 oldname,
-					 ucf_flags_src,
-					 src_twrp,
-					 &src_dirfsp,
-					 &smb_fname_old);
+	status = filename_convert_dirfsp_rel(ctx,
+					     conn,
+					     conn->cwd_fsp,
+					     oldname,
+					     ucf_flags_src,
+					     src_twrp,
+					     &src_dirfsp,
+					     &smb_fname_old,
+					     &smb_fname_old_rel);
 	if (!NT_STATUS_IS_OK(status)) {
 		if (NT_STATUS_EQUAL(status,
 				    NT_STATUS_PATH_NOT_COVERED)) {
@@ -1512,7 +1502,12 @@ void reply_ntrename(struct smb_request *req)
 		goto out;
 	}
 
-	if (stream_rename) {
+	if (!req->posix_pathnames && is_named_stream(smb_fname_old)) {
+		if (newname[0] != ':') {
+			reply_nterror(req, NT_STATUS_INVALID_PARAMETER);
+			goto out;
+		}
+
 		/*
 		 * No point in calling filename_convert()
 		 * on a raw stream name. It can never find
@@ -1540,13 +1535,15 @@ void reply_ntrename(struct smb_request *req)
 			reply_nterror(req, status);
 			goto out;
 		}
-		status = filename_convert_dirfsp(ctx,
-						 conn,
-						 newname,
-						 ucf_flags_dst,
-						 dst_twrp,
-						 &dst_dirfsp,
-						 &smb_fname_new);
+		status = filename_convert_dirfsp_rel(ctx,
+						     conn,
+						     conn->cwd_fsp,
+						     newname,
+						     ucf_flags_dst,
+						     dst_twrp,
+						     &dst_dirfsp,
+						     &smb_fname_new,
+						     &smb_fname_new_rel);
 		if (!NT_STATUS_IS_OK(status)) {
 			if (NT_STATUS_EQUAL(status,
 					    NT_STATUS_PATH_NOT_COVERED)) {
@@ -1560,58 +1557,53 @@ void reply_ntrename(struct smb_request *req)
 		}
 	}
 
-	/* Get the last component of the destination for rename_internals(). */
-	dst_original_lcomp = get_original_lcomp(ctx,
-					conn,
-					newname,
-					ucf_flags_dst);
-	if (dst_original_lcomp == NULL) {
-		reply_nterror(req, NT_STATUS_NO_MEMORY);
-		goto out;
-	}
-
-
-	DEBUG(3,("reply_ntrename: %s -> %s\n",
-		 smb_fname_str_dbg(smb_fname_old),
-		 smb_fname_str_dbg(smb_fname_new)));
+	DBG_NOTICE("%s -> %s, type=%" PRIx16 "\n",
+		   smb_fname_str_dbg(smb_fname_old),
+		   smb_fname_str_dbg(smb_fname_new),
+		   rename_type);
 
 	switch(rename_type) {
-		case RENAME_FLAG_RENAME:
-			status = rename_internals(ctx,
-						conn,
-						req,
-						src_dirfsp,
-						smb_fname_old,
-						smb_fname_new,
-						dst_original_lcomp,
-						attrs,
-						false,
-						DELETE_ACCESS);
-			break;
-		case RENAME_FLAG_HARD_LINK:
-			status = hardlink_internals(ctx,
-						    conn,
-						    req,
-						    false,
-						    smb_fname_old,
-						    smb_fname_new);
-			break;
-		case RENAME_FLAG_COPY:
-			status = copy_internals(ctx,
-						conn,
-						req,
-						src_dirfsp,
-						smb_fname_old,
-						dst_dirfsp,
-						smb_fname_new,
-						attrs);
-			break;
-		case RENAME_FLAG_MOVE_CLUSTER_INFORMATION:
-			status = NT_STATUS_INVALID_PARAMETER;
-			break;
-		default:
-			status = NT_STATUS_ACCESS_DENIED; /* Default error. */
-			break;
+	case RENAME_FLAG_RENAME: {
+		status = rename_internals(ctx,
+					  conn,
+					  req,
+					  src_dirfsp,
+					  smb_fname_old,
+					  smb_fname_old_rel,
+					  attrs,
+					  newname,
+					  false,
+					  DELETE_ACCESS);
+		break;
+	}
+	case RENAME_FLAG_HARD_LINK:
+		status = hardlink_internals(ctx,
+					    conn,
+					    req,
+					    false,
+					    src_dirfsp,
+					    smb_fname_old,
+					    smb_fname_old_rel,
+					    dst_dirfsp,
+					    smb_fname_new,
+					    smb_fname_new_rel);
+		break;
+	case RENAME_FLAG_COPY:
+		status = copy_internals(ctx,
+					conn,
+					req,
+					src_dirfsp,
+					smb_fname_old,
+					dst_dirfsp,
+					smb_fname_new,
+					attrs);
+		break;
+	case RENAME_FLAG_MOVE_CLUSTER_INFORMATION:
+		status = NT_STATUS_INVALID_PARAMETER;
+		break;
+	default:
+		status = NT_STATUS_ACCESS_DENIED; /* Default error. */
+		break;
 	}
 
 	if (!NT_STATUS_IS_OK(status)) {
@@ -2561,7 +2553,8 @@ void reply_nttrans(struct smb_request *req)
 			goto bad_param;
 		}
 
-		state->setup = (uint16_t *)TALLOC(state, state->setup_count);
+		state->setup = (uint16_t *)talloc_size(state,
+						       state->setup_count);
 		if (state->setup == NULL) {
 			DEBUG(0,("reply_nttrans : Out of memory\n"));
 			SAFE_FREE(state->data);

@@ -731,7 +731,9 @@ static int vfs_gluster_openat(struct vfs_handle_struct *handle,
 
 	START_PROFILE(syscall_openat);
 
-	if ((how->resolve & ~VFS_OPEN_HOW_WITH_BACKUP_INTENT) != 0) {
+	if ((how->resolve & ~(VFS_OPEN_HOW_WITH_BACKUP_INTENT |
+			      VFS_OPEN_HOW_RESOLVE_NO_XDEV)) != 0)
+	{
 		END_PROFILE(syscall_openat);
 		errno = ENOSYS;
 		return -1;
@@ -1222,11 +1224,11 @@ static ssize_t vfs_gluster_recvfile(struct vfs_handle_struct *handle,
 }
 
 static int vfs_gluster_renameat(struct vfs_handle_struct *handle,
-			files_struct *srcfsp,
-			const struct smb_filename *smb_fname_src,
-			files_struct *dstfsp,
-			const struct smb_filename *smb_fname_dst,
-			const struct vfs_rename_how *how)
+				files_struct *src_dirfsp,
+				const struct smb_filename *smb_fname_src,
+				files_struct *dst_dirfsp,
+				const struct smb_filename *smb_fname_dst,
+				const struct vfs_rename_how *how)
 {
 	int ret;
 
@@ -1242,14 +1244,14 @@ static int vfs_gluster_renameat(struct vfs_handle_struct *handle,
 		return -1;
 	}
 
-	src_pglfd = vfs_gluster_fetch_glfd(handle, srcfsp);
+	src_pglfd = vfs_gluster_fetch_glfd(handle, src_dirfsp);
 	if (src_pglfd == NULL) {
 		END_PROFILE(syscall_renameat);
 		DBG_ERR("Failed to fetch gluster fd\n");
 		return -1;
 	}
 
-	dst_pglfd = vfs_gluster_fetch_glfd(handle, dstfsp);
+	dst_pglfd = vfs_gluster_fetch_glfd(handle, dst_dirfsp);
 	if (dst_pglfd == NULL) {
 		END_PROFILE(syscall_renameat);
 		DBG_ERR("Failed to fetch gluster fd\n");
@@ -1271,7 +1273,7 @@ static int vfs_gluster_renameat(struct vfs_handle_struct *handle,
 	}
 
 	full_fname_src = full_path_from_dirfsp_atname(talloc_tos(),
-						      srcfsp,
+						      src_dirfsp,
 						      smb_fname_src);
 	if (full_fname_src == NULL) {
 		END_PROFILE(syscall_renameat);
@@ -1280,7 +1282,7 @@ static int vfs_gluster_renameat(struct vfs_handle_struct *handle,
 	}
 
 	full_fname_dst = full_path_from_dirfsp_atname(talloc_tos(),
-						      dstfsp,
+						      dst_dirfsp,
 						      smb_fname_dst);
 	if (full_fname_dst == NULL) {
 		END_PROFILE(syscall_renameat);
@@ -1700,12 +1702,7 @@ static struct smb_filename *vfs_gluster_getwd(struct vfs_handle_struct *handle,
 	if (ret == NULL) {
 		return NULL;
 	}
-	smb_fname = synthetic_smb_fname(ctx,
-					ret,
-					NULL,
-					NULL,
-					0,
-					0);
+	smb_fname = cp_smb_basename(ctx, ret);
 	return smb_fname;
 }
 
@@ -1735,10 +1732,9 @@ static int vfs_gluster_fntimes(struct vfs_handle_struct *handle,
 		times[1].tv_nsec = ft->mtime.tv_nsec;
 	}
 
-	if ((timespec_compare(&times[0],
-			      &fsp->fsp_name->st.st_ex_atime) == 0) &&
-	    (timespec_compare(&times[1],
-			      &fsp->fsp_name->st.st_ex_mtime) == 0)) {
+	if (timespec_equal(&times[0], &fsp->fsp_name->st.st_ex_atime) &&
+	    timespec_equal(&times[1], &fsp->fsp_name->st.st_ex_mtime))
+	{
 		END_PROFILE(syscall_fntimes);
 		return 0;
 	}
@@ -1854,12 +1850,7 @@ static struct smb_filename *vfs_gluster_realpath(struct vfs_handle_struct *handl
 			smb_fname->base_name,
 			resolved_path);
 	if (result != NULL) {
-		result_fname = synthetic_smb_fname(ctx,
-						   result,
-						   NULL,
-						   NULL,
-						   0,
-						   0);
+		result_fname = cp_smb_basename(ctx, result);
 	}
 
 	SAFE_FREE(resolved_path);
@@ -2094,11 +2085,11 @@ static int vfs_gluster_readlinkat(struct vfs_handle_struct *handle,
 }
 
 static int vfs_gluster_linkat(struct vfs_handle_struct *handle,
-				files_struct *srcfsp,
-				const struct smb_filename *old_smb_fname,
-				files_struct *dstfsp,
-				const struct smb_filename *new_smb_fname,
-				int flags)
+			      files_struct *src_dirfsp,
+			      const struct smb_filename *old_smb_fname,
+			      files_struct *dst_dirfsp,
+			      const struct smb_filename *new_smb_fname,
+			      int flags)
 {
 	int ret;
 
@@ -2108,14 +2099,14 @@ static int vfs_gluster_linkat(struct vfs_handle_struct *handle,
 
 	START_PROFILE(syscall_linkat);
 
-	src_pglfd = vfs_gluster_fetch_glfd(handle, srcfsp);
+	src_pglfd = vfs_gluster_fetch_glfd(handle, src_dirfsp);
 	if (src_pglfd == NULL) {
 		END_PROFILE(syscall_linkat);
 		DBG_ERR("Failed to fetch gluster fd\n");
 		return -1;
 	}
 
-	dst_pglfd = vfs_gluster_fetch_glfd(handle, dstfsp);
+	dst_pglfd = vfs_gluster_fetch_glfd(handle, dst_dirfsp);
 	if (dst_pglfd == NULL) {
 		END_PROFILE(syscall_linkat);
 		DBG_ERR("Failed to fetch gluster fd\n");
@@ -2134,7 +2125,7 @@ static int vfs_gluster_linkat(struct vfs_handle_struct *handle,
 	START_PROFILE(syscall_linkat);
 
 	full_fname_old = full_path_from_dirfsp_atname(talloc_tos(),
-						      srcfsp,
+						      src_dirfsp,
 						      old_smb_fname);
 	if (full_fname_old == NULL) {
 		END_PROFILE(syscall_linkat);
@@ -2142,7 +2133,7 @@ static int vfs_gluster_linkat(struct vfs_handle_struct *handle,
 	}
 
 	full_fname_new = full_path_from_dirfsp_atname(talloc_tos(),
-						      dstfsp,
+						      dst_dirfsp,
 						      new_smb_fname);
 	if (full_fname_new == NULL) {
 		END_PROFILE(syscall_linkat);
@@ -2251,14 +2242,6 @@ static NTSTATUS vfs_gluster_get_real_filename_at(
 	}
 
 	return NT_STATUS_OK;
-}
-
-static const char *vfs_gluster_connectpath(
-	struct vfs_handle_struct *handle,
-	const struct files_struct *dirfsp,
-	const struct smb_filename *smb_fname)
-{
-	return handle->conn->connectpath;
 }
 
 /* EA Operations */
@@ -2637,7 +2620,6 @@ static struct vfs_fn_pointers glusterfs_fns = {
 	.file_id_create_fn = NULL,
 	.fstreaminfo_fn = NULL,
 	.get_real_filename_at_fn = vfs_gluster_get_real_filename_at,
-	.connectpath_fn = vfs_gluster_connectpath,
 	.create_dfs_pathat_fn = vfs_gluster_create_dfs_pathat,
 	.read_dfs_pathat_fn = vfs_gluster_read_dfs_pathat,
 
@@ -2650,7 +2632,6 @@ static struct vfs_fn_pointers glusterfs_fns = {
 	/* NT ACL Operations */
 	.fget_nt_acl_fn = NULL,
 	.fset_nt_acl_fn = NULL,
-	.audit_file_fn = NULL,
 
 	/* Posix ACL Operations */
 	.sys_acl_get_fd_fn = posixacl_xattr_acl_get_fd,

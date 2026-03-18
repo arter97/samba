@@ -1,434 +1,239 @@
                    ==============================
-                   Release Notes for Samba 4.23.6
-                         February 27, 2026
+                   Release Notes for Samba 4.24.0
+                           March 18, 2026
                    ==============================
 
 
-This is the latest stable release of the Samba 4.23 release series.
-
-
-Changes since 4.23.5
---------------------
-
-o  Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
-   * BUG 15990: No function _python_sysroot defined
-
-o  Ralph Boehme <slow@samba.org>
-   * BUG 15978: leases torture test flappy
-   * BUG 15984: smbd: in contend_dirleases() don't bother checking when not
-     enabled
-
-o  Samuel Cabrero <scabrero@samba.org>
-   * BUG 15979: possible memory leak  on rpc_spoolss
-
-o  Günther Deschner <gd@samba.org>
-   * BUG 15964: "net offlinejoin requestodj" manpage entry incorrectly mentiones
-     provided credentials
-
-o  Noel Power <noel.power@suse.com>
-   * BUG 15789: "use-kerberos=desired" broken
-   * BUG 15958: pthreadpool_tevent has race conditions accessing both
-     pthreadpool_tevent.jobs list and pthreadpool_tevent.glue_list
-   * BUG 15979: possible memory leak  on rpc_spoolss
-
-o  Peter Schwenke <pschwenke@ddn.com>
-   * BUG 15938: CTDB's statd_callout fails on sm-notify
-   * BUG 15939: CTDB statd_callout_notify notifies unnecessary clients and loses
-     their state
-
-o  Martin Schwenke <mschwenke@ddn.com>
-   * BUG 15939: CTDB statd_callout_notify notifies unnecessary clients and loses
-     their state
-   * BUG 15977: ctdbd socket documentation is wrong
-
-
-#######################################
-Reporting bugs & Development Discussion
-#######################################
-
-Please discuss this release on the samba-technical mailing list or by
-joining the #samba-technical:matrix.org matrix room, or
-#samba-technical IRC channel on irc.libera.chat.
-
-If you do report problems then please try to send high quality
-feedback. If you don't provide vital information to help us track down
-the problem then you will probably be ignored.  All bug reports should
-be filed under the Samba 4.1 and newer product in the project's Bugzilla
-database (https://bugzilla.samba.org/).
-
-
-======================================================================
-== Our Code, Our Bugs, Our Responsibility.
-== The Samba Team
-======================================================================
-
-
-Release notes for older releases follow:
-----------------------------------------
-                   ==============================
-                   Release Notes for Samba 4.23.5
-                          January 23, 2026
-                   ==============================
-
-
-This is the latest stable release of the Samba 4.23 release series.
-
-
-Changes since 4.23.4
---------------------
-
-o  Ralph Boehme <slow@samba.org>
-   * BUG 15959: New Spotlight default search field incorrectly initialized
-
-o  Pavel Filipenský <pfilipensky@samba.org>
-   * BUG 15972: Winbind group resolution failure
-
-o  Gary Lockyer <gary@catalyst.net.nz>
-   * BUG 15937: winbindd crashes with Bad talloc magic value - unknown value
-
-o  Michael Tokarev <mjt@tls.msk.ru>
-   * BUG 15790: Bind dlz 9.20
-
-
-#######################################
-Reporting bugs & Development Discussion
-#######################################
-
-Please discuss this release on the samba-technical mailing list or by
-joining the #samba-technical:matrix.org matrix room, or
-#samba-technical IRC channel on irc.libera.chat.
-
-If you do report problems then please try to send high quality
-feedback. If you don't provide vital information to help us track down
-the problem then you will probably be ignored.  All bug reports should
-be filed under the Samba 4.1 and newer product in the project's Bugzilla
-database (https://bugzilla.samba.org/).
-
-
-======================================================================
-== Our Code, Our Bugs, Our Responsibility.
-== The Samba Team
-======================================================================
-
-
-----------------------------------------------------------------------
-                   ==============================
-                   Release Notes for Samba 4.23.4
-                         December 12, 2025
-                   ==============================
-
-
-This is the latest stable release of the Samba 4.23 release series.
-
-
-Changes since 4.23.3
---------------------
-
-o  Ralph Boehme <slow@samba.org>
-   * BUG 15926: Samba 4.22 breaks Time Machine
-   * BUG 15947: mdssvc doesn't support $time.iso dates before 1970
-
-o  Günther Deschner <gd@samba.org>
-   * BUG 15963: Fix winbind cache consistency
-
-o  Volker Lendecke <vl@samba.org>
-   * BUG 15897: Assert failed: (dirfd != -1) || (smb_fname->base_name[0] == '/')
-     in vfswrap_openat
-   * BUG 15950: ctdb can crash with inconsistent cluster lock configuration
-
-o  Anoop C S <anoopcs@samba.org>
-   * BUG 15897: Assert failed: (dirfd != -1) || (smb_fname->base_name[0] == '/')
-     in vfswrap_openat
-
-o  Andreas Schneider <asn@samba.org>
-   * BUG 15809: samba-bgqd: rework man page
-   * BUG 15936: samba-bgqd can't find [printers] share
-   * BUG 15955: Winbind can hang forever in gssapi if there are network issues.
-   * BUG 15961: libldb requires linking libreplace on Linux
-
-
-#######################################
-Reporting bugs & Development Discussion
-#######################################
-
-Please discuss this release on the samba-technical mailing list or by
-joining the #samba-technical:matrix.org matrix room, or
-#samba-technical IRC channel on irc.libera.chat.
-
-If you do report problems then please try to send high quality
-feedback. If you don't provide vital information to help us track down
-the problem then you will probably be ignored.  All bug reports should
-be filed under the Samba 4.1 and newer product in the project's Bugzilla
-database (https://bugzilla.samba.org/).
-
-
-======================================================================
-== Our Code, Our Bugs, Our Responsibility.
-== The Samba Team
-======================================================================
-
-
-----------------------------------------------------------------------
-                   ==============================
-                   Release Notes for Samba 4.23.3
-                         November 07, 2025
-                   ==============================
-
-
-This is the latest stable release of the Samba 4.23 release series.
-
-
-Changes since 4.23.2
---------------------
-
-o  Ralph Boehme <slow@samba.org>
-   * BUG 15926: Samba 4.22 breaks Time Machine.
-   * BUG 15927: Spotlight search restriction for shares incomplete and default
-     search searches in too many attributes.
-   * BUG 15930: Searching for numbers doesn't work with Spotlight.
-   * BUG 15931: rpcd_mdssvc may crash because name mangling is not initialized.
-   * BUG 15933: Only increment lease epoch if a lease was granted.
-
-o  Pavel Filipenský <pfilipensky@samba.org>
-   * BUG 15940: vfs_recycle does not update mtime.
-   * BUG 15943: samba-log-parser fails with UnicodeDecodeError: 'utf-8' codec
-     can't decode byte.
-
-o  Martin Schwenke <mschwenke@ddn.com>
-   * BUG 15935: Crash in ctdbd on failed updateip.
-
-
-#######################################
-Reporting bugs & Development Discussion
-#######################################
-
-Please discuss this release on the samba-technical mailing list or by
-joining the #samba-technical:matrix.org matrix room, or
-#samba-technical IRC channel on irc.libera.chat.
-
-If you do report problems then please try to send high quality
-feedback. If you don't provide vital information to help us track down
-the problem then you will probably be ignored.  All bug reports should
-be filed under the Samba 4.1 and newer product in the project's Bugzilla
-database (https://bugzilla.samba.org/).
-
-
-======================================================================
-== Our Code, Our Bugs, Our Responsibility.
-== The Samba Team
-======================================================================
-
-
-----------------------------------------------------------------------
-                   ==============================
-                   Release Notes for Samba 4.23.2
-                          October 15, 2025
-                   ==============================
-
-
-This is a security release in order to address the following defects:
-
-o CVE-2025-9640:  Uninitialized memory disclosure via vfs_streams_xattr.
-                  https://www.samba.org/samba/security/CVE-2025-9640.html
-
-o CVE-2025-10230: Command injection via WINS server hook script.
-                  https://www.samba.org/samba/security/CVE-2025-10230.html
-
-
-Changes since 4.23.1
---------------------
-
-o  Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
-   * BUG 15903: CVE-2025-10230.
-
-o  Andrew Walker <andrew.walker@truenas.com>
-   * BUG 15885: CVE-2025-9640.
-
-
-#######################################
-Reporting bugs & Development Discussion
-#######################################
-
-Please discuss this release on the samba-technical mailing list or by
-joining the #samba-technical:matrix.org matrix room, or
-#samba-technical IRC channel on irc.libera.chat.
-
-If you do report problems then please try to send high quality
-feedback. If you don't provide vital information to help us track down
-the problem then you will probably be ignored.  All bug reports should
-be filed under the Samba 4.1 and newer product in the project's Bugzilla
-database (https://bugzilla.samba.org/).
-
-
-======================================================================
-== Our Code, Our Bugs, Our Responsibility.
-== The Samba Team
-======================================================================
-
-
-----------------------------------------------------------------------
-                   ==============================
-                   Release Notes for Samba 4.23.1
-                         September 26, 2025
-                   ==============================
-
-
-This is the latest stable release of the Samba 4.23 release series.
-
-
-Changes since 4.23.0
---------------------
-
-o  Alexander Bokovoy <ab@samba.org>
-   * BUG 15920: Incomplete bind configuration causes DLZ plugin to crash.
-
-o  Volker Lendecke <vl@samba.org>
-   * BUG 15914: winbind can crash at startup.
-
-o  Anoop C S <anoopcs@samba.org>
-   * BUG 15919: vfs_ceph_new should not use ceph_ll_nonblocking_readv_writev for
-     fsync_send.
-
-o  Andreas Schneider <asn@samba.org>
-   * BUG 15904: CTDB does not support PCP 7.0.0.
-
-o  Martin Schwenke <mschwenke@ddn.com>
-   * BUG 15921: CTDB_SOCKET can be used even when CTDB_TEST_MODE is not set.
-
-o  Shachar Sharon <ssharon@redhat.com>
-   * BUG 15919: vfs_ceph_new should not use ceph_ll_nonblocking_readv_writev for
-     fsync_send.
-
-
-#######################################
-Reporting bugs & Development Discussion
-#######################################
-
-Please discuss this release on the samba-technical mailing list or by
-joining the #samba-technical:matrix.org matrix room, or
-#samba-technical IRC channel on irc.libera.chat.
-
-If you do report problems then please try to send high quality
-feedback. If you don't provide vital information to help us track down
-the problem then you will probably be ignored.  All bug reports should
-be filed under the Samba 4.1 and newer product in the project's Bugzilla
-database (https://bugzilla.samba.org/).
-
-
-======================================================================
-== Our Code, Our Bugs, Our Responsibility.
-== The Samba Team
-======================================================================
-
-
-----------------------------------------------------------------------
-                   ==============================
-                   Release Notes for Samba 4.23.0
-                         September 12, 2025
-                   ==============================
-
-
-This is the first stable release of the Samba 4.23 release series.
+This is the first stable release of the Samba 4.24 release series.
 Please read the release notes carefully before upgrading.
 
 
 NEW FEATURES/CHANGES
 ====================
 
-Enable SMB3 Unix Extensions by default
+Authentication information audit support
+----------------------------------------
+
+There are some Active Directory attributes that are not secret, but
+are relied on in some forms of authentication. Changes to these
+attributes could indicate surreptitious activity. The
+"dsdb_password_audit" and "dsdb_password_json_audit" debug classes now
+log changes to the following attributes:
+
+ * altSecurityIdentities
+ * dNSHostName
+ * msDS-AdditionalDnsHostName
+ * msDS-KeyCredentialLink
+ * servicePrincipalName
+
+For the JSON logs, changes to these will be logged with the "action"
+field set to "Auth info change".
+
+
+vfs_streams_xattr can hold larger streams
+-----------------------------------------
+
+On Linux the size of a single extended attribute is limited to 65536
+bytes of size. For some file systems, this is also the overall limit
+of space for xattrs, but for example xfs can hold more than that 64k
+of extended xattrs, although the individual xattr is still limited to
+64k. Setting
+
+streams_xattr:max xattrs per stream = 1
+
+to a higher value than 1 will allow Samba to shard the stream to more
+than one xattr. It has an artificial limit of 16 for a maximum stream
+length of 1MB.
+
+
+Support for remote password management (Entra ID SSPR, Keycloak)
+----------------------------------------------------------------
+
+When a system such as Entra ID or Keycloak wants to change a user's
+password in its own database as well as in AD, it will use a password
+reset, meaning it does not transmit the old password to the domain
+controller. Normally a password reset avoids password history and age
+checks, which would allow a cloud password change to bypass
+on-premises password policies. To address this, a password reset using
+the "policy hints" control should respect password policies, as if it
+were an ordinary password change. Both Entra ID and Keycloak use this,
+but until now Samba did not understand this control, and would reject
+these reset requests.
+
+Now Samba AD will recognise the policy hints control and enforce local
+policy. This allows Microsoft Entra self-service password reset (SSPR)
+to work, and for Keycloak to work with the "password policy hints
+enabled" option.
+
+
+Kerberos PKINIT KeyTrust logon support
 --------------------------------------
-Starting with Samba 4.23, the SMB3 UNIX Extensions are enabled by
-default. These extensions provide first-class support for POSIX semantics
-over SMB3, allowing UNIX and Linux clients to access file services with
-features such as proper POSIX permissions, symlink handling, hardlinks,
-and special file types.
 
-Enabling this feature by default improves interoperability for UNIX/Linux
-clients without requiring additional configuration. Windows clients that
-do not support the extensions will continue to function normally, by
-using standard SMB3 behavior.
+Samba servers configured with the embedded heimdal KDC and running as an ADDC,
+now support "Windows Hello for Business Key-Trust logons". This allows the
+PKINIT authentication mechanism to be used with self-signed keys.
 
-Add support for SMB3 over QUIC
-------------------------------
-The new "client smb transports" and "server smb transport"
-allow a more flexible configuration for the used tcp
-sockets.
+The samba-tool computer and user commands have a new "keytrust"
+sub-command which allows for the setting and viewing of the public key
+details for computer and user accounts. This stores the public key
+details in msDS-KeyCredentialLink attribute of the account.
 
-It also got the ability specify "quic" as possible transport.
-If quic should be used in addition to the defaults something
-like "server smb transports = +quic" can be used.
 
-For the client quic only works with name based uncs,
-ip address based uncs are not supported.
+msDS-KeyCredentialLink validation
+---------------------------------
 
-Note for the server 'quic' requires the quic.ko kernel module
-for Linux from https://github.com/lxin/quic (tested with Linux 6.14).
-Future Linux versions may support it natively, here's the
-branch that will hopefully accepted upstream soon:
-https://github.com/lxin/net-next/commits/quic/
+Updates to the msDS-KeyCredentialLink attribute are validated against the
+rules specified by MS-ADTS 3.1.1.5.3.1.1.6.
 
-For the client side there's a fallback to the userspace ngtcp2
-library if the quic kernel module is not available.
+Kerberos PKINIT strong/flexible key mappings
+--------------------------------------------
 
-Check the smb.conf manpage for additional hints
-about the "client smb transports" and "server smb transport"
-options and interactions with tls related options.
+Samba servers configured with the embedded heimdal KDC and running as an ADDC
+now support "Windows Strong and Flexible key mappings" as outlined in
+Microsoft KB5014754: Certificate-based authentication changes on Windows domain
+controllers.
 
-Modern write time update logic
-------------------------------
-Samba 4.23 changes file timestamp handling to match modern Windows servers.
-Earlier releases used delayed write time updates, where last_write_time was
-only refreshed after a short idle period. Now Samba applies immediate
-timestamp updates consistent with modern Windows 10/Server 2016 or newer.
+The default enforcement mode ("full") allows only strong certificate
+mappings. The smb.conf option
 
-Initial version of smb_prometheus_endpoint
-------------------------------------------
-Samba 4.23 introduces the smb_prometheus_endpoint utility, which exports
-Samba server metrics in Prometheus-compatible format. This enables seamless
-integration of Samba performance and status monitoring into existing
-Prometheus and Grafana environments. For usage and configuration details,
-refer to the new smb_prometheus_endpoint man page.
+  strong certificate binding enforcement = compatibility
 
-samba-tool domain backup --no-secrets avoids confidential attributes
---------------------------------------------------------------------
-The --no-secrets option creates a back-up without secret attributes
-(e.g. passwords), suitable for use in a lab domain. Until now it could
-still contain confidential attributes, including BitLocker recovery
-data and KDS root keys. Objects in the classes msKds-ProvRootKey,
-msFVE-RecoveryInformation, and msTPM-InformationObject will now be
-entirely removed from the backup, as these objects are required by
-schema to have confidential attributes and are no use without them.
+will allow weak mappings where the certificate is newer than the user
+account. The option "none" will allow any mappings.
 
-CTDB changes
-------------
-CTDB now supports loading tunables from
-/etc/ctdb/tunables.d/*.tunables, in addition to the standard
-/etc/ctdb/tunables.conf.  See the ctdb-tunables(7) manual page for
-more details.  Note that the above locations are examples - the
-actual location of these files will depend on compile time
-configuration.
+The mappings for an account should be placed in the altSecurityIdentities
+attribute and follow the syntax documented in KB5014754.
 
-It isn't expected that many users will require a directory of tunables
-files, since most users do not need to change tunables from their
-default values.  However, this allows vendors to ship their required
-tunables settings (for example, in one or more files marked "do not
-edit") while still allowing local administrators to add their own
-tunables settings (in one or more separate files).
 
-Per-share profiling stats
--------------------------
-Starting with Samba 4.23, users can collect profile counters at a
-per-share level. This feature requires building Samba with profiling
-data enabled and adding an appropriate `smb.conf` parameter for
-specific shares. It's particularly useful for deployments with a large
-number of active shares, allowing administrators to monitor individual
-share activity and identify potential bottlenecks or hot-spots. When
-enabled, users can inspect current per-share profile information
-("Extended Profile") using the standard `smbstatus` utility.
+Kerberos PKINIT SID extension
+-----------------------------
 
-Currently, this functionality is supported only by the default and
-`ceph_new` VFS modules.
+PKINIT authentication now supports certificates containing an Object SID
+extension (extension 1.3.6.1.4.1.311.25.2), this is considered to be a STRONG
+mapping for KB5014754.
 
+The computer and user samba-tool commands have a new sub-command
+"generate-csr" to generate certificate signing requests.
+
+
+KDC includes PAC by default
+---------------------------
+
+Samba will ignore the value provided by the client in "PA-PAC-REQUEST"
+and always include a PAC in responses, unless "kdc always generate
+pac" is set to "no".
+
+
+KDC can insist clients request canonicalization
+-----------------------------------------------
+
+Canonicalization of principal client names is not mandatory in
+Kerberos (per RFC4120), but must be requested by the client. In some
+circumstances allows a client to deceive Active Directory member
+servers (known as the "dollar ticket" attack).
+
+The new configuration option "kdc require canonicalization" can be
+used to require that clients request canonicalization; if they do not,
+their AS_REQ requests will be rejected as if the account was unknown.
+
+The default value is "no", for backward compatibility. Windows clients
+will ask for canonicalization by default, so in Windows-heavy
+environments it is safe and recommended to set this to "yes".
+
+KDC can avoid potentially confusing canonicalization
+----------------------------------------------------
+
+Currently when the client does not request canonicalization, when the
+KDC looks up a name and there is no match it will append a "$" to the
+name and try again. An attacker who can create arbitrary machine
+accounts can sometimes get tickets for Unix users by mimicking their
+names (the "dollar ticket" attack).
+
+The configuration option
+
+  kdc name match implicit dollar without canonicalization = no
+
+can be used to disable this behaviour for clients that do not request
+canonicalization. Probably this only affects traditional Unix clients,
+as Windows clients use canonicalization. If affected clients want a
+ticket for a machine account, they will have to use the full name
+including the dollar (e.g. "server$", not "server").
+
+If the "kdc require canonicalization" option cannot be set to "yes"
+(because some clients do not request canonicalization) setting this
+option to "no" is a good alternative.
+
+
+KDC provides Kerberos acceptors with canonical client names
+-----------------------------------------------------------
+
+By default the KDC will now send Kerberos services the canonicalized
+name (the sAMAccountName from the PAC) rather than trusting the cname.
+
+To return to the old behaviour, use
+
+  krb5 acceptor report canonical client name = no
+
+in the smb.conf.
+
+This currently affects Heimdal KDC only, not MIT.
+
+
+KDC recommended configuration:
+-----------------------------
+strong certificate binding enforcement                            full
+kdc always include pac                                            yes
+kdc require canonicalization                                      yes
+
+If unable to use "kdc require canonicalization" = "yes", then
+"kdc name match implicit dollar without implicit canonicalization" should be
+set to "no" if possible.
+
+samba tool
+----------
+
+Two new sub-commands have been added to the user and computer commands:
+
+user|computer generate-csr
+    Generate a Certificate signing request for an account containing the
+    Object SID extension  (extension 1.3.6.1.4.1.311.25.2)
+
+user|computer keytrust
+   Add the public key details of a self signed certificate to an account.
+   The command supports PEM and DER encoded public keys.
+
+
+New AIO rate-limiting VFS module
+--------------------------------
+A new VFS stackable module has been introduced to implement rate-limiting for
+asynchronous I/O operations. Administrators can now enforce throughput ceilings
+by defining limits in either operations per second or bytes per second. The
+module utilizes a token-based algorithm to calculate real-time I/O load; when
+limits are exceeded, it dynamically injects millisecond delays into async
+operations to maintain the defined threshold.
+
+
+CephFS FSCrypt support for the VFS ceph_new module
+--------------------------------------------------
+The ceph_new VFS module can now make use of the FSCrypt feature recently added
+to CephFS. This enhancement enables data and file name encryption on a per
+share basis. A single CephFS file system may host a mix of encrypted and
+unencrypted directories.
+
+To obtain the encryption keys needed for FSCrypt the ceph_new module includes
+support for the Keybridge protocol. Keybridge is an RPC protocol based on
+Varlink that can retrieve keys from a local service via a UNIX socket. Users
+can choose to develop a custom Keybridge implementation or use the existing
+KMIP-compatible Keybridge server available as part of the sambacc project
+(https://github.com/samba-in-kubernetes/sambacc).
+
+Domain encryption types changed to AES by default
+-------------------------------------------------
+
+The default value of the smb.conf option ‘kdc default domain supported enctypes’
+now corresponds to ‘aes128-cts-hmac-sha1-96 aes256-cts-hmac-sha1-96’ (both AES
+encryption types) if the domain functional level is 2008 or higher. This
+addresses CVE-2026-20833.
 
 REMOVED FEATURES
 ================
@@ -439,76 +244,87 @@ smb.conf changes
 
   Parameter Name                          Description     Default
   --------------                          -----------     -------
-  smbd profiling share                    New             no
-  client smb transports                   New             tcp, nbt
-  server smb transports                   New             tcp, nbt
-  winbind varlink service                 New             no
+  strong certificate binding enforcement  New             full
+  certificate backdating compensation     New             0
+  kdc always include pac                  New             yes
+  kdc require canonicalization            New             no
+  kdc name match implicit dollar without canonicalization
+                                          New             yes
+  kdc default domain supported enctypes   New default     AES encryption types (if supported by domain)
 
 
-CHANGES SINCE 4.23.0rc4
+CHANGES SINCE 4.24.0rc3
+=======================
+
+o  Volker Lendecke <vl@samba.org>
+   * BUG 16019: incorrect behavior on rpcclient enumport with rpcd_spoolss
+
+o  Gary Lockyer <gary@catalyst.net.nz>
+   * BUG 16001: altSecurityIdentities X509 issuer DN order is reversed
+
+o  Avan Thakkar <athakkar@redhat.com>
+   * BUG 16000: vfs_aio_ratelimit: introduce burst-aware and persistent state
+     model
+
+
+CHANGES SINCE 4.24.0rc2
 =======================
 
 o  Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
-   * BUG 15911: samba.tests.safe_tarfile fails on Python 3.13 with additional
-     security fixes for tarfile support.
+   * BUG 15990: No function _python_sysroot defined
 
-o  Alexander Bokovoy <ab@samba.org>
-   * BUG 15904: CTDB does not support PCP 7.0.0.
+o  Ralph Boehme <slow@samba.org>
+   * BUG 15978: leases torture test flappy
+   * BUG 15984: smbd: in contend_dirleases() don't bother checking when not
+     enabled
 
 o  Pavel Filipenský <pfilipensky@samba.org>
-   * BUG 15905: samba-4.21 fails to join AD when multiple DCs are returned.
+   * BUG 15993: 'net ads kerberos kinit' should use also default ccache name
+     from krb5.conf
 
-o  Volker Lendecke <vl@samba.org>
-   * BUG 15908: Uninitialized read leads to hanging rpcd_spoolss.
-
-o  Andreas Schneider <asn@samba.org>
-   * BUG 15905: samba-4.21 fails to join AD when multiple DCs are returned.
-   * BUG 15907: Stack buffer overflow in samba3.smb2.dirlease.fileserver.
-
-
-CHANGES SINCE 4.23.0rc3
-=======================
-
-o  Alexander Bokovoy <ab@samba.org>
-   * BUG 15902: Regression in gssproxy support in 4.23.rc1+.
-
-o  MikeLiu <mikeliu@qnap.com>
-   * BUG 15900: 'net ads group' failed to list domain groups.
-
-
-CHANGES SINCE 4.23.0rc2
-=======================
-
-o  Ralph Boehme <slow@samba.org>
-   * BUG 15843: macOS Finder client DFS broken on 4.22.0.
-
-o  Stefan Metzmacher <metze@samba.org>
-   * BUG 15899: Self-signed certificates don't have X509v3 Subject Alternative
-     Name for DNS.
+o  Noel Power <noel.power@suse.com>
+   * BUG 15789: "use-kerberos=desired" broken
 
 o  Andreas Schneider <asn@samba.org>
-   * BUG 15893: Improve handling of principals and realms in client tools.
+   * BUG 15975: source3/libads/kerberos.c sets wrong failure for negative
+     connection cache
+
+o  Peter Schwenke <pschwenke@ddn.com>
+   * BUG 15938: CTDB's statd_callout fails on sm-notify
+   * BUG 15939: CTDB statd_callout_notify notifies unnecessary clients and loses
+     their state
+
+o  Martin Schwenke <mschwenke@ddn.com>
+   * BUG 15939: CTDB statd_callout_notify notifies unnecessary clients and loses
+     their state
+
+o  Jennifer Sutton <jennifersutton@catalyst.net.nz>
+   * BUG 15998: Backport domain default AES encryption types to 4.24
 
 
-CHANGES SINCE 4.23.0rc1
+CHANGES SINCE 4.24.0rc1
 =======================
 
-o  Björn Baumbach <bb@sernet.de>
-   * BUG 15896: libquic build fixes.
+o  Samuel Cabrero <scabrero@samba.org>
+   * BUG 15979: possible memory leak  on rpc_spoolss
 
-o  Ralph Boehme <slow@samba.org>
-   * BUG 15844: getpwuid does not shift to new DC when current DC is down.
-   * BUG 15876: Windows security hardening locks out schannel'ed netlogon dc
-     calls like netr_DsRGetDCName.
+o  Pavel Filipenský <pfilipensky@samba.org>
+   * BUG 15972: Winbind group resolution failure
 
-o  Gary Lockyer <gary@catalyst.net.nz>
-   * BUG 15896: libquic build fixes.
+o  Noel Power <noel.power@suse.com>
+   * BUG 15979: possible memory leak  on rpc_spoolss
+
+o  Martin Schwenke <mschwenke@ddn.com>
+   * BUG 15977: ctdbd socket documentation is wrong
+
+o  Michael Tokarev <mjt@tls.msk.ru>
+   * BUG 15976: time_t related build failure on 32bit arch in 4.24.0rc1
 
 
 KNOWN ISSUES
 ============
 
-https://wiki.samba.org/index.php/Release_Planning_for_Samba_4.23#Release_blocking_bugs
+https://wiki.samba.org/index.php/Release_Planning_for_Samba_4.24#Release_blocking_bugs
 
 
 #######################################

@@ -455,7 +455,7 @@ static DATA_BLOB NTLMv2_generate_client_data(TALLOC_CTX *mem_ctx,
 					     const DATA_BLOB *names_blob)
 {
 	uint8_t client_chal[8];
-	DATA_BLOB response = data_blob(NULL, 0);
+	DATA_BLOB response = {};
 	uint8_t long_date[8];
 
 	generate_random_buffer(client_chal, sizeof(client_chal));
@@ -1472,7 +1472,7 @@ bool decode_pw_buffer(TALLOC_CTX *ctx,
 				   new_password.length,
 				   pp_new_pwrd,
 				   new_pw_len);
-	data_blob_free(&new_password);
+	data_blob_clear_free(&new_password);
 	if (!ok) {
 		DBG_ERR("Failed to convert incoming password\n");
 		return false;
