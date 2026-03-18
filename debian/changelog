@@ -1,3 +1,15 @@
+samba (2:4.24.0+dfsg-1) experimental; urgency=medium
+
+  * new upstream release
+  * use-explicit_bzero-to-zero-memory.diff: update
+    to replace memset_explicit()
+  * replace-progname.diff: refresh, shorten context
+  * libtalloc, libtdb: bump versions, add new symbols
+  * d/not-installed: add libcmocka-private-samba.so.0
+  * d/not-installed: remove old entries
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Wed, 18 Mar 2026 14:17:08 +0300
+
 samba (2:4.23.6+dfsg-2) unstable; urgency=medium
 
   * samba-bgqd.service: ship a unit file, but not auto-enable it
