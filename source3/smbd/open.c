@@ -42,6 +42,7 @@
 #include "locking/leases_db.h"
 #include "librpc/gen_ndr/ndr_leases_db.h"
 #include "lib/util/time_basic.h"
+#include "lib/util/smb_strtox.h"
 #include "source3/smbd/dir.h"
 
 #if defined(HAVE_LINUX_MAGIC_H)
@@ -430,6 +431,7 @@ static NTSTATUS check_base_file_access(struct files_struct *fsp,
 
 	status = smbd_calculate_access_mask_fsp(fsp->conn->cwd_fsp,
 					fsp,
+					false,
 					false,
 					access_mask,
 					&access_mask);
@@ -877,6 +879,8 @@ static bool fsp_is_automount_mountpoint(struct files_struct *fsp, int old_fd)
 #if defined(HAVE_FSTATFS) && defined(HAVE_LINUX_MAGIC_H)
 	struct statfs sbuf = {};
 	int ret;
+	const char **fs_types_list = NULL;
+	int i;
 
 	if (!S_ISDIR(fsp->fsp_name->st.st_ex_mode)) {
 		return false;
@@ -890,6 +894,34 @@ static bool fsp_is_automount_mountpoint(struct files_struct *fsp, int old_fd)
 	if (sbuf.f_type == AUTOFS_SUPER_MAGIC) {
 		return true;
 	}
+
+	/* Check for additional filesystem types from configuration */
+	fs_types_list = lp_automount_fs_types();
+	if (fs_types_list == NULL) {
+		return false;
+	}
+
+	for (i = 0; fs_types_list[i] != NULL; i++) {
+		unsigned long long fs_type_val;
+		int error = 0;
+
+		fs_type_val = smb_strtoull(fs_types_list[i],
+					   NULL,
+					   0,
+					   &error,
+					   SMB_STR_FULL_STR_CONV);
+		if (error != 0) {
+			DBG_WARNING(
+				"Invalid value in 'automount fs types': %s\n",
+				fs_types_list[i]);
+			continue;
+		}
+
+		if (sbuf.f_type == fs_type_val) {
+			return true;
+		}
+	}
+
 	return false;
 #else
 	return false;
@@ -1073,14 +1105,6 @@ static NTSTATUS open_file(
 	bool creating = !file_existed && (how.flags & O_CREAT);
 	bool open_fd = false;
 	bool posix_open = fsp->fsp_flags.posix_open;
-
-	/*
-	 * Catch early an attempt to open an existing
-	 * directory as a file.
-	 */
-	if (file_existed && S_ISDIR(fsp->fsp_name->st.st_ex_mode)) {
-		return NT_STATUS_FILE_IS_A_DIRECTORY;
-	}
 
 	/*
 	 * This little piece of insanity is inspired by the
@@ -3273,6 +3297,7 @@ static NTSTATUS smbd_calculate_maximum_allowed_access_fsp(
 			struct files_struct *dirfsp,
 			struct files_struct *fsp,
 			bool use_privs,
+			bool ignore_readonly,
 			uint32_t *p_access_mask)
 {
 	struct security_descriptor *sd = NULL;
@@ -3354,17 +3379,44 @@ static NTSTATUS smbd_calculate_maximum_allowed_access_fsp(
 		}
 	}
 
-	dosattrs = fdos_mode(fsp);
-	if ((dosattrs & FILE_ATTRIBUTE_READONLY) || !CAN_WRITE(fsp->conn)) {
+	if (!CAN_WRITE(fsp->conn)) {
 		*p_access_mask &= ~(FILE_GENERIC_WRITE | DELETE_ACCESS);
 	}
 
+	if (ignore_readonly) {
+		/*
+		 * We end up here when the maximum access mask for the "MxAC"
+		 * create context response is needed. That ignores the read-only
+		 * attribute, cf smbtorture tests
+		 * "smb2.maximum_allowed.read_only_file" and
+		 * "smb2.maximum_allowed.read_only_dir".
+		 */
+		goto done;
+	}
+
+	/*
+	 * MS_FSA 2.1.5.1.2.1 "Algorithm to Check Access to an Existing File"
+	 * has the below, although it misses to state that this only affects
+	 * files, not directories.
+	 */
+	if (S_ISREG(fsp->fsp_name->st.st_ex_mode)) {
+		dosattrs = fdos_mode(fsp);
+		if (dosattrs & FILE_ATTRIBUTE_READONLY) {
+			*p_access_mask &= ~(FILE_WRITE_DATA |
+					    FILE_APPEND_DATA |
+					    FILE_ADD_SUBDIRECTORY |
+					    FILE_DELETE_CHILD);
+		}
+	}
+
+done:
 	return NT_STATUS_OK;
 }
 
 NTSTATUS smbd_calculate_access_mask_fsp(struct files_struct *dirfsp,
 			struct files_struct *fsp,
 			bool use_privs,
+			bool ignore_readonly,
 			uint32_t access_mask,
 			uint32_t *access_mask_out)
 {
@@ -3391,6 +3443,7 @@ NTSTATUS smbd_calculate_access_mask_fsp(struct files_struct *dirfsp,
 						   dirfsp,
 						   fsp,
 						   use_privs,
+						   ignore_readonly,
 						   &access_mask);
 
 		if (!NT_STATUS_IS_OK(status)) {
@@ -3722,6 +3775,14 @@ static NTSTATUS open_file_ntcreate(
 					req->vuid);
 	}
 
+	/*
+	 * Catch early an attempt to open an existing
+	 * directory as a file.
+	 */
+	if (file_existed && S_ISDIR(fsp->fsp_name->st.st_ex_mode)) {
+		return NT_STATUS_FILE_IS_A_DIRECTORY;
+	}
+
 	if (new_dos_attributes & FILE_FLAG_POSIX_SEMANTICS) {
 		posix_open = True;
 		unx_mode = (mode_t)(new_dos_attributes & ~FILE_FLAG_POSIX_SEMANTICS);
@@ -3909,7 +3970,7 @@ static NTSTATUS open_file_ntcreate(
 	}
 
 	status = smbd_calculate_access_mask_fsp(
-		dirfsp, smb_fname->fsp, false, access_mask, &access_mask);
+		dirfsp, smb_fname->fsp, false, false, access_mask, &access_mask);
 	if (!NT_STATUS_IS_OK(status)) {
 		DBG_DEBUG("smbd_calculate_access_mask_fsp "
 			"on file %s returned %s\n",
@@ -4996,7 +5057,7 @@ static NTSTATUS open_directory(connection_struct *conn,
 	}
 
 	status = smbd_calculate_access_mask_fsp(
-		dirfsp, smb_dname->fsp, false, access_mask, &access_mask);
+		dirfsp, smb_dname->fsp, false, false, access_mask, &access_mask);
 	if (!NT_STATUS_IS_OK(status)) {
 		DBG_DEBUG("smbd_calculate_access_mask_fsp "
 			"on file %s returned %s\n",
