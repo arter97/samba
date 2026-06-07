@@ -1,0 +1,36 @@
+From: Pino Toscano <toscano.pino@tiscali.it>
+Date: Sat Jun 6 22:25:09 2026 +0200
+Subject: asn1: Include <errno.h> before using/checking bits from it
+Origin: upstream, https://github.com/heimdal/heimdal/commit/2194be6c9259f79b97131cec8ae44e1180b4f309
+Forwarded: not-needed
+
+Commit 232c936ea3eabfd702aaaa106ddf9474f231d776 added a fallback ENOTSUP
+definition. The check itself and the fallback definition rely on
+<errno.h> to be included already, so in case it was not (depending on
+the platform) then there will be a wrong definition of ENOTSUP.
+
+Instead of rely on <errno.h> to be included before including a
+generated header from this tool, include it manually. This way both
+the ENOTSUP check and its fallback definition (if ever) will always
+work.
+
+--- a/third_party/heimdal/lib/asn1/gen.c
++++ b/third_party/heimdal/lib/asn1/gen.c
+@@ -191,6 +191,7 @@ init_generate (const char *filename, con
+     fprintf (headerfile,
+ 	     "#include <stddef.h>\n"
+ 	     "#include <stdint.h>\n"
++	     "#include <errno.h>\n"
+ 	     "#include <time.h>\n\n");
+     fprintf (headerfile,
+ 	     "#ifndef __asn1_common_definitions__\n"
+--- a/third_party/heimdal/lib/asn1/template.c
++++ b/third_party/heimdal/lib/asn1/template.c
+@@ -38,6 +38,7 @@
+ #include <vis.h>
+ #include <vis-extras.h>
+ #include <heimbase.h>
++#include <errno.h>
+ 
+ #ifndef ENOTSUP
+ /* Very old MSVC CRTs don't have ENOTSUP */
