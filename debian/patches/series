@@ -26,3 +26,4 @@ heimdal-kdc-fix-memset_s-calls-1296.patch
 inline-getprogname.diff
 inline-openat2.diff
 check-for-openat2.patch
+heimdal-errno-include.patch
