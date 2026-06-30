@@ -1,3 +1,31 @@
+samba (2:4.24.4+dfsg-1) unstable; urgency=medium
+
+  [ Pino Toscano ]
+  * heimdal-errno-include.patch
+    fix build on Hurd using fix from upstream heimdal
+
+  [ Michael Tokarev ]
+  * update to the new upstream stable/bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=14638:
+     restrict anonymous = 2 breaks RODC functionality
+   - https://bugzilla.samba.org/show_bug.cgi?id=16006:
+     warning: assignment discards 'const' qualifier from pointer target type
+     [-Wdiscarded-qualifiers]
+   - https://bugzilla.samba.org/show_bug.cgi?id=16067:
+     Require NTLMv2 session security on Windows makes trusts to Samba unusable
+   - https://bugzilla.samba.org/show_bug.cgi?id=16092:
+     Compilers may ignore overflow checks - Fix tautological-compare warnings
+   - https://bugzilla.samba.org/show_bug.cgi?id=16095:
+     Use-after-free in handling acls with claims and conditions
+   - https://bugzilla.samba.org/show_bug.cgi?id=16149:
+     domain\user not split when provided as username
+     in smbc_set_credentials_with_fallback()
+   - https://bugzilla.samba.org/show_bug.cgi?id=16151:
+     winbindd stuck in init_dc_connection_rpc() returning
+     NT_STATUS_TRUSTED_DOMAIN_FAILURE
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Tue, 30 Jun 2026 22:37:50 +0300
+
 samba (2:4.24.3+dfsg-1) unstable; urgency=medium
 
   * This is a security release in order to address the following defects:
