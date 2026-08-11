@@ -6,21 +6,15 @@ Subject: create ctdb pid directory
 file (using RuntimeDirectory directive) and in the sysv-init
 script.
 
-diff --git a/ctdb/config/ctdb.init b/ctdb/config/ctdb.init
-index 7fe8f0085ae..57fd0dda63d 100755
---- a/ctdb/config/ctdb.init
-+++ b/ctdb/config/ctdb.init
-@@ -78,4 +78,5 @@ start()
- 	    ;;
+--- a/ctdb/doc/examples/ctdb.init
++++ b/ctdb/doc/examples/ctdb.init
+@@ -76,2 +76,3 @@ start()
  	debian)
-+	    mkdir -p -m0755 ${pidfile%/*}
- 	    eval start-stop-daemon --start --quiet --background --exec "$ctdbd"
- 	    ;;
-diff --git a/packaging/systemd/ctdb.service.in b/packaging/systemd/ctdb.service.in
-index 7905a93e242..eefc7468a44 100644
++		mkdir -p -m0755 ${pidfile%/*}
+ 		eval start-stop-daemon --start --quiet --background --exec "$ctdbd"
 --- a/packaging/systemd/ctdb.service.in
 +++ b/packaging/systemd/ctdb.service.in
 @@ -12,2 +12,3 @@ TasksMax=4096
- PIDFile=@CTDB_RUNDIR@/ctdbd.pid
+ PIDFile=@CTDB_PIDDIR@/ctdbd.pid
 +RuntimeDirectory=ctdb
  ExecStart=@SBINDIR@/ctdbd
