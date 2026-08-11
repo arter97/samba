@@ -19,7 +19,6 @@ disable-setuid-confchecks.patch
 move-msg.sock-from-var-lib-samba-to-run-samba.patch
 meaningful-error-if-no-samba-ad-provision.patch
 meaningful-error-if-no-python3-markdown.patch
-ctdb-use-run-instead-of-var-run.patch
 replace-xpg-strerror.patch
 libmscat-deps.patch
 heimdal-kdc-fix-memset_s-calls-1296.patch
