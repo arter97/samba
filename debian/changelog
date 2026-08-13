@@ -1,3 +1,37 @@
+samba (2:4.24.6+dfsg-1) unstable; urgency=medium
+
+  * debian/upstream/signing-key.asc: update
+  * new upstream stable.bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15978:
+     leases torture test flappy (marked flappy)
+   - https://bugzilla.samba.org/show_bug.cgi?id=15994:
+     CTDB doesn't send tickle ACKs when taking over a released IP
+   - https://bugzilla.samba.org/show_bug.cgi?id=16065:
+     Memory leak in DRS when replication fails
+   - https://bugzilla.samba.org/show_bug.cgi?id=16077:
+     witness test flappy needs to be fixed
+   - https://bugzilla.samba.org/show_bug.cgi?id=16093:
+     temporary read of unrelated or non-existing memory in s3 dfs server
+   - https://bugzilla.samba.org/show_bug.cgi?id=16094:
+     source4/dsdb/samdb/cracknames.c doesn't use ldb_binary_encode_string()
+     consistently
+   - https://bugzilla.samba.org/show_bug.cgi?id=16152:
+     CTDB can run nested elections, in rare circumstances
+   - https://bugzilla.samba.org/show_bug.cgi?id=16153:
+     dsgetdcname() may not detect an active directory domain if the
+     netbios domain name is given and nmbd nor the nbt service is available
+   - https://bugzilla.samba.org/show_bug.cgi?id=16176:
+     vfs_ceph_snapshots: smbd panics on snapshot access for a share
+     mounted at the CephFS root ("/")
+   - https://bugzilla.samba.org/show_bug.cgi?id=16186:
+     vfs_ceph_new: smbd crashes when mixing proxy and non-proxy CephFS shares
+   - https://bugzilla.samba.org/show_bug.cgi?id=16191:
+     race condition in pthreadpool when forking
+   - https://bugzilla.samba.org/show_bug.cgi?id=16199:
+     ndr_{push,pull,print}_{timeval,timespec} encode/decode the value twice
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 13 Aug 2026 19:14:56 +0300
+
 samba (2:4.24.5+dfsg-1) unstable; urgency=medium
 
   * new upstream Jul-2026 secrity release, fixing the following issues:
