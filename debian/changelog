@@ -29,6 +29,7 @@ samba (2:4.24.6+dfsg-1) unstable; urgency=medium
      race condition in pthreadpool when forking
    - https://bugzilla.samba.org/show_bug.cgi?id=16199:
      ndr_{push,pull,print}_{timeval,timespec} encode/decode the value twice
+  * d/samba-libs.symbols: add new ndr symbols
 
  -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 13 Aug 2026 19:14:56 +0300
 
