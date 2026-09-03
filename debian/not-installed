@@ -15,6 +15,5 @@ usr/lib/*/libpyldb-util.cpython-*.so
 usr/include/pytalloc.h
 usr/lib/${DEB_HOST_MULTIARCH}/pkgconfig/pytalloc-util.cpython-*.pc
 usr/lib/${DEB_HOST_MULTIARCH}/libpytalloc-util.cpython-*.so
-# cmocka is built (but not used) from included source
-# if system lib is too old (< 1.1.8)
+# cmocka might be used for unit-tests internally, but should not be installed
 usr/lib/${DEB_HOST_MULTIARCH}/samba/libcmocka-private-samba.so.0

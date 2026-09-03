@@ -40,7 +40,6 @@ Build-Depends-Arch:
 # the same [arch list] is in ctdb.install
 	libcephfs-dev [amd64 arm64 mips64el ppc64el riscv64 s390x],
 	librados-dev  [amd64 arm64 mips64el ppc64el riscv64 s390x],
-	libcmocka-dev,
 	libcrypt-dev,
 	libcups2-dev,
 	libdbus-1-dev,
