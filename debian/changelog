@@ -1,3 +1,32 @@
+samba (2:4.24.7+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable.bugfix release:
+   - https://bugzilla.samba.org/show_bug.cgi?id=15988:
+     Samba internal DNS service doesn't handle switch from UDP to TCP
+     when packet is larger than 4k
+   - https://bugzilla.samba.org/show_bug.cgi?id=16082:
+     An inactive node can run recovery resulting in inconsistent databases
+   - https://bugzilla.samba.org/show_bug.cgi?id=16097:
+     POSIX ACL backend silently discards erros when processing NT ACLs
+     with non-canonical ordering
+   - https://bugzilla.samba.org/show_bug.cgi?id=16144:
+     Incorrect behavior on stream create-disposition
+     when prior handle is closed
+   - https://bugzilla.samba.org/show_bug.cgi?id=16194:
+     autobuild failures need to be reported in a more verbose way
+   - https://bugzilla.samba.org/show_bug.cgi?id=16223:
+     DNS scavenging happens even if fAging is FALSE
+   - https://bugzilla.samba.org/show_bug.cgi?id=16225:
+     dns client problems related to EDNS usage
+   - https://bugzilla.samba.org/show_bug.cgi?id=16226:
+     samba-tool dns zoneoptions $DC_SERVER_IP _msdcs.addom.samba.example.com
+     -P --aging=1 gives WERR_INTERNAL_DB_ERROR
+  * cmocka: it is only used (if at all) in unit tests, not shipped -
+    drop build-dep and ignore generated one
+  * asn1util-deps.diff: another library missing private deps
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Thu, 10 Sep 2026 00:23:20 +0300
+
 samba (2:4.24.6+dfsg-1) unstable; urgency=medium
 
   * debian/upstream/signing-key.asc: update
