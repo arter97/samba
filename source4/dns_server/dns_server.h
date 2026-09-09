@@ -37,6 +37,17 @@ struct dns_server_tkey {
 };
 
 #define TKEY_BUFFER_SIZE 128
+#define DNS_MAX_PACKET_LENGTH UINT16_MAX
+/*
+ * RFC 1025 Section 4.2.1. UDP usage:
+ *
+ * Messages carried by UDP are restricted to 512 bytes (not counting the IP
+ * or UDP headers).  Longer messages are truncated and the TC bit is set in
+ * the header.
+ *
+ * We don't support EDNS(0)/RFC 2671, so we use 512.
+ */
+#define DNS_MAX_UDP_PACKET_LENGTH 512
 
 struct dns_server_tkey_store {
 	struct dns_server_tkey **tkeys;
