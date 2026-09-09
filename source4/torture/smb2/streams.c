@@ -69,6 +69,7 @@ static bool check_stream(struct torture_context *tctx,
 	struct smb2_read r;
 	NTSTATUS status;
 	const char *full_name;
+	bool ret = true;
 
 	full_name = talloc_asprintf(mem_ctx, "%s:%s", fname, sname);
 
@@ -91,6 +92,7 @@ static bool check_stream(struct torture_context *tctx,
 
 	handle = create.out.file.handle;
 	if (value == NULL) {
+		smb2_util_close(tree, handle);
 		return true;
 	}
 
@@ -105,16 +107,19 @@ static bool check_stream(struct torture_context *tctx,
 	if (!NT_STATUS_IS_OK(status)) {
 		torture_comment(tctx, "(%s) Failed to read %lu bytes from "
 		    "stream '%s'\n", location, (long)strlen(value), full_name);
-		return false;
+		ret = false;
+		goto done;
 	}
 
 	if (memcmp(r.out.data.data, value, strlen(value)) != 0) {
 		torture_comment(tctx, "(%s) Bad data in stream\n", location);
-		return false;
+		ret = false;
+		goto done;
 	}
 
+done:
 	smb2_util_close(tree, handle);
-	return true;
+	return ret;
 }
 
 static bool check_stream_list(struct smb2_tree *tree,
@@ -137,13 +142,15 @@ static bool check_stream_list(struct smb2_tree *tree,
 
 	status = smb2_getinfo_file(tree, tctx, &finfo);
 	if (!NT_STATUS_IS_OK(status)) {
-		torture_comment(tctx, "(%s) smb_raw_pathinfo failed: %s\n",
+		torture_result(tctx, TORTURE_FAIL,
+		    "(%s) smb_raw_pathinfo failed: %s\n",
 		    __location__, nt_errstr(status));
 		goto fail;
 	}
 
 	if (finfo.stream_info.out.num_streams != num_exp) {
-		torture_comment(tctx, "(%s) expected %d streams, got %d\n",
+		torture_result(tctx, TORTURE_FAIL,
+		    "(%s) expected %d streams, got %d\n",
 		    __location__, num_exp, finfo.stream_info.out.num_streams);
 		goto fail;
 	}
@@ -173,7 +180,7 @@ static bool check_stream_list(struct smb2_tree *tree,
 
 	for (i=0; i<num_exp; i++) {
 		if (strcmp(exp_sort[i], stream_sort[i].stream_name.s) != 0) {
-			torture_comment(tctx,
+			torture_result(tctx, TORTURE_FAIL,
 			    "(%s) expected stream name %s, got %s\n",
 			    __location__, exp_sort[i],
 			    stream_sort[i].stream_name.s);
@@ -261,6 +268,7 @@ static bool test_stream_dir(struct torture_context *tctx,
 	    __location__);
 	ret &= check_stream_list(tree, mem_ctx, DNAME, 0, NULL, h);
 done:
+	smb2_util_close(tree, h);
 	smb2_util_unlink(tree, fname);
 	smb2_deltree(tree, DNAME);
 	talloc_free(mem_ctx);
@@ -437,6 +445,7 @@ static bool test_stream_io(struct torture_context *tctx,
 	io.smb2.in.fname = fname;
 	io.smb2.in.create_disposition = NTCREATEX_DISP_OPEN;
 	status = smb2_create(tree, mem_ctx, &(io.smb2));
+	CHECK_STATUS(status, NT_STATUS_OK);
 	h2 = io.smb2.out.file.handle;
 	check_stream_list(tree,tctx, fname, 1, one, h2);
 	smb2_util_close(tree, h2);
@@ -446,11 +455,11 @@ static bool test_stream_io(struct torture_context *tctx,
 		io.smb2.in.fname = sname1;
 		status = smb2_create(tree, mem_ctx, &(io.smb2));
 		CHECK_STATUS(status, NT_STATUS_OK);
-		smb2_util_close(tree, io.ntcreatex.out.file.handle);
+		smb2_util_close(tree, io.smb2.out.file.handle);
 		io.smb2.in.fname = sname2;
 		status = smb2_create(tree, mem_ctx, &(io.smb2));
 		CHECK_STATUS(status, NT_STATUS_OK);
-		smb2_util_close(tree, io.ntcreatex.out.file.handle);
+		smb2_util_close(tree, io.smb2.out.file.handle);
 		torture_comment(tctx, "(%s) deleting file\n", __location__);
 		status = smb2_util_unlink(tree, fname);
 		CHECK_STATUS(status, NT_STATUS_OK);
@@ -458,6 +467,7 @@ static bool test_stream_io(struct torture_context *tctx,
 
 
 done:
+	smb2_util_close(tree, h);
 	smb2_util_close(tree, h2);
 	smb2_deltree(tree, DNAME);
 	talloc_free(mem_ctx);
@@ -609,6 +619,7 @@ static bool test_stream_sharemodes(struct torture_context *tctx,
 	CHECK_STATUS(status, NT_STATUS_SHARING_VIOLATION);
 
 done:
+	smb2_util_close(tree, h);
 	smb2_util_close(tree, h1);
 	smb2_util_close(tree, h2);
 	status = smb2_util_unlink(tree, fname);
@@ -770,6 +781,7 @@ static bool test_stream_delete(struct torture_context *tctx,
 	CHECK_STATUS(status, NT_STATUS_OBJECT_NAME_NOT_FOUND);
 
 done:
+	smb2_util_close(tree, h);
 	if (!smb2_util_handle_empty(h1)) {
 		smb2_util_close(tree, h1);
 	}
@@ -920,10 +932,9 @@ static bool test_stream_names(struct torture_context *tctx,
 	io.smb2.in.create_disposition = NTCREATEX_DISP_OPEN;
 	status = smb2_create(tree, mem_ctx, &(io.smb2));
 	CHECK_STATUS(status, NT_STATUS_OK);
-	ret &= check_stream_list(tree, tctx, fname, 4, four,
-				 io.smb2.out.file.handle);
+	h1 = io.smb2.out.file.handle;
+	ret &= check_stream_list(tree, tctx, fname, 4, four, h1);
 	CHECK_VALUE(ret, true);
-	smb2_util_close(tree, h1);
 	smb2_util_close(tree, h2);
 	smb2_util_close(tree, h3);
 
@@ -932,13 +943,13 @@ static bool test_stream_names(struct torture_context *tctx,
 	}
 
 	finfo.generic.level = RAW_FILEINFO_ALL_INFORMATION;
-	finfo.generic.in.file.handle = io.smb2.out.file.handle;
+	finfo.generic.in.file.handle = h1;
 	status = smb2_getinfo_file(tree, mem_ctx, &finfo);
 	CHECK_STATUS(status, NT_STATUS_OK);
-	ret &= check_stream_list(tree, tctx, fname, 4, four,
-				 io.smb2.out.file.handle);
-
+	ret &= check_stream_list(tree, tctx, fname, 4, four, h1);
+	smb2_util_close(tree, h1);
 	CHECK_VALUE(ret, true);
+
 	for (i=0; i < 4; i++) {
 		NTTIME write_time;
 		uint64_t stream_size;
@@ -1049,10 +1060,11 @@ static bool test_stream_names(struct torture_context *tctx,
 		io.smb2.in.create_disposition = NTCREATEX_DISP_OPEN;
 		status = smb2_create(tree, mem_ctx, &(io.smb2));
 		CHECK_STATUS(status, NT_STATUS_OK);
-		ret &= check_stream_list(tree, tctx, fname, 4, four,
-					 io.smb2.out.file.handle);
+		h3 = io.smb2.out.file.handle;
+		ret &= check_stream_list(tree, tctx, fname, 4, four, h3);
 
 		smb2_util_close(tree, h1);
+		smb2_util_close(tree, h3);
 		talloc_free(path);
 	}
 
@@ -1109,6 +1121,7 @@ static bool test_stream_names(struct torture_context *tctx,
 	/* TODO: we need to test more rename combinations */
 
 done:
+	smb2_util_close(tree, h);
 	smb2_util_close(tree, h1);
 	status = smb2_util_unlink(tree, fname);
 	smb2_deltree(tree, DNAME);
@@ -1187,6 +1200,7 @@ static bool test_stream_names2(struct torture_context *tctx,
 	}
 
 done:
+	smb2_util_close(tree, h);
 	smb2_util_close(tree, h1);
 	status = smb2_util_unlink(tree, fname);
 	smb2_deltree(tree, DNAME);
@@ -1397,6 +1411,7 @@ static bool test_stream_rename(struct torture_context *tctx,
 	sfinfo.rename_information.in.new_name  = ":Stream One";
 	CHECK_CALL_HANDLE(RENAME_INFORMATION, NT_STATUS_OK);
 done:
+	smb2_util_close(tree, h);
 	smb2_util_close(tree, h1);
 	status = smb2_util_unlink(tree, fname);
 	smb2_deltree(tree, DNAME);
@@ -1535,6 +1550,7 @@ static bool test_stream_rename2(struct torture_context *tctx,
 	smb2_util_close(tree, h1);
 
  done:
+	smb2_util_close(tree, h);
 	smb2_util_close(tree, h1);
 	status = smb2_util_unlink(tree, fname1);
 	status = smb2_util_unlink(tree, fname2);
@@ -1572,9 +1588,9 @@ static bool create_file_with_stream(struct torture_context *tctx,
 
 	status = smb2_create(tree, mem_ctx, &(io.smb2));
 	CHECK_STATUS(status, NT_STATUS_OK);
+	smb2_util_close(tree, io.smb2.out.file.handle);
 
  done:
-	smb2_util_close(tree, io.smb2.out.file.handle);
 	return ret;
 }
 
@@ -1636,11 +1652,12 @@ static bool test_stream_create_disposition(struct torture_context *tctx,
 	io.smb2.in.create_disposition = NTCREATEX_DISP_OPEN;
 	status = smb2_create(tree, mem_ctx, &(io.smb2));
 	CHECK_STATUS(status, NT_STATUS_OK);
-	if (!check_stream_list(tree, tctx, fname, 2, stream_list,
-			       io.smb2.out.file.handle)) {
+	ret = check_stream_list(tree, tctx, fname, 2, stream_list,
+				io.smb2.out.file.handle);
+	smb2_util_close(tree, io.smb2.out.file.handle);
+	if (!ret) {
 		goto done;
 	}
-	smb2_util_close(tree, io.smb2.out.file.handle);
 
 	/*
 	 * check create overwrite
@@ -1650,11 +1667,12 @@ static bool test_stream_create_disposition(struct torture_context *tctx,
 	io.smb2.in.create_disposition = NTCREATEX_DISP_OVERWRITE;
 	status = smb2_create(tree, mem_ctx, &(io.smb2));
 	CHECK_STATUS(status, NT_STATUS_OK);
-	if (!check_stream_list(tree, tctx, fname, 1, &default_stream_name,
-			       io.smb2.out.file.handle)) {
+	ret = check_stream_list(tree, tctx, fname, 1, &default_stream_name,
+				io.smb2.out.file.handle);
+	smb2_util_close(tree, io.smb2.out.file.handle);
+	if (!ret) {
 		goto done;
 	}
-	smb2_util_close(tree, io.smb2.out.file.handle);
 
 	/*
 	 * check create overwrite_if
@@ -1668,11 +1686,12 @@ static bool test_stream_create_disposition(struct torture_context *tctx,
 	io.smb2.in.create_disposition = NTCREATEX_DISP_OVERWRITE_IF;
 	status = smb2_create(tree, mem_ctx, &(io.smb2));
 	CHECK_STATUS(status, NT_STATUS_OK);
-	if (!check_stream_list(tree, tctx, fname, 1, &default_stream_name,
-			       io.smb2.out.file.handle)) {
+	ret = check_stream_list(tree, tctx, fname, 1, &default_stream_name,
+				io.smb2.out.file.handle);
+	smb2_util_close(tree, io.smb2.out.file.handle);
+	if (!ret) {
 		goto done;
 	}
-	smb2_util_close(tree, io.smb2.out.file.handle);
 
 	/*
 	 * check create supersede
@@ -1688,11 +1707,12 @@ static bool test_stream_create_disposition(struct torture_context *tctx,
 	io.smb2.in.create_disposition = NTCREATEX_DISP_SUPERSEDE;
 	status = smb2_create(tree, mem_ctx, &(io.smb2));
 	CHECK_STATUS(status, NT_STATUS_OK);
-	if (!check_stream_list(tree, tctx, fname, 1, &default_stream_name,
-			       io.smb2.out.file.handle)) {
+	ret = check_stream_list(tree, tctx, fname, 1, &default_stream_name,
+				io.smb2.out.file.handle);
+	smb2_util_close(tree, io.smb2.out.file.handle);
+	if (!ret) {
 		goto done;
 	}
-	smb2_util_close(tree, io.smb2.out.file.handle);
 
 	/*
 	 * check create overwrite_if on a stream.
@@ -1709,12 +1729,14 @@ static bool test_stream_create_disposition(struct torture_context *tctx,
 	io.smb2.in.fname = fname_stream;
 	status = smb2_create(tree, mem_ctx, &(io.smb2));
 	CHECK_STATUS(status, NT_STATUS_OK);
-	if (!check_stream_list(tree, tctx, fname, 2, stream_list,
-			       io.smb2.out.file.handle)) {
+	ret = check_stream_list(tree, tctx, fname, 2, stream_list,
+				io.smb2.out.file.handle);
+	smb2_util_close(tree, io.smb2.out.file.handle);
+	if (!ret) {
 		goto done;
 	}
-	smb2_util_close(tree, io.smb2.out.file.handle);
  done:
+	smb2_util_close(tree, h);
 	smb2_util_close(tree, h1);
 	smb2_util_unlink(tree, fname);
 	smb2_deltree(tree, DNAME);
@@ -1905,6 +1927,7 @@ static bool test_stream_attributes1(struct torture_context *tctx,
 	CHECK_STATUS(status, NT_STATUS_ACCESS_DENIED);
 
 done:
+	smb2_util_close(tree, h);
 	smb2_util_close(tree, h1);
 	smb2_util_unlink(tree, fname);
 	smb2_deltree(tree, DNAME);

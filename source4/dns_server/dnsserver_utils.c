@@ -20,13 +20,12 @@
 */
 
 #include "includes.h"
-#include "dnsserver.h"
+#include "rpc_server/dnsserver/dnsserver.h"
 #include "rpc_server/common/common.h"
 #include "dns_server/dnsserver_common.h"
 #include "dsdb/samdb/samdb.h"
 #include "lib/socket/netif.h"
 #include "lib/util/util_net.h"
-#include "dnsserver_common.h"
 
 #undef strcasecmp
 
@@ -192,12 +191,15 @@ struct dnsserver_serverinfo *dnsserver_init_serverinfo(TALLOC_CTX *mem_ctx,
 	serverinfo->dwDsPollingInterval = 0xB4; /* 3 minutes (default) */
 	serverinfo->dwLocalNetPriorityNetMask = 0x000000FF;
 
-	serverinfo->dwScavengingInterval = lpcfg_parm_int(
-	    lp_ctx, NULL, "dnsserver", "ScavengingInterval", 24 * 7);
+	dns_server_scavenging_interval(lp_ctx,
+				       &serverinfo->dwScavengingInterval,
+				       NULL); /* _si_secs */
 	serverinfo->dwDefaultRefreshInterval = lpcfg_parm_int(
-	    lp_ctx, NULL, "dnsserver", "DefaultRefreshInterval", 24 * 3);
+	    lp_ctx, NULL, "dnsserver", "DefaultRefreshInterval",
+	    DNS_SERVER_DEFAULT_REFRESH_INTERVAL);
 	serverinfo->dwDefaultNoRefreshInterval = lpcfg_parm_int(
-	    lp_ctx, NULL, "dnsserver", "DefaultNoRefreshInterval", 24 * 3);
+	    lp_ctx, NULL, "dnsserver", "DefaultNoRefreshInterval",
+	    DNS_SERVER_DEFAULT_NO_REFRESH_INTERVAL);
 
 	serverinfo->dwLastScavengeTime = 0;
 
@@ -305,6 +307,27 @@ struct dnsserver_zoneinfo *dnsserver_init_zoneinfo(struct dnsserver_zone *zone,
 			TALLOC_FREE(zoneinfo);
 			return NULL;
 		}
+	}
+
+	if (strcmp(zone->name, ".") != 0) {
+		if (zoneinfo->dwRefreshInterval == 0) {
+			zoneinfo->dwRefreshInterval =
+				serverinfo->dwDefaultRefreshInterval;
+		}
+		if (zoneinfo->dwNoRefreshInterval == 0) {
+			zoneinfo->dwNoRefreshInterval =
+				serverinfo->dwDefaultNoRefreshInterval;
+		}
+	}
+
+	/*
+	 * If any value is still 0 we disable aging
+	 */
+	if (zoneinfo->dwRefreshInterval == 0) {
+		zoneinfo->fAging = 0;
+	}
+	if (zoneinfo->dwNoRefreshInterval == 0) {
+		zoneinfo->fAging = 0;
 	}
 
 	return zoneinfo;
