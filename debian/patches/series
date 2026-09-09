@@ -27,3 +27,4 @@ inline-getprogname.diff
 inline-openat2.diff
 check-for-openat2.patch
 heimdal-errno-include.patch
+asn1util-deps.diff

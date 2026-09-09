@@ -1,0 +1,22 @@
+Subject: add missing deps for libasn1util-private-samba.so
+From: Michael Tokarev <mjt@tls.msk.ru>
+Date: Wed, 09 Sep 2026 23:45:58 +0300
+
+libasn1util uses at least 2 private libs but does not list
+them as dependencies, so does not inherit private library
+path in RPATH, so dpkg-shlibdeps complains:
+
+error: cannot find library libgenrand-private-samba.so.0 needed by \
+ debian/samba-libs/usr/lib/x86_64-linux-gnu/samba/libasn1util-private-samba.so.0 \
+ (ELF format: 'elf64-x86-64' abi: 'ELF:64:l:amd64:0'; RPATH: '')
+
+diff --git a/lib/util/wscript_build b/lib/util/wscript_build
+--- a/lib/util/wscript_build
++++ b/lib/util/wscript_build
+@@ -252,5 +252,5 @@ else:
+     bld.SAMBA_LIBRARY('asn1util',
+                       source='asn1.c',
+-                      deps='talloc samba-util',
++                      deps='talloc samba-util genrand samba-debug',
+                       private_library=True,
+                       local_include=False)
