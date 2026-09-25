@@ -65,12 +65,12 @@ ldb-version = 2:${ldb-upstream-version}${subver-suffix}
 ldb-packages := libldb2 libldb-dev ldb-tools python3-ldb
 
 # lib/talloc/wscript
-talloc-upstream-version := 2.4.4
+talloc-upstream-version := 2.5.0
 talloc-version = 2:${talloc-upstream-version}${subver-suffix}
 talloc-packages := libtalloc2 libtalloc-dev python3-talloc
 
 # lib/tevent/wscript
-tevent-upstream-version := 0.17.1
+tevent-upstream-version := 0.17.2
 tevent-version = 2:${tevent-upstream-version}${subver-suffix}
 libtevent := $(if ${before-trixie},libtevent0,libtevent0t64)
 tevent-packages := ${libtevent} libtevent-dev
