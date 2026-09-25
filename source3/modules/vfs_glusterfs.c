@@ -37,6 +37,7 @@
 
 #include "includes.h"
 #include "smbd/smbd.h"
+#include "lib/util/statvfs.h"
 #include <stdio.h>
 #include <glusterfs/api/glfs.h>
 #include "lib/util/dlinklist.h"
@@ -516,12 +517,33 @@ static void vfs_gluster_disconnect(struct vfs_handle_struct *handle)
 	glfs_clear_preopened(fs);
 }
 
-static uint64_t vfs_gluster_disk_free(struct vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				uint64_t *bsize_p,
-				uint64_t *dfree_p,
-				uint64_t *dsize_p)
+static int vfs_gluster_open_share_root(struct vfs_handle_struct *handle,
+				       struct files_struct *root_fsp,
+				       const char *connectpath)
 {
+	SMB_STRUCT_STAT st = {};
+	struct stat buf;
+	int ret;
+
+	ret = glfs_stat(handle->data, connectpath, &buf);
+	if (ret != 0) {
+		return ret;
+	}
+
+	smb_stat_ex_from_stat(&st, &buf);
+
+	ret = vfs_set_share_root(root_fsp, connectpath, &st);
+
+	return ret;
+}
+
+static uint64_t vfs_gluster_disk_free(struct vfs_handle_struct *handle,
+				      struct files_struct *fsp,
+				      uint64_t *bsize_p,
+				      uint64_t *dfree_p,
+				      uint64_t *dsize_p)
+{
+	const struct smb_filename *smb_fname = fsp->fsp_name;
 	struct statvfs statvfs = { 0, };
 	int ret;
 
@@ -544,18 +566,20 @@ static uint64_t vfs_gluster_disk_free(struct vfs_handle_struct *handle,
 }
 
 static int vfs_gluster_get_quota(struct vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				enum SMB_QUOTA_TYPE qtype,
-				unid_t id,
-				SMB_DISK_QUOTA *qt)
+				 struct files_struct *fsp,
+				 enum SMB_QUOTA_TYPE qtype,
+				 unid_t id,
+				 SMB_DISK_QUOTA *qt)
 {
 	errno = ENOSYS;
 	return -1;
 }
 
-static int
-vfs_gluster_set_quota(struct vfs_handle_struct *handle,
-		      enum SMB_QUOTA_TYPE qtype, unid_t id, SMB_DISK_QUOTA *qt)
+static int vfs_gluster_set_quota(struct vfs_handle_struct *handle,
+				 struct files_struct *fsp,
+				 enum SMB_QUOTA_TYPE qtype,
+				 unid_t id,
+				 SMB_DISK_QUOTA *qt)
 {
 	errno = ENOSYS;
 	return -1;
@@ -589,6 +613,13 @@ static int vfs_gluster_statvfs(struct vfs_handle_struct *handle,
 	    FILE_CASE_SENSITIVE_SEARCH | FILE_CASE_PRESERVED_NAMES;
 
 	return ret;
+}
+
+static int vfs_gluster_fstatvfs(struct vfs_handle_struct *handle,
+				struct files_struct *fsp,
+				struct vfs_statvfs_struct *vfs_statvfs)
+{
+	return vfs_gluster_statvfs(handle, fsp->fsp_name, vfs_statvfs);
 }
 
 static uint32_t vfs_gluster_fs_capabilities(struct vfs_handle_struct *handle,
@@ -1709,25 +1740,6 @@ static int vfs_gluster_chdir(struct vfs_handle_struct *handle,
 	return ret;
 }
 
-static struct smb_filename *vfs_gluster_getwd(struct vfs_handle_struct *handle,
-				TALLOC_CTX *ctx)
-{
-	char cwd[PATH_MAX] = { '\0' };
-	char *ret;
-	struct smb_filename *smb_fname = NULL;
-
-	START_PROFILE(syscall_getwd);
-
-	ret = glfs_getcwd(handle->data, cwd, PATH_MAX - 1);
-	END_PROFILE(syscall_getwd);
-
-	if (ret == NULL) {
-		return NULL;
-	}
-	smb_fname = cp_smb_basename(ctx, ret);
-	return smb_fname;
-}
-
 static int vfs_gluster_fntimes(struct vfs_handle_struct *handle,
 			       files_struct *fsp,
 			       struct smb_file_time *ft)
@@ -2579,10 +2591,11 @@ static struct vfs_fn_pointers glusterfs_fns = {
 
 	.connect_fn = vfs_gluster_connect,
 	.disconnect_fn = vfs_gluster_disconnect,
+	.open_share_root_fn = vfs_gluster_open_share_root,
 	.disk_free_fn = vfs_gluster_disk_free,
 	.get_quota_fn = vfs_gluster_get_quota,
 	.set_quota_fn = vfs_gluster_set_quota,
-	.statvfs_fn = vfs_gluster_statvfs,
+	.fstatvfs_fn = vfs_gluster_fstatvfs,
 	.fs_capabilities_fn = vfs_gluster_fs_capabilities,
 
 	.get_dfs_referrals_fn = NULL,
@@ -2624,7 +2637,6 @@ static struct vfs_fn_pointers glusterfs_fns = {
 	.fchown_fn = vfs_gluster_fchown,
 	.lchown_fn = vfs_gluster_lchown,
 	.chdir_fn = vfs_gluster_chdir,
-	.getwd_fn = vfs_gluster_getwd,
 	.fntimes_fn = vfs_gluster_fntimes,
 	.ftruncate_fn = vfs_gluster_ftruncate,
 	.fallocate_fn = vfs_gluster_fallocate,

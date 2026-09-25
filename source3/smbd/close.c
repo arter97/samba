@@ -201,7 +201,7 @@ NTSTATUS delete_all_streams(struct files_struct *fsp,
 			NULL,
 			smb_fname->twrp,
 			(smb_fname->flags & ~SMB_FILENAME_POSIX_PATH));
-		if (!NT_STATUS_IS_OK(status)) {
+		if (smb_fname_stream == NULL) {
 			DEBUG(0, ("talloc_aprintf failed\n"));
 			status = NT_STATUS_NO_MEMORY;
 			goto fail;
@@ -449,7 +449,7 @@ static void close_share_mode_lock_cleanup(struct share_mode_lock *lck,
 	bool ok;
 
 	if (state->reset_delete_on_close) {
-		reset_delete_on_close_lck(fsp, lck);
+		reset_delete_on_close_lck(lck, fsp->name_hash);
 	}
 
 	ok = del_share_mode(lck, fsp);
@@ -732,10 +732,8 @@ void set_close_write_time(struct files_struct *fsp, struct timespec ts)
  */
 static NTSTATUS update_write_time_on_close(struct files_struct *fsp)
 {
-	struct smb_file_time ft;
+	struct smb_file_time ft = smb_file_time_omit();
 	NTSTATUS status;
-
-	init_smb_file_time(&ft);
 
 	if (is_omit_timespec(&fsp->close_write_time)) {
 		return NT_STATUS_OK;
@@ -826,6 +824,77 @@ static void assert_no_pending_aio(struct files_struct *fsp,
 	return;
 }
 
+static bool close_durable(struct smb_request *req,
+			  struct files_struct *fsp,
+			  enum file_close_type close_type)
+{
+	DATA_BLOB new_cookie = data_blob_null;
+	bool is_durable = false;
+	struct timeval tv;
+	NTTIME now;
+	NTSTATUS status;
+
+	if (fsp->op != NULL) {
+		is_durable = fsp->op->global->durable;
+	}
+
+	if (close_type != SHUTDOWN_CLOSE) {
+		is_durable = false;
+	}
+
+	if (!is_durable) {
+		return false;
+	}
+
+	status = SMB_VFS_DURABLE_DISCONNECT(fsp,
+					    fsp->op->global->backend_cookie,
+					    fsp->op,
+					    &new_cookie);
+	if (!NT_STATUS_IS_OK(status)) {
+		DBG_WARNING("Failed to disconnect durable handle for "
+			    "file %s: %s - proceeding with normal close\n",
+			    fsp_str_dbg(fsp), nt_errstr(status));
+		return false;
+	}
+
+	if (req != NULL) {
+		tv = req->request_time;
+	} else {
+		tv = timeval_current();
+	}
+	now = timeval_to_nttime(&tv);
+
+	data_blob_free(&fsp->op->global->backend_cookie);
+	fsp->op->global->backend_cookie = new_cookie;
+	fsp->op->compat = NULL;
+
+	status = smbXsrv_open_close(fsp->op, now);
+	if (!NT_STATUS_IS_OK(status)) {
+		DBG_WARNING("Failed to update smbXsrv_open "
+			    "record when disconnecting durable "
+			    "handle for file %s: %s - "
+			    "proceeding with normal close\n",
+			    fsp_str_dbg(fsp), nt_errstr(status));
+		return false;
+	}
+
+	/*
+	 * This is the case where we successfully disconnected
+	 * a durable handle and closed the underlying file.
+	 */
+
+	DBG_DEBUG("%s disconnected durable handle for file %s\n",
+		  fsp->conn->session_info->unix_info->unix_name,
+		  fsp_str_dbg(fsp));
+
+	scavenger_schedule_disconnected(fsp->conn->sconn->msg_ctx,
+					fsp->op->global->open_persistent_id,
+					&fsp->file_id,
+					fsp->name_hash);
+
+	return true;
+}
+
 /****************************************************************************
  Close a file.
 
@@ -840,7 +909,7 @@ static NTSTATUS close_normal_file(struct smb_request *req, files_struct *fsp,
 	NTSTATUS status = NT_STATUS_OK;
 	NTSTATUS tmp;
 	connection_struct *conn = fsp->conn;
-	bool is_durable = false;
+	bool is_durable;
 
 	SMB_ASSERT(fsp->fsp_flags.is_fsa);
 
@@ -852,64 +921,8 @@ static NTSTATUS close_normal_file(struct smb_request *req, files_struct *fsp,
 			NT_STATUS_RANGE_NOT_LOCKED);
 	}
 
-	if (fsp->op != NULL) {
-		is_durable = fsp->op->global->durable;
-	}
-
-	if (close_type != SHUTDOWN_CLOSE) {
-		is_durable = false;
-	}
-
+	is_durable = close_durable(req, fsp, close_type);
 	if (is_durable) {
-		DATA_BLOB new_cookie = data_blob_null;
-
-		tmp = SMB_VFS_DURABLE_DISCONNECT(fsp,
-					fsp->op->global->backend_cookie,
-					fsp->op,
-					&new_cookie);
-		if (NT_STATUS_IS_OK(tmp)) {
-			struct timeval tv;
-			NTTIME now;
-
-			if (req != NULL) {
-				tv = req->request_time;
-			} else {
-				tv = timeval_current();
-			}
-			now = timeval_to_nttime(&tv);
-
-			data_blob_free(&fsp->op->global->backend_cookie);
-			fsp->op->global->backend_cookie = new_cookie;
-
-			fsp->op->compat = NULL;
-			tmp = smbXsrv_open_close(fsp->op, now);
-			if (!NT_STATUS_IS_OK(tmp)) {
-				DEBUG(1, ("Failed to update smbXsrv_open "
-					  "record when disconnecting durable "
-					  "handle for file %s: %s - "
-					  "proceeding with normal close\n",
-					  fsp_str_dbg(fsp), nt_errstr(tmp)));
-			}
-		} else {
-			DEBUG(1, ("Failed to disconnect durable handle for "
-				  "file %s: %s - proceeding with normal "
-				  "close\n", fsp_str_dbg(fsp), nt_errstr(tmp)));
-		}
-		if (!NT_STATUS_IS_OK(tmp)) {
-			is_durable = false;
-		}
-	}
-
-	if (is_durable) {
-		/*
-		 * This is the case where we successfully disconnected
-		 * a durable handle and closed the underlying file.
-		 * In all other cases, we proceed with a genuine close.
-		 */
-		DEBUG(10, ("%s disconnected durable handle for file %s\n",
-			   conn->session_info->unix_info->unix_name,
-			   fsp_str_dbg(fsp)));
-		scavenger_schedule_disconnected(fsp);
 		return NT_STATUS_OK;
 	}
 
@@ -918,6 +931,7 @@ static NTSTATUS close_normal_file(struct smb_request *req, files_struct *fsp,
 		 * Make sure the handle is not marked as durable anymore
 		 */
 		fsp->op->global->durable = false;
+		fsp->op->global->persistent = false;
 	}
 
 	if (fsp->fsp_flags.modified) {
@@ -1187,6 +1201,7 @@ static NTSTATUS close_directory(struct smb_request *req, files_struct *fsp,
 	bool changed_user = false;
 	struct smb_filename *parent_fname = NULL;
 	struct smb_filename *base_fname = NULL;
+	bool is_durable;
 	NTSTATUS status = NT_STATUS_OK;
 	NTSTATUS status1 = NT_STATUS_OK;
 	NTSTATUS notify_status;
@@ -1201,6 +1216,16 @@ static NTSTATUS close_directory(struct smb_request *req, files_struct *fsp,
 	}
 
 	assert_no_pending_aio(fsp, close_type);
+
+	is_durable = close_durable(req, fsp, close_type);
+	if (is_durable) {
+		return NT_STATUS_OK;
+	}
+
+	if (fsp->op != NULL) {
+		fsp->op->global->durable = false;
+		fsp->op->global->persistent = false;
+	}
 
 	/*
 	 * NT can set delete_on_close of the last open

@@ -621,7 +621,7 @@ static bool netbios_session_retarget(struct smbXsrv_connection *xconn,
 	char *p;
 	int retarget_type = 0x20;
 	int retarget_port = NBT_SMB_PORT;
-	struct sockaddr_storage retarget_addr;
+	struct samba_sockaddr retarget_addr;
 	struct sockaddr_in *in_addr;
 	bool ret = false;
 	uint8_t outbuf[10];
@@ -679,12 +679,12 @@ static bool netbios_session_retarget(struct smbXsrv_connection *xconn,
 		goto fail;
 	}
 
-	if (retarget_addr.ss_family != AF_INET) {
+	if (retarget_addr.u.ss.ss_family != AF_INET) {
 		DEBUG(10, ("Retarget target not an IPv4 addr\n"));
 		goto fail;
 	}
 
-	in_addr = (struct sockaddr_in *)(void *)&retarget_addr;
+	in_addr = &retarget_addr.u.in;
 
 	_smb_setlen(outbuf, 6);
 	SCVAL(outbuf, 0, 0x84);
@@ -873,7 +873,6 @@ NTSTATUS unlink_internals(connection_struct *conn,
 	files_struct *fsp;
 	uint32_t dirtype_orig = dirtype;
 	NTSTATUS status;
-	int ret;
 	struct smb2_create_blobs *posx = NULL;
 
 	if (dirtype == 0) {
@@ -888,9 +887,8 @@ NTSTATUS unlink_internals(connection_struct *conn,
 		return NT_STATUS_MEDIA_WRITE_PROTECTED;
 	}
 
-	ret = vfs_stat(conn, smb_fname);
-	if (ret != 0) {
-		return map_nt_error_from_unix(errno);
+	if (!VALID_STAT(smb_fname->st)) {
+		return NT_STATUS_OBJECT_NAME_NOT_FOUND;
 	}
 
 	fattr = fdos_mode(smb_fname->fsp);
@@ -915,36 +913,6 @@ NTSTATUS unlink_internals(connection_struct *conn,
 		/* These will never be set for POSIX. */
 		return NT_STATUS_NO_SUCH_FILE;
 	}
-
-#if 0
-	if ((fattr & dirtype) & FILE_ATTRIBUTE_DIRECTORY) {
-                return NT_STATUS_FILE_IS_A_DIRECTORY;
-        }
-
-        if ((fattr & ~dirtype) & (FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM)) {
-                return NT_STATUS_NO_SUCH_FILE;
-        }
-
-	if (dirtype & 0xFF00) {
-		/* These will never be set for POSIX. */
-		return NT_STATUS_NO_SUCH_FILE;
-	}
-
-	dirtype &= 0xFF;
-	if (!dirtype) {
-		return NT_STATUS_NO_SUCH_FILE;
-	}
-
-	/* Can't delete a directory. */
-	if (fattr & FILE_ATTRIBUTE_DIRECTORY) {
-		return NT_STATUS_FILE_IS_A_DIRECTORY;
-	}
-#endif
-
-#if 0 /* JRATEST */
-	else if (dirtype & FILE_ATTRIBUTE_DIRECTORY) /* Asked for a directory and it isn't. */
-		return NT_STATUS_OBJECT_NAME_INVALID;
-#endif /* JRATEST */
 
 	if (smb_fname->flags & SMB_FILENAME_POSIX_PATH) {
 		status = make_smb2_posix_create_ctx(

@@ -2035,7 +2035,7 @@ NTSTATUS ad_unconvert(TALLOC_CTX *mem_ctx,
 	}
 
 	for (i = 0; i < num_streams; i++) {
-		if (strcasecmp_m(streams[i].name, "::$DATA") == 0) {
+		if (strequal_m(streams[i].name, "::$DATA")) {
 			continue;
 		}
 		to_convert++;
@@ -2662,6 +2662,7 @@ struct adouble *ad_get(TALLOC_CTX *ctx,
 struct adouble *ad_fget(TALLOC_CTX *ctx, vfs_handle_struct *handle,
 			files_struct *fsp, adouble_type_t type)
 {
+	SMB_ASSERT(fsp != NULL);
 	return ad_get_internal(ctx, handle, fsp, NULL, type);
 }
 

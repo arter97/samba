@@ -333,6 +333,8 @@ struct ctdb_context {
 	struct trbt_tree *child_processes; 
 
 	/* Used for locking record/db/alldb */
+	const char *lock_helper;
+	const char *lock_debug_script;
 	struct lock_context *lock_current;
 	struct lock_context *lock_pending;
 };
@@ -589,6 +591,16 @@ int32_t ctdb_control_register_notify(struct ctdb_context *ctdb,
 				     uint32_t client_id, TDB_DATA indata);
 int32_t ctdb_control_deregister_notify(struct ctdb_context *ctdb,
 				       uint32_t client_id, TDB_DATA indata);
+
+int32_t ctdb_control_push_record(struct ctdb_context *ctdb,
+				 struct ctdb_req_control_old *c,
+				 TDB_DATA indata,
+				 bool *async_reply);
+
+int32_t ctdb_control_push_record_store(struct ctdb_context *ctdb,
+				       struct ctdb_req_control_old *c,
+				       TDB_DATA indata,
+				       bool *async_reply);
 
 struct ctdb_client *ctdb_find_client_by_pid(struct ctdb_context *ctdb,
 					    pid_t pid);

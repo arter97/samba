@@ -700,10 +700,6 @@ _PUBLIC_ bool cli_credentials_set_password(struct cli_credentials *cred,
 			return false;
 		}
 		talloc_keep_secret(discard_const(cred->password));
-
-		/* Don't print the actual password in talloc memory dumps */
-		talloc_set_name_const(cred->password,
-			"password set via cli_credentials_set_password");
 		cred->password_obtained = obtained;
 
 		return true;
@@ -745,12 +741,16 @@ _PUBLIC_ bool cli_credentials_set_old_password(struct cli_credentials *cred,
 				      const char *val,
 				      enum credentials_obtained obtained)
 {
-	cred->old_password = talloc_strdup(cred, val);
-	if (cred->old_password) {
-		/* Don't print the actual password in talloc memory dumps */
-		talloc_set_name_const(cred->old_password, "password set via cli_credentials_set_old_password");
-	}
 	cred->old_nt_hash = NULL;
+	if (val == NULL) {
+		cred->old_password = NULL;
+		return true;
+	}
+	cred->old_password = talloc_strdup(cred, val);
+	if (cred->old_password == NULL) {
+		return false;
+	}
+	talloc_keep_secret(discard_const(cred->old_password));
 	return true;
 }
 
@@ -1132,11 +1132,16 @@ _PUBLIC_ void cli_credentials_parse_string(struct cli_credentials *credentials, 
 	}
 
 	uname = talloc_strdup(credentials, data);
+	if (uname == NULL) {
+		return;
+	}
 	uname_free = uname;
 
 	if ((p = strchr_m(uname,'%'))) {
 		*p = 0;
 		cli_credentials_set_password(credentials, p+1, obtained);
+		/* zero the copy if it contains password */
+		talloc_keep_secret(uname_free);
 	}
 
 	if ((p = strchr_m(uname,'@'))) {
@@ -1822,16 +1827,19 @@ _PUBLIC_ bool cli_credentials_parse_password_fd(struct cli_credentials *credenti
 				"Error reading password from file descriptor "
 				"%d: empty password\n",
 				fd);
+			ZERO_ARRAY(pass);
 			return false;
 
 		default:
 			fprintf(stderr, "Error reading password from file descriptor %d: %s\n",
 					fd, strerror(errno));
+			ZERO_ARRAY(pass);
 			return false;
 		}
 	}
 
 	cli_credentials_set_password(credentials, pass, obtained);
+	ZERO_ARRAY(pass);
 	return true;
 }
 

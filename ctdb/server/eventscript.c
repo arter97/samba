@@ -69,8 +69,6 @@ static bool eventd_context_init(TALLOC_CTX *mem_ctx,
 				struct eventd_context **out)
 {
 	struct eventd_context *ectx;
-	const char *eventd = CTDB_HELPER_BINDIR "/ctdb-eventd";
-	const char *value;
 	int ret;
 
 	ectx = talloc_zero(mem_ctx, struct eventd_context);
@@ -80,12 +78,7 @@ static bool eventd_context_init(TALLOC_CTX *mem_ctx,
 
 	ectx->ev = ctdb->ev;
 
-	value = getenv("CTDB_EVENTD");
-	if (value != NULL) {
-		eventd = value;
-	}
-
-	ectx->path = talloc_strdup(ectx, eventd);
+	ectx->path = path_helperdir_append(ectx, "ctdb-eventd");
 	if (ectx->path == NULL) {
 		talloc_free(ectx);
 		return false;
@@ -607,9 +600,8 @@ int ctdb_event_script_run(struct ctdb_context *ctdb,
 
 	if ( (ctdb->recovery_mode != CTDB_RECOVERY_NORMAL) &&
 	     (! event_allowed_during_recovery(event)) ) {
-		DEBUG(DEBUG_ERR,
-		      ("Refusing to run event '%s' while in recovery\n",
-		       ctdb_event_to_string(event)));
+		D_ERR("Refusing to run event '%s' while in recovery\n",
+		      ctdb_event_to_string(event));
 		return -1;
 	}
 
@@ -634,9 +626,9 @@ int ctdb_event_script_run(struct ctdb_context *ctdb,
 	}
 
 	if (! check_options(event, arg_str)) {
-		DEBUG(DEBUG_ERR,
-		      ("Bad event script arguments '%s' for '%s'\n",
-		       arg_str, ctdb_event_to_string(event)));
+		DBG_ERR("Bad event script arguments '%s' for '%s'\n",
+			arg_str,
+			ctdb_event_to_string(event));
 		talloc_free(arg_str);
 		return -1;
 	}
@@ -649,9 +641,16 @@ int ctdb_event_script_run(struct ctdb_context *ctdb,
 		return ret;
 	}
 
-	DEBUG(DEBUG_INFO,
-	      (__location__ " Running event %s with arguments %s\n",
-	       ctdb_event_to_string(event), arg_str));
+	if (DEBUGLEVEL >= DBGLVL_INFO) {
+		if (arg_str == NULL || arg_str[0] == '\0') {
+			D_INFO("Running event: %s\n",
+			       ctdb_event_to_string(event));
+		} else {
+			D_INFO("Running event: %s [%s]\n",
+			       ctdb_event_to_string(event),
+			       arg_str);
+		}
+	}
 
 	talloc_free(arg_str);
 	return 0;
@@ -835,7 +834,6 @@ int ctdb_event_script_args(struct ctdb_context *ctdb, enum ctdb_event call,
 
 int ctdb_event_script(struct ctdb_context *ctdb, enum ctdb_event call)
 {
-	/* GCC complains about empty format string, so use %s and "". */
 	return ctdb_event_script_args(ctdb, call, NULL);
 }
 

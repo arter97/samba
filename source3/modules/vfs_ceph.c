@@ -32,6 +32,7 @@
 
 #include "includes.h"
 #include "smbd/smbd.h"
+#include "lib/util/statvfs.h"
 #include "system/filesys.h"
 #include <dirent.h>
 #include <sys/statvfs.h>
@@ -319,11 +320,12 @@ static void cephwrap_disconnect(struct vfs_handle_struct *handle)
 /* Disk operations */
 
 static uint64_t cephwrap_disk_free(struct vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				uint64_t *bsize,
-				uint64_t *dfree,
-				uint64_t *dsize)
+				   struct files_struct *fsp,
+				   uint64_t *bsize,
+				   uint64_t *dfree,
+				   uint64_t *dsize)
 {
+	const struct smb_filename *smb_fname = fsp->fsp_name;
 	struct statvfs statvfs_buf = { 0 };
 	int ret;
 
@@ -343,14 +345,14 @@ static uint64_t cephwrap_disk_free(struct vfs_handle_struct *handle,
 	return *dfree;
 }
 
-static int cephwrap_statvfs(struct vfs_handle_struct *handle,
-			    const struct smb_filename *smb_fname,
-			    struct vfs_statvfs_struct *statbuf)
+static int cephwrap_fstatvfs(struct vfs_handle_struct *handle,
+			     struct files_struct *fsp,
+			     struct vfs_statvfs_struct *statbuf)
 {
 	struct statvfs statvfs_buf = { 0 };
 	int ret;
 
-	ret = ceph_statfs(handle->data, smb_fname->base_name, &statvfs_buf);
+	ret = ceph_statfs(handle->data, fsp->fsp_name->base_name, &statvfs_buf);
 	if (ret < 0) {
 		return status_code(ret);
 	}
@@ -366,8 +368,9 @@ static int cephwrap_statvfs(struct vfs_handle_struct *handle,
 	statbuf->FsCapabilities =
 		FILE_CASE_SENSITIVE_SEARCH | FILE_CASE_PRESERVED_NAMES;
 
-	DBG_DEBUG("[CEPH] f_bsize: %ld, f_blocks: %ld, f_bfree: %ld, "
-		  "f_bavail: %ld\n",
+	DBG_DEBUG("[CEPH] fstatvfs: name: %s, f_bsize: %ld, f_blocks: %ld, "
+		  "f_bfree: %ld, f_bavail: %ld\n",
+		  fsp->fsp_name->base_name,
 		  (long int)statvfs_buf.f_bsize,
 		  (long int)statvfs_buf.f_blocks,
 		  (long int)statvfs_buf.f_bfree,
@@ -500,12 +503,21 @@ static int cephwrap_openat(struct vfs_handle_struct *handle,
 		became_root = true;
 	}
 
+	if (dirfd == -1 && smb_fname->base_name[0] == '/') {
+		result = ceph_open(handle->data,
+				   smb_fname->base_name,
+				   flags,
+				   mode);
+		goto done;
+	}
+
 	result = ceph_openat(handle->data,
 			     dirfd,
 			     smb_fname->base_name,
 			     flags,
 			     mode);
 
+done:
 	if (became_root) {
 		unbecome_root();
 	}
@@ -849,6 +861,29 @@ static void init_stat_ex_from_ceph_statx(struct stat_ex *dst,
 	dst->st_ex_blocks = stx->stx_blocks;
 }
 
+static int cephwrap_open_share_root(struct vfs_handle_struct *handle,
+				    struct files_struct *root_fsp,
+				    const char *connectpath)
+{
+	SMB_STRUCT_STAT st = {};
+	int result = -1;
+	struct ceph_statx stx = {};
+
+	DBG_DEBUG("[CEPH] open_share_root(%p, %s)\n", handle, connectpath);
+
+	result = ceph_statx(handle->data, connectpath, &stx,
+			    SAMBA_STATX_ATTR_MASK, 0);
+	if (result < 0) {
+		return status_code(result);
+	}
+
+	init_stat_ex_from_ceph_statx(&st, &stx);
+
+	result = vfs_set_share_root(root_fsp, connectpath, &st);
+
+	return result;
+}
+
 static int cephwrap_stat(struct vfs_handle_struct *handle,
 			struct smb_filename *smb_fname)
 {
@@ -1121,14 +1156,6 @@ static int cephwrap_chdir(struct vfs_handle_struct *handle,
 	result = ceph_chdir(handle->data, smb_fname->base_name);
 	DBG_DEBUG("[CEPH] chdir(...) = %d\n", result);
 	return status_code(result);
-}
-
-static struct smb_filename *cephwrap_getwd(struct vfs_handle_struct *handle,
-			TALLOC_CTX *ctx)
-{
-	const char *cwd = ceph_getcwd(handle->data);
-	DBG_DEBUG("[CEPH] getwd(%p) = %s\n", handle, cwd);
-	return cp_smb_basename(ctx, cwd);
 }
 
 static int strict_allocate_ftruncate(struct vfs_handle_struct *handle,
@@ -1773,10 +1800,11 @@ static struct vfs_fn_pointers ceph_fns = {
 
 	.connect_fn = cephwrap_connect,
 	.disconnect_fn = cephwrap_disconnect,
+	.open_share_root_fn = cephwrap_open_share_root,
 	.disk_free_fn = cephwrap_disk_free,
 	.get_quota_fn = vfs_not_implemented_get_quota,
 	.set_quota_fn = vfs_not_implemented_set_quota,
-	.statvfs_fn = cephwrap_statvfs,
+	.fstatvfs_fn = cephwrap_fstatvfs,
 	.fs_capabilities_fn = cephwrap_fs_capabilities,
 
 	/* Directory operations */
@@ -1814,7 +1842,6 @@ static struct vfs_fn_pointers ceph_fns = {
 	.fchown_fn = cephwrap_fchown,
 	.lchown_fn = cephwrap_lchown,
 	.chdir_fn = cephwrap_chdir,
-	.getwd_fn = cephwrap_getwd,
 	.fntimes_fn = cephwrap_fntimes,
 	.ftruncate_fn = cephwrap_ftruncate,
 	.fallocate_fn = cephwrap_fallocate,

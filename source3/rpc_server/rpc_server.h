@@ -24,6 +24,7 @@
 
 #include "librpc/rpc/dcesrv_core.h"
 #include "rpc_pipes.h"
+#include "lib/util/time_basic.h"
 
 struct auth_session_info;
 struct cli_credentials;
@@ -32,17 +33,9 @@ typedef void (*dcerpc_ncacn_termination_fn)(struct dcesrv_connection *,
 					    void *);
 
 struct dcerpc_ncacn_conn {
-	struct dcerpc_ncacn_conn *prev, *next;
-	int sock;
-
+	struct dcesrv_connection *dcesrv_conn;
 	struct pipes_struct p;
-	dcerpc_ncacn_termination_fn termination_fn;
-	void *termination_data;
-
-	struct dcesrv_endpoint *endpoint;
-
-	char *remote_client_name;
-	char *local_server_name;
+	void *private_data;
 };
 
 void set_incoming_fault(struct pipes_struct *p);

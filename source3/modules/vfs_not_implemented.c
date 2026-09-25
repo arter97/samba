@@ -41,11 +41,20 @@ void vfs_not_implemented_disconnect(vfs_handle_struct *handle)
 }
 
 _PUBLIC_
+int vfs_not_implemented_open_share_root(struct vfs_handle_struct *handle,
+					struct files_struct *root_fsp,
+					const char *connectpath)
+{
+	errno = ENOSYS;
+	return -1;
+}
+
+_PUBLIC_
 uint64_t vfs_not_implemented_disk_free(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				uint64_t *bsize,
-				uint64_t *dfree,
-				uint64_t *dsize)
+				       struct files_struct *fsp,
+				       uint64_t *bsize,
+				       uint64_t *dfree,
+				       uint64_t *dsize)
 {
 	*bsize = 0;
 	*dfree = 0;
@@ -55,10 +64,10 @@ uint64_t vfs_not_implemented_disk_free(vfs_handle_struct *handle,
 
 _PUBLIC_
 int vfs_not_implemented_get_quota(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				enum SMB_QUOTA_TYPE qtype,
-				unid_t id,
-				SMB_DISK_QUOTA *dq)
+				  struct files_struct *fsp,
+				  enum SMB_QUOTA_TYPE qtype,
+				  unid_t id,
+				  SMB_DISK_QUOTA *dq)
 {
 	errno = ENOSYS;
 	return -1;
@@ -66,8 +75,10 @@ int vfs_not_implemented_get_quota(vfs_handle_struct *handle,
 
 _PUBLIC_
 int vfs_not_implemented_set_quota(vfs_handle_struct *handle,
+				  struct files_struct *fsp,
 				  enum SMB_QUOTA_TYPE qtype,
-				  unid_t id, SMB_DISK_QUOTA *dq)
+				  unid_t id,
+				  SMB_DISK_QUOTA *dq)
 {
 	errno = ENOSYS;
 	return -1;
@@ -84,9 +95,9 @@ int vfs_not_implemented_get_shadow_copy_data(vfs_handle_struct *handle,
 }
 
 _PUBLIC_
-int vfs_not_implemented_statvfs(struct vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				struct vfs_statvfs_struct *statbuf)
+int vfs_not_implemented_fstatvfs(struct vfs_handle_struct *handle,
+				 struct files_struct *fsp,
+				 struct vfs_statvfs_struct *statbuf)
 {
 	errno = ENOSYS;
 	return -1;
@@ -441,14 +452,6 @@ int vfs_not_implemented_chdir(vfs_handle_struct *handle,
 {
 	errno = ENOSYS;
 	return -1;
-}
-
-_PUBLIC_
-struct smb_filename *vfs_not_implemented_getwd(vfs_handle_struct *handle,
-					       TALLOC_CTX *ctx)
-{
-	errno = ENOSYS;
-	return NULL;
 }
 
 _PUBLIC_
@@ -1038,6 +1041,7 @@ NTSTATUS vfs_not_implemented_durable_reconnect(struct vfs_handle_struct *handle,
 					       struct smb_request *smb1req,
 					       struct smbXsrv_open *op,
 					       const DATA_BLOB old_cookie,
+					       const struct smb2_lease *lease,
 					       TALLOC_CTX *mem_ctx,
 					       struct files_struct **fsp,
 					       DATA_BLOB *new_cookie)
@@ -1052,11 +1056,12 @@ static struct vfs_fn_pointers vfs_not_implemented_fns = {
 
 	.connect_fn = vfs_not_implemented_connect,
 	.disconnect_fn = vfs_not_implemented_disconnect,
+	.open_share_root_fn = vfs_not_implemented_open_share_root,
 	.disk_free_fn = vfs_not_implemented_disk_free,
 	.get_quota_fn = vfs_not_implemented_get_quota,
 	.set_quota_fn = vfs_not_implemented_set_quota,
 	.get_shadow_copy_data_fn = vfs_not_implemented_get_shadow_copy_data,
-	.statvfs_fn = vfs_not_implemented_statvfs,
+	.fstatvfs_fn = vfs_not_implemented_fstatvfs,
 	.fs_capabilities_fn = vfs_not_implemented_fs_capabilities,
 	.get_dfs_referrals_fn = vfs_not_implemented_get_dfs_referrals,
 	.create_dfs_pathat_fn = vfs_not_implemented_create_dfs_pathat,
@@ -1101,7 +1106,6 @@ static struct vfs_fn_pointers vfs_not_implemented_fns = {
 	.fchown_fn = vfs_not_implemented_fchown,
 	.lchown_fn = vfs_not_implemented_lchown,
 	.chdir_fn = vfs_not_implemented_chdir,
-	.getwd_fn = vfs_not_implemented_getwd,
 	.fntimes_fn = vfs_not_implemented_fntimes,
 	.ftruncate_fn = vfs_not_implemented_ftruncate,
 	.fallocate_fn = vfs_not_implemented_fallocate,

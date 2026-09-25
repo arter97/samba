@@ -126,6 +126,8 @@ NTSTATUS fsp_bind_smb(struct files_struct *fsp, struct smb_request *req)
 	status = smbXsrv_open_create(req->xconn,
 				     req->session,
 				     fsp->conn->tcon,
+				     &fsp->file_id,
+				     fsp->name_hash,
 				     now,
 				     &op);
 	if (!NT_STATUS_IS_OK(status)) {
@@ -924,10 +926,7 @@ fail:
 
 static bool full_path_extend(char **dir, const char *atname)
 {
-	talloc_asprintf_addbuf(dir,
-			       "%s%s",
-			       (*dir)[0] == '\0' ? "" : "/",
-			       atname);
+	talloc_asprintf_addsep(dir, "/", "%s", atname);
 	return (*dir) != NULL;
 }
 
@@ -936,7 +935,7 @@ static bool full_path_extend(char **dir, const char *atname)
  * the stat cache for the last component to be looked up. Cache
  * contents is the correctly capitalized translation of the parameter
  * "name" as it exists on disk. This is indexed by inode of the dirfsp
- * and name, and contrary to stat_cahce_lookup() it does not
+ * and name, and contrary to stat_cache_lookup() it does not
  * vfs_stat() the last component. This will be taken care of by an
  * attempt to do a openat_pathref_fsp().
  */
@@ -1794,8 +1793,9 @@ static int fsp_ref_no_close_destructor(struct smb_filename *smb_fname)
 	return 0;
 }
 
-NTSTATUS reference_smb_fname_fsp_link(struct smb_filename *smb_fname_dst,
-				      const struct smb_filename *smb_fname_src)
+static NTSTATUS reference_smb_fname_fsp_link(
+	struct smb_filename *smb_fname_dst,
+	const struct smb_filename *smb_fname_src)
 {
 	bool ok;
 
@@ -1980,11 +1980,12 @@ static struct files_struct *file_close_conn_fn(
 		return NULL;
 	}
 
-	if (fsp->op != NULL && fsp->op->global->durable) {
+	if (fsp->op != NULL) {
 		/*
-		 * A tree disconnect closes a durable handle
+		 * A tree disconnect closes a durable or persistent handle
 		 */
 		fsp->op->global->durable = false;
+		fsp->op->global->persistent = false;
 	}
 
 	did_close = close_file_in_loop(fsp, state->close_type);
@@ -2711,5 +2712,14 @@ void fsp_apply_private_ntcreatex_flags(struct files_struct *fsp,
 		fsp->fsp_flags.ntcreatex_stream_baseopen = true;
 	} else {
 		fsp->fsp_flags.ntcreatex_stream_baseopen = false;
+	}
+	if (flags & NTCREATEX_FLAG_PERSISTENT_OPEN) {
+		/*
+		 * Dereferencing op would crash anyway if NULL, but the assert
+		 * makes it more clear that op is expected when getting
+		 * NTCREATEX_FLAG_PERSISTENT_OPEN.
+		 */
+		SMB_ASSERT(fsp->op);
+		fsp->op->global->persistent = true;
 	}
 }

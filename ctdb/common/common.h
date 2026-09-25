@@ -66,6 +66,8 @@ int ctdb_ltdb_fetch(struct ctdb_db_context *ctdb_db,
 int ctdb_ltdb_store(struct ctdb_db_context *ctdb_db, TDB_DATA key,
 		    struct ctdb_ltdb_header *header, TDB_DATA data);
 
+int ctdb_ltdb_sync(struct ctdb_db_context *ctdb_db);
+
 int ctdb_ltdb_lock(struct ctdb_db_context *ctdb_db, TDB_DATA key);
 
 int ctdb_ltdb_unlock(struct ctdb_db_context *ctdb_db, TDB_DATA key);
@@ -96,10 +98,6 @@ void ctdb_set_error(struct ctdb_context *ctdb, const char *fmt, ...)
 void ctdb_fatal(struct ctdb_context *ctdb, const char *msg) _NORETURN_;
 
 void ctdb_die(struct ctdb_context *ctdb, const char *msg) _NORETURN_;
-
-bool ctdb_set_helper(const char *type, char *helper, size_t size,
-		     const char *envvar,
-		     const char *dir, const char *file);
 
 bool ctdb_same_address(ctdb_sock_addr *a1, ctdb_sock_addr *a2);
 

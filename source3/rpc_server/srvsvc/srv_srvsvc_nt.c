@@ -105,7 +105,8 @@ static int enum_file_fn(struct file_id id,
 
 	/* If the pid was not found delete the entry from connections.tdb */
 
-	if ( !process_exists(e->pid) ) {
+	if (lp_parm_bool(-1, "srvsvc", "file enum check stale", true) &&
+	    !process_exists(e->pid) ) {
 		return 0;
 	}
 
@@ -184,16 +185,23 @@ static WERROR net_enum_files(TALLOC_CTX *ctx,
 		.ctx = ctx, .username = username, .ctr3 = *ctr3,
 	};
 	uint32_t i;
+	bool count_file_locks =
+		lp_parm_bool(-1, "srvsvc", "file enum count locks", true);
 
 	share_entry_forall_read(enum_file_fn, (void *)&f_enum_cnt );
 
 	*ctr3 = f_enum_cnt.ctr3;
 
 	/* need to count the number of locks on a file */
-
 	for (i=0; i<(*ctr3)->count; i++) {
 		struct files_struct *fsp = NULL;
 		struct byte_range_lock *brl = NULL;
+
+		(*ctr3)->array[i].num_locks = 0;
+
+		if (!count_file_locks) {
+			continue;
+		}
 
 		fsp = talloc_zero(talloc_tos(), struct files_struct);
 		if (fsp == NULL) {
@@ -202,12 +210,10 @@ static WERROR net_enum_files(TALLOC_CTX *ctx,
 		fsp->file_id = f_enum_cnt.fids[i];
 
 		brl = brl_get_locks_readonly(fsp);
-		if (brl == NULL) {
-			continue;
+		if (brl != NULL) {
+			(*ctr3)->array[i].num_locks = brl_num_locks(brl);
+			TALLOC_FREE(brl);
 		}
-
-		(*ctr3)->array[i].num_locks = brl_num_locks(brl);
-		TALLOC_FREE(brl);
 		TALLOC_FREE(fsp);
 	}
 
@@ -540,7 +546,11 @@ static bool is_hidden_share(int snum)
 		loadparm_s3_global_substitution();
 	const char *net_name = lp_servicename(talloc_tos(), lp_sub, snum);
 
-	return (net_name[strlen(net_name) - 1] == '$') ? True : False;
+	if (net_name == NULL || net_name[0] == '\0') {
+		return false;
+	}
+
+	return net_name[strlen(net_name) - 1] == '$';
 }
 
 /*******************************************************************
@@ -574,7 +584,7 @@ static bool is_enumeration_allowed(struct pipes_struct *p,
  Count an entry against the respective service.
 ****************************************************************************/
 
-static int count_for_all_fn(struct smbXsrv_tcon_global0 *tcon, void *udp)
+static int count_for_all_fn(struct smbXsrv_tcon_global *tcon, void *udp)
 {
 	union srvsvc_NetShareCtr *ctr = udp;
 
@@ -1164,7 +1174,7 @@ static void count_share_opens(struct srvsvc_NetConnInfo1 *arr,
  process an entry from the connection db.
 ****************************************************************************/
 
-static int share_conn_fn(struct smbXsrv_tcon_global0 *tcon,
+static int share_conn_fn(struct smbXsrv_tcon_global *tcon,
 			  void *data)
 {
 	struct share_conn_stat *scs = data;
@@ -2467,7 +2477,9 @@ WERROR _srvsvc_NetShareDel(struct pipes_struct *p,
 	/* Delete the SD in the database. */
 	delete_share_security(share_name);
 
-	lp_killservice(snum);
+	if (!connections_snum_used(NULL, snum)) {
+		lp_killservice(snum);
+	}
 
 	return WERR_OK;
 }
@@ -2556,7 +2568,7 @@ WERROR _srvsvc_NetGetFileSecurity(struct pipes_struct *p,
 	SMB_STRUCT_STAT st;
 	NTSTATUS nt_status;
 	WERROR werr;
-	struct conn_struct_tos *c = NULL;
+	struct conn_wrap *w = NULL;
 	connection_struct *conn = NULL;
 	struct sec_desc_buf *sd_buf = NULL;
 	struct files_struct *dirfsp = NULL;
@@ -2582,18 +2594,19 @@ WERROR _srvsvc_NetGetFileSecurity(struct pipes_struct *p,
 		goto error_exit;
 	}
 
-	nt_status = create_conn_struct_tos_cwd(global_messaging_context(),
-					       snum,
-					       lp_path(frame, lp_sub, snum),
-					       session_info,
-					       &c);
+	nt_status = create_conn_struct_chdir(talloc_tos(),
+					     global_messaging_context(),
+					     snum,
+					     lp_path(frame, lp_sub, snum),
+					     session_info,
+					     &w);
 	if (!NT_STATUS_IS_OK(nt_status)) {
 		DEBUG(10, ("create_conn_struct failed: %s\n",
 			   nt_errstr(nt_status)));
 		werr = ntstatus_to_werror(nt_status);
 		goto error_exit;
 	}
-	conn = c->conn;
+	conn = conn_wrap_connection(w);
 
 	nt_status = filename_convert_dirfsp(frame,
 					    conn,
@@ -2696,7 +2709,7 @@ WERROR _srvsvc_NetSetFileSecurity(struct pipes_struct *p,
 	SMB_STRUCT_STAT st;
 	NTSTATUS nt_status;
 	WERROR werr;
-	struct conn_struct_tos *c = NULL;
+	struct conn_wrap *w = NULL;
 	connection_struct *conn = NULL;
 	int snum;
 	struct security_descriptor *psd = NULL;
@@ -2723,18 +2736,19 @@ WERROR _srvsvc_NetSetFileSecurity(struct pipes_struct *p,
 		goto error_exit;
 	}
 
-	nt_status = create_conn_struct_tos_cwd(global_messaging_context(),
-					       snum,
-					       lp_path(frame, lp_sub, snum),
-					       session_info,
-					       &c);
+	nt_status = create_conn_struct_chdir(talloc_tos(),
+					     global_messaging_context(),
+					     snum,
+					     lp_path(frame, lp_sub, snum),
+					     session_info,
+					     &w);
 	if (!NT_STATUS_IS_OK(nt_status)) {
 		DEBUG(10, ("create_conn_struct failed: %s\n",
 			   nt_errstr(nt_status)));
 		werr = ntstatus_to_werror(nt_status);
 		goto error_exit;
 	}
-	conn = c->conn;
+	conn = conn_wrap_connection(w);
 
 	nt_status = filename_convert_dirfsp(frame,
 					    conn,

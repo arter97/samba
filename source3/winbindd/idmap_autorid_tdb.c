@@ -261,7 +261,7 @@ static NTSTATUS idmap_autorid_addrange_action(struct db_context *db,
 	}
 
 	ret = dbwrap_store_bystring(db, numstr,
-			string_term_tdb_data(keystr), TDB_INSERT);
+			string_term_tdb_data(keystr), DBWRAP_INSERT);
 
 	if (!NT_STATUS_IS_OK(ret)) {
 		DEBUG(1, ("Fatal error while storing new "
@@ -737,7 +737,7 @@ NTSTATUS idmap_autorid_db_open(const char *path,
 	}
 
 	/* Open idmap repository */
-	*db = db_open(mem_ctx, path, 0, TDB_DEFAULT, O_RDWR | O_CREAT, 0644,
+	*db = db_open(mem_ctx, path, 0, TDB_DEFAULT, O_RDWR | O_CREAT, 0640,
 		      DBWRAP_LOCK_ORDER_1, DBWRAP_FLAG_NONE);
 
 	if (*db == NULL) {
@@ -973,7 +973,10 @@ NTSTATUS idmap_autorid_saveconfig(struct db_context *db,
 
 	data = string_tdb_data(cfgstr);
 
-	status = dbwrap_trans_store_bystring(db, CONFIGKEY, data, TDB_REPLACE);
+	status = dbwrap_trans_store_bystring(db,
+					     CONFIGKEY,
+					     data,
+					     DBWRAP_REPLACE);
 
 done:
 	TALLOC_FREE(frame);

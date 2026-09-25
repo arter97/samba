@@ -119,6 +119,21 @@ static bool defaults_saved = false;
 
 static struct loadparm_global Globals;
 
+/*
+ * Callback to check if a service number is currently in use
+ * by any active connection. Registered by smbd at startup.
+ * When NULL (non-smbd programs), no connections exist so
+ * it is always safe to free services.
+ */
+static bool (*snum_in_use)(struct smbd_server_connection *unused,
+			   int snum) = NULL;
+
+void lp_register_snum_in_use_fn(bool (*fn)(struct smbd_server_connection *,
+					   int))
+{
+	snum_in_use = fn;
+}
+
 /* This is a default service used to prime a services structure */
 static const struct loadparm_service _sDefault =
 {
@@ -656,7 +671,6 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 	Globals.max_smbd_processes = 0;/* no limit specified */
 	Globals.username_level = 0;
 	Globals.deadtime = 10080;
-	Globals.getwd_cache = true;
 	Globals.large_readwrite = true;
 	Globals.max_log_size = 5000;
 	Globals.max_open_files = max_open_files();
@@ -990,6 +1004,7 @@ void loadparm_s3_init_globals(struct loadparm_context *lp_ctx,
 	Globals.async_dns_timeout = 10;
 
 	Globals.client_smb_encrypt = SMB_ENCRYPTION_DEFAULT;
+	Globals.persistent_handles_durability = PH_DURABILITY_FULL_OUTAGE;
 
 	Globals._client_use_kerberos = CRED_USE_KERBEROS_DESIRED;
 
@@ -1632,7 +1647,7 @@ static bool hash_a_service(const char *name, int idx)
 
 	dbwrap_store_bystring(ServiceHash, canon_name,
 			      make_tdb_data((uint8_t *)&idx, sizeof(idx)),
-			      TDB_REPLACE);
+			      DBWRAP_REPLACE);
 
 	TALLOC_FREE(canon_name);
 
@@ -2661,7 +2676,7 @@ const char *lp_idmap_backend(const char *domain_name)
 					domain_name);
 	if (config_option == NULL) {
 		DEBUG(0, ("out of memory\n"));
-		return false;
+		return NULL;
 	}
 
 	backend = lp_parm_const_string(-1, config_option, "backend", NULL);
@@ -2838,27 +2853,22 @@ static bool do_parameter(const char *pszParmName, const char *pszParmValue,
 	}
 }
 
-
-static const char *ad_dc_req_vfs_mods[] = {"dfs_samba4", "acl_xattr", NULL};
-
 /*
  * check that @vfs_objects includes all vfs modules required by an AD DC.
  */
 static bool check_ad_dc_required_mods(const char **vfs_objects)
 {
-	int i;
-	int j;
-	int got_req;
+	static const char *ad_dc_req_vfs_mods[] = {"dfs_samba4", "acl_xattr"};
+	size_t i, j;
 
-	for (i = 0; ad_dc_req_vfs_mods[i] != NULL; i++) {
-		got_req = false;
+	for (i = 0; i < ARRAY_SIZE(ad_dc_req_vfs_mods); i++) {
+
 		for (j = 0; vfs_objects[j] != NULL; j++) {
 			if (!strwicmp(ad_dc_req_vfs_mods[i], vfs_objects[j])) {
-				got_req = true;
 				break;
 			}
 		}
-		if (!got_req) {
+		if (vfs_objects[j] == NULL) {
 			DEBUG(0, ("vfs objects specified without required AD "
 				  "DC module: %s\n", ad_dc_req_vfs_mods[i]));
 			return false;
@@ -4403,6 +4413,15 @@ int lp_servicenumber(const char *pszServiceName)
 		struct timespec last_mod;
 
 		if (!usershare_exists(iService, &last_mod)) {
+			if (snum_in_use != NULL &&
+			    snum_in_use(NULL, iService)) {
+				/*
+				 * Service is in use, don't destroy it.
+				 * The periodic load_usershare_shares()
+				 * sweep will clean it up safely.
+				 */
+				return GLOBAL_SECTION_SNUM;
+			}
 			/* Remove the share security tdb entry for it. */
 			delete_share_security(lp_const_servicename(iService));
 			/* Remove it from the array. */
@@ -4414,6 +4433,15 @@ int lp_servicenumber(const char *pszServiceName)
 		/* Has it been modified ? If so delete and reload. */
 		if (timespec_compare(&ServicePtrs[iService]->usershare_last_mod,
 				     &last_mod) < 0) {
+			if (snum_in_use != NULL &&
+			    snum_in_use(NULL, iService)) {
+				/*
+				 * Service is in use, defer the reload
+				 * to load_usershare_shares() which can
+				 * safely handle in-use services.
+				 */
+				return iService;
+			}
 			/* Remove it from the array. */
 			free_service_byindex(iService);
 			/* and now reload it. */
@@ -4443,6 +4471,9 @@ const char *volume_label(TALLOC_CTX *ctx, int snum)
 
 	if (!*label) {
 		label = lp_servicename(ctx, lp_sub, snum);
+	}
+	if (label == NULL) {
+		label = "";
 	}
 
 	/*

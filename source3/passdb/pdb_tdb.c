@@ -62,6 +62,7 @@ static int tdbsam_debug_level = DBGC_ALL;
 static struct db_context *db_sam;
 static char *tdbsam_filename;
 static bool map_builtin;
+static bool map_wellknown;
 
 struct tdbsam_convert_state {
 	int32_t from;
@@ -149,7 +150,7 @@ static int tdbsam_convert_one(struct db_record *rec, void *priv)
 		return -1;
 	}
 
-	status = dbwrap_record_store(rec, data, TDB_MODIFY);
+	status = dbwrap_record_store(rec, data, DBWRAP_MODIFY);
 	if (!NT_STATUS_IS_OK(status)) {
 		DEBUG(0, ("Could not store the new record: %s\n",
 			  nt_errstr(status)));
@@ -187,7 +188,7 @@ static int backup_copy_fn(struct db_record *orig_rec, void *state)
 
 	value = dbwrap_record_get_value(orig_rec);
 
-	status = dbwrap_record_store(new_rec, value, TDB_INSERT);
+	status = dbwrap_record_store(new_rec, value, DBWRAP_INSERT);
 
 	TALLOC_FREE(new_rec);
 
@@ -1305,6 +1306,11 @@ static bool tdbsam_is_responsible_for_builtin(struct pdb_methods *m)
 	return map_builtin;
 }
 
+static bool tdbsam_is_responsible_for_wellknown(struct pdb_methods *m)
+{
+	return map_wellknown;
+}
+
 /*********************************************************************
  Initialize the tdb sam backend.  Setup the dispatch table of methods,
  open the tdb, etc...
@@ -1336,6 +1342,9 @@ static NTSTATUS pdb_init_tdbsam(struct pdb_methods **pdb_method, const char *loc
 	(*pdb_method)->is_responsible_for_builtin =
 					tdbsam_is_responsible_for_builtin;
 	map_builtin = lp_parm_bool(-1, "tdbsam", "map builtin", true);
+	(*pdb_method)->is_responsible_for_wellknown =
+					tdbsam_is_responsible_for_wellknown;
+	map_wellknown = lp_parm_bool(-1, "tdbsam", "map wellknown", false);
 
 	/* save the path for later */
 

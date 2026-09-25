@@ -48,28 +48,38 @@ static void skel_disconnect(vfs_handle_struct *handle)
 	SMB_VFS_NEXT_DISCONNECT(handle);
 }
 
-static uint64_t skel_disk_free(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				uint64_t *bsize,
-				uint64_t *dfree,
-				uint64_t *dsize)
+static int skel_open_share_root(struct vfs_handle_struct *handle,
+				struct files_struct *root_fsp,
+				const char *connectpath)
 {
-	return SMB_VFS_NEXT_DISK_FREE(handle, smb_fname, bsize, dfree, dsize);
+	return SMB_VFS_NEXT_OPEN_SHARE_ROOT(handle, root_fsp, connectpath);
+}
+
+static uint64_t skel_disk_free(vfs_handle_struct *handle,
+			       struct files_struct *fsp,
+			       uint64_t *bsize,
+			       uint64_t *dfree,
+			       uint64_t *dsize)
+{
+	return SMB_VFS_NEXT_DISK_FREE(handle, fsp, bsize, dfree, dsize);
 }
 
 static int skel_get_quota(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				enum SMB_QUOTA_TYPE qtype,
-				unid_t id,
-				SMB_DISK_QUOTA *dq)
+			  struct files_struct *fsp,
+			  enum SMB_QUOTA_TYPE qtype,
+			  unid_t id,
+			  SMB_DISK_QUOTA *dq)
 {
-	return SMB_VFS_NEXT_GET_QUOTA(handle, smb_fname, qtype, id, dq);
+	return SMB_VFS_NEXT_GET_QUOTA(handle, fsp, qtype, id, dq);
 }
 
-static int skel_set_quota(vfs_handle_struct *handle, enum SMB_QUOTA_TYPE qtype,
-			  unid_t id, SMB_DISK_QUOTA *dq)
+static int skel_set_quota(vfs_handle_struct *handle,
+			  struct files_struct *fsp,
+			  enum SMB_QUOTA_TYPE qtype,
+			  unid_t id,
+			  SMB_DISK_QUOTA *dq)
 {
-	return SMB_VFS_NEXT_SET_QUOTA(handle, qtype, id, dq);
+	return SMB_VFS_NEXT_SET_QUOTA(handle, fsp, qtype, id, dq);
 }
 
 static int skel_get_shadow_copy_data(vfs_handle_struct *handle,
@@ -81,11 +91,11 @@ static int skel_get_shadow_copy_data(vfs_handle_struct *handle,
 						 labels);
 }
 
-static int skel_statvfs(struct vfs_handle_struct *handle,
-			const struct smb_filename *smb_fname,
-			struct vfs_statvfs_struct *statbuf)
+static int skel_fstatvfs(struct vfs_handle_struct *handle,
+			 struct files_struct *fsp,
+			 struct vfs_statvfs_struct *statbuf)
 {
-	return SMB_VFS_NEXT_STATVFS(handle, smb_fname, statbuf);
+	return SMB_VFS_NEXT_FSTATVFS(handle, fsp, statbuf);
 }
 
 static uint32_t skel_fs_capabilities(struct vfs_handle_struct *handle,
@@ -527,12 +537,6 @@ static int skel_chdir(vfs_handle_struct *handle,
 			const struct smb_filename *smb_fname)
 {
 	return SMB_VFS_NEXT_CHDIR(handle, smb_fname);
-}
-
-static struct smb_filename *skel_getwd(vfs_handle_struct *handle,
-					TALLOC_CTX *ctx)
-{
-	return SMB_VFS_NEXT_GETWD(handle, ctx);
 }
 
 static int skel_fntimes(vfs_handle_struct *handle,
@@ -1247,6 +1251,7 @@ static NTSTATUS skel_durable_reconnect(struct vfs_handle_struct *handle,
 				       struct smb_request *smb1req,
 				       struct smbXsrv_open *op,
 				       const DATA_BLOB old_cookie,
+				       const struct smb2_lease *lease,
 				       TALLOC_CTX *mem_ctx,
 				       struct files_struct **fsp,
 				       DATA_BLOB *new_cookie)
@@ -1255,6 +1260,7 @@ static NTSTATUS skel_durable_reconnect(struct vfs_handle_struct *handle,
 					      smb1req,
 					      op,
 					      old_cookie,
+					      lease,
 					      mem_ctx,
 					      fsp,
 					      new_cookie);
@@ -1267,11 +1273,12 @@ static struct vfs_fn_pointers skel_transparent_fns = {
 
 	.connect_fn = skel_connect,
 	.disconnect_fn = skel_disconnect,
+	.open_share_root_fn = skel_open_share_root,
 	.disk_free_fn = skel_disk_free,
 	.get_quota_fn = skel_get_quota,
 	.set_quota_fn = skel_set_quota,
 	.get_shadow_copy_data_fn = skel_get_shadow_copy_data,
-	.statvfs_fn = skel_statvfs,
+	.fstatvfs_fn = skel_fstatvfs,
 	.fs_capabilities_fn = skel_fs_capabilities,
 	.get_dfs_referrals_fn = skel_get_dfs_referrals,
 	.create_dfs_pathat_fn = skel_create_dfs_pathat,
@@ -1316,7 +1323,6 @@ static struct vfs_fn_pointers skel_transparent_fns = {
 	.fchown_fn = skel_fchown,
 	.lchown_fn = skel_lchown,
 	.chdir_fn = skel_chdir,
-	.getwd_fn = skel_getwd,
 	.fntimes_fn = skel_fntimes,
 	.ftruncate_fn = skel_ftruncate,
 	.fallocate_fn = skel_fallocate,

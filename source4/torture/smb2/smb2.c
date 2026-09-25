@@ -173,6 +173,12 @@ NTSTATUS torture_smb2_init(TALLOC_CTX *ctx)
 		torture_smb2_durable_v2_delay_init(suite));
 	torture_suite_add_suite(suite,
 		torture_smb2_durable_v2_regressions_init(suite));
+	torture_suite_add_suite(suite,
+		torture_smb2_persistent_open_init(suite));
+	torture_suite_add_suite(suite,
+		torture_smb2_persistent_open_failover_init(suite));
+	torture_suite_add_suite(suite,
+		torture_smb2_persistent_reconnect_contended_init(suite));
 	torture_suite_add_suite(suite, torture_smb2_dir_init(suite));
 	torture_suite_add_suite(suite, torture_smb2_lease_init(suite));
 	torture_suite_add_suite(suite, torture_smb2_dirlease_init(suite));
@@ -219,6 +225,9 @@ NTSTATUS torture_smb2_init(TALLOC_CTX *ctx)
 	torture_suite_add_suite(suite, torture_smb2_max_allowed(suite));
 	torture_suite_add_1smb2_test(suite, "tcon", run_tcon_test);
 	torture_suite_add_1smb2_test(suite, "mkdir", torture_smb2_mkdir);
+	torture_suite_add_1smb2_test(suite,
+				    "mkdir-long-name",
+				    torture_smb2_mkdir_long_name);
 	torture_suite_add_suite(suite, torture_smb2_name_mangling_init(suite));
 
 	torture_suite_add_suite(suite, torture_smb2_charset(suite));

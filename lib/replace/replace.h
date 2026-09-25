@@ -484,6 +484,12 @@ int rep_dlclose(void *handle);
 #endif
 #endif
 
+#ifdef HAVE__STATIC_ASSERT
+# define BUILD_ASSERT(x) _Static_assert((x), #x)
+#else
+# define BUILD_ASSERT(x)
+#endif
+
 #if !defined(HAVE_VDPRINTF) || !defined(HAVE_C99_VSNPRINTF)
 #define vdprintf rep_vdprintf
 int rep_vdprintf(int fd, const char *format, va_list ap) PRINTF_ATTRIBUTE(2,0);
@@ -807,6 +813,26 @@ typedef unsigned long long ptrdiff_t ;
 
 /** Type-safe version of discard_const */
 #define discard_const_p(type, ptr) ((type *)discard_const(ptr))
+
+/*
+ * Hack to suppress clang cast-align warnings.
+ *
+ * Before using this macro:
+ *    can you copy the data using memcpy?
+ *    can you call talloc_get_type_abort?
+ *
+ * If using
+ *    was the data allocated with talloc/malloc, in that case it should
+ *    be correctly aligned
+ *
+ *    consider using check_alignment from lib/util/alignment.h to verify
+ *    the alignment.
+ *
+ * call via the discard_align_p macro to maintain type safety
+ *
+ */
+#define discard_align(ptr) ((void *)((uintptr_t)(ptr)))
+#define discard_align_p(type, ptr) ((type *)discard_align(ptr))
 
 #ifndef __STRING
 #define __STRING(x)    #x

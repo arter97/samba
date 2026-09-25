@@ -32,6 +32,7 @@
 
 #include "includes.h"
 #include "smbd/smbd.h"
+#include "lib/util/statvfs.h"
 #include "system/filesys.h"
 #include <dirent.h>
 #include <sys/statvfs.h>
@@ -40,7 +41,7 @@
 #include "modules/posixacl_xattr.h"
 #include "lib/util/tevent_unix.h"
 #include "lib/util/base64.h"
-#if HAVE_CEPH_FSCRYPT
+#ifdef HAVE_CEPH_FSCRYPT
 #include <linux/fscrypt.h>
 #include "modules/varlink_keybridge.h"
 #endif
@@ -109,6 +110,7 @@ static const struct enum_list enum_vfs_cephfs_fscrypt_vals[] = {
 	{VFS_CEPHFS_FSCRYPT_DISABLED, "disabled"},
 	{VFS_CEPHFS_FSCRYPT_DISABLED, "none"},
 	{VFS_CEPHFS_FSCRYPT_KEYBRIDGE, "keybridge"},
+	{-1, NULL},
 };
 
 struct vfs_ceph_fscrypt_key {
@@ -125,7 +127,7 @@ struct vfs_ceph_config {
 #ifdef HAVE_CEPH_ASYNCIO
 	struct tevent_threaded_context *tctx;
 #endif
-#if HAVE_CEPH_FSCRYPT
+#ifdef HAVE_CEPH_FSCRYPT
 	struct varlink_keybridge_config *kbc;
 	struct vfs_ceph_fscrypt_key *fskey;
 #endif
@@ -196,7 +198,7 @@ struct vfs_ceph_config {
 #ifdef HAVE_CEPH_ASYNCIO
 	CEPH_FN(ceph_ll_nonblocking_readv_writev);
 #endif
-#if HAVE_CEPH_FSCRYPT
+#ifdef HAVE_CEPH_FSCRYPT
 	CEPH_FN(ceph_add_fscrypt_key);
 	CEPH_FN(ceph_ll_set_fscrypt_policy_v2);
 #endif
@@ -500,7 +502,7 @@ static bool vfs_cephfs_load_lib(struct vfs_ceph_config *config)
 #ifdef HAVE_CEPH_ASYNCIO
 	CHECK_CEPH_FN(libhandle, ceph_ll_nonblocking_readv_writev);
 #endif
-#if HAVE_CEPH_FSCRYPT
+#ifdef HAVE_CEPH_FSCRYPT
 	CHECK_CEPH_FN(libhandle, ceph_add_fscrypt_key);
 	CHECK_CEPH_FN(libhandle, ceph_ll_set_fscrypt_policy_v2);
 #endif
@@ -521,7 +523,7 @@ static int vfs_ceph_config_destructor(struct vfs_ceph_config *config)
 	return 0;
 }
 
-#if HAVE_CEPH_FSCRYPT
+#ifdef HAVE_CEPH_FSCRYPT
 static bool parse_keybridge_config(int snum,
 				   const char *module_name,
 				   struct vfs_ceph_config *config)
@@ -687,6 +689,7 @@ static bool vfs_ceph_load_config(struct vfs_handle_struct *handle,
 					       VFS_CEPHFS_PROXY_NO);
 	if (config_tmp->proxy == -1) {
 		DBG_ERR("[CEPH] value for proxy: mode unknown\n");
+		TALLOC_FREE(config_tmp);
 		return false;
 	}
 	config_tmp->fscrypt = lp_parm_enum(snum,
@@ -696,23 +699,24 @@ static bool vfs_ceph_load_config(struct vfs_handle_struct *handle,
 					   VFS_CEPHFS_FSCRYPT_DISABLED);
 	if (config_tmp->fscrypt == -1) {
 		DBG_ERR("[CEPH] value for fscrypt: unknown\n");
+		TALLOC_FREE(config_tmp);
 		return false;
 	}
-#if HAVE_CEPH_FSCRYPT
+
 	if (config_tmp->fscrypt == VFS_CEPHFS_FSCRYPT_KEYBRIDGE) {
+#ifdef HAVE_CEPH_FSCRYPT
 		if (parse_keybridge_config(snum, module_name, config_tmp)) {
 			fetch_keybridge_config(config_tmp);
 		}
-	}
 #else
-	if (config_tmp->fscrypt == VFS_CEPHFS_FSCRYPT_KEYBRIDGE) {
 		DBG_ERR("[CEPH] fscrypt support configured but"
 			" not enabled during build, ignoring\n");
-	}
 #endif
+	}
 
 	ok = vfs_cephfs_load_lib(config_tmp);
 	if (!ok) {
+		TALLOC_FREE(config_tmp);
 		return false;
 	}
 
@@ -731,7 +735,7 @@ done:
    is sure to try and execute them.  These stubs are used to prevent
    this possibility. */
 
-#if HAVE_CEPH_FSCRYPT
+#ifdef HAVE_CEPH_FSCRYPT
 static int vfs_ceph_setup_fscrypt(struct vfs_handle_struct *handle);
 #endif /* HAVE_CEPH_FSCRYPT */
 
@@ -780,7 +784,7 @@ connect_ok:
 		 SNUM(handle->conn),
 		 cookie);
 
-#if HAVE_CEPH_FSCRYPT
+#ifdef HAVE_CEPH_FSCRYPT
 	if (config->fscrypt != VFS_CEPHFS_FSCRYPT_DISABLED) {
 		DBG_INFO("[CEPH] fscrypt is enabled\n");
 		ret = vfs_ceph_setup_fscrypt(handle);
@@ -1055,6 +1059,9 @@ static int vfs_ceph_ll_walk(const struct vfs_handle_struct *handle,
 				return -ENOMEM);
 
 	cwd = config->ceph_getcwd_fn(config->mount);
+	if (cwd == NULL) {
+		return -ENOMEM;
+	}
 	cwdlen = strlen(cwd);
 
 	/*
@@ -2308,7 +2315,39 @@ static void vfs_ceph_iput(const struct vfs_handle_struct *handle,
 	}
 }
 
-#if HAVE_CEPH_FSCRYPT
+static int vfs_ceph_open_share_root(struct vfs_handle_struct *handle,
+				    struct files_struct *root_fsp,
+				    const char *connectpath)
+{
+	SMB_STRUCT_STAT st = {};
+	struct vfs_ceph_iref iref = {};
+	int result = -1;
+
+	DBG_DEBUG("[CEPH] open_share_root: %s\n", connectpath);
+
+	result = vfs_ceph_iget(handle, connectpath, 0, &iref);
+	if (result != 0) {
+		goto out;
+	}
+
+	result = vfs_ceph_ll_getattr(handle, &iref, &st);
+	if (result != 0) {
+		goto out;
+	}
+
+	result = vfs_set_share_root(root_fsp, connectpath, &st);
+	if (result != 0) {
+		result = -errno;
+		goto out;
+	}
+out:
+	DBG_DEBUG("[CEPH] open_share_root: %s result=%d\n",
+		  connectpath, result);
+	vfs_ceph_iput(handle, &iref);
+	return status_code(result);
+}
+
+#ifdef HAVE_CEPH_FSCRYPT
 /* Fscrypt */
 /*
  * struct ceph_fscrypt_key_identifier isn't exported so we cannot know its
@@ -2389,29 +2428,30 @@ out:
 /* Disk operations */
 
 static uint64_t vfs_ceph_disk_free(struct vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				uint64_t *bsize,
-				uint64_t *dfree,
-				uint64_t *dsize)
+				   struct files_struct *fsp,
+				   uint64_t *bsize,
+				   uint64_t *dfree,
+				   uint64_t *dsize)
 {
+	const struct smb_filename *smb_fname = fsp->fsp_name;
 	struct statvfs statvfs_buf = { 0 };
 	int ret;
 	struct vfs_ceph_config *config = NULL;
 	struct vfs_ceph_iref iref = {0};
 
 	SMB_VFS_HANDLE_GET_DATA(handle, config, struct vfs_ceph_config,
-				return -ENOMEM);
+				{ errno = ENOMEM; return UINT64_MAX; });
 
 	ret = vfs_ceph_iget(handle, smb_fname->base_name, 0, &iref);
 	if (ret != 0) {
 		errno = -ret;
-		return (uint64_t)(-1);
+		return UINT64_MAX;
 	}
 	ret = vfs_ceph_ll_statfs(handle, &iref, &statvfs_buf);
 	vfs_ceph_iput(handle, &iref);
 	if (ret != 0) {
 		errno = -ret;
-		return (uint64_t)(-1);
+		return UINT64_MAX;
 	}
 	*bsize = (uint64_t)statvfs_buf.f_bsize;
 	*dfree = (uint64_t)statvfs_buf.f_bavail;
@@ -2492,16 +2532,18 @@ out:
 	return ret;
 }
 
-static int vfs_ceph_statvfs(struct vfs_handle_struct *handle,
-			    const struct smb_filename *smb_fname,
-			    struct vfs_statvfs_struct *statbuf)
+static int vfs_ceph_fstatvfs(struct vfs_handle_struct *handle,
+			     struct files_struct *fsp,
+			     struct vfs_statvfs_struct *statbuf)
 {
 	struct statvfs statvfs_buf = { 0 };
-	struct vfs_ceph_iref iref = {0};
+	struct vfs_ceph_iref iref = { 0 };
 	uint32_t caps = 0;
 	int ret;
 
-	ret = vfs_ceph_iget(handle, smb_fname->base_name, 0, &iref);
+	START_PROFILE_X(SNUM(handle->conn), syscall_fstatvfs);
+
+	ret = vfs_ceph_iget(handle, fsp->fsp_name->base_name, 0, &iref);
 	if (ret != 0) {
 		goto out;
 	}
@@ -2526,15 +2568,16 @@ static int vfs_ceph_statvfs(struct vfs_handle_struct *handle,
 	statbuf->FsIdentifier = statvfs_buf.f_fsid;
 	statbuf->FsCapabilities = caps;
 
-	DBG_DEBUG("[CEPH] statvfs: name=%s f_bsize=%ld f_blocks=%ld "
+	DBG_DEBUG("[CEPH] fstatvfs: name=%s f_bsize=%ld f_blocks=%ld "
 		  "f_bfree=%ld f_bavail=%ld\n",
-		  smb_fname->base_name,
+		  fsp->fsp_name->base_name,
 		  (long int)statvfs_buf.f_bsize,
 		  (long int)statvfs_buf.f_blocks,
 		  (long int)statvfs_buf.f_bfree,
 		  (long int)statvfs_buf.f_bavail);
 out:
 	vfs_ceph_iput(handle, &iref);
+	END_PROFILE_X(syscall_fstatvfs);
 	return status_code(ret);
 }
 
@@ -2587,8 +2630,7 @@ static struct dirent *vfs_ceph_readdir(struct vfs_handle_struct *handle,
 {
 	struct vfs_ceph_fh *dircfh = (struct vfs_ceph_fh *)dirp;
 	struct dirent *result = NULL;
-	int saved_errno = errno;
-	int ret = -1;
+	int ret = -ENOMEM;
 
 	START_PROFILE_X(SNUM(handle->conn), syscall_readdir);
 	DBG_DEBUG("[CEPH] readdir: dirfsp_name=%s\n", fsp_str_dbg(dirfsp));
@@ -2605,7 +2647,6 @@ static struct dirent *vfs_ceph_readdir(struct vfs_handle_struct *handle,
 		/* Error case */
 		vfs_ceph_put_fh_dirent(dircfh);
 		result = NULL;
-		saved_errno = ret;
 	} else if (ret == 0) {
 		/* End of directory stream */
 		vfs_ceph_put_fh_dirent(dircfh);
@@ -2614,8 +2655,10 @@ static struct dirent *vfs_ceph_readdir(struct vfs_handle_struct *handle,
 		/* Normal case */
 		DBG_DEBUG("[CEPH] readdir: dirp=%p result=%p\n", dirp, result);
 	}
-	errno = saved_errno;
 out:
+	if (ret < 0) {
+		errno = -ret;
+	}
 	DBG_DEBUG("[CEPH] readdir: dirfsp_name=%s ret=%d\n",
 		  fsp_str_dbg(dirfsp),
 		  ret);
@@ -2668,7 +2711,6 @@ static int vfs_ceph_closedir(struct vfs_handle_struct *handle, DIR *dirp)
 	START_PROFILE_X(SNUM(handle->conn), syscall_closedir);
 	DBG_DEBUG("[CEPH] closedir: dirp=%p\n", dirp);
 	result = vfs_ceph_ll_releasedir(handle, cfh);
-	vfs_ceph_release_fh(cfh);
 	vfs_ceph_remove_fh(handle, cfh->fsp);
 	DBG_DEBUG("[CEPH] closedir: dirp=%p result=%d\n", dirp, result);
 	END_PROFILE_X(syscall_closedir);
@@ -2858,7 +2900,7 @@ static void vfs_ceph_aio_finish(struct vfs_ceph_aio_state *state,
 	state->vfs_aio_state.duration = nsec_time_diff(&state->finish_time,
 						       &state->start_time);
 	if (result < 0) {
-		state->vfs_aio_state.error = (int)result;
+		state->vfs_aio_state.error = -((int)result);
 	}
 
 	state->result = result;
@@ -3630,7 +3672,7 @@ static int vfs_ceph_unlinkat(struct vfs_handle_struct *handle,
 			     int flags)
 {
 	struct vfs_ceph_fh *dircfh = NULL;
-	const char *name = smb_fname_str_dbg(smb_fname);
+	const char *name = smb_fname->base_name;
 	int result = -1;
 
 	START_PROFILE_X(SNUM(handle->conn), syscall_unlinkat);
@@ -3653,7 +3695,7 @@ static int vfs_ceph_unlinkat(struct vfs_handle_struct *handle,
 out:
 	DBG_DEBUG("[CEPH] unlinkat: dirfsp_name=%s name=%s result=%d\n",
 		  fsp_str_dbg(dirfsp),
-		  name,
+		  smb_fname_str_dbg(smb_fname),
 		  result);
 	END_PROFILE_X(syscall_unlinkat);
 	return status_code(result);
@@ -3790,25 +3832,6 @@ out:
 	return status_code(result);
 }
 
-static struct smb_filename *vfs_ceph_getwd(struct vfs_handle_struct *handle,
-			TALLOC_CTX *ctx)
-{
-	const char *cwd = NULL;
-	struct vfs_ceph_config *config = NULL;
-	struct smb_filename *result = NULL;
-
-	START_PROFILE_X(SNUM(handle->conn), syscall_getwd);
-	SMB_VFS_HANDLE_GET_DATA(handle, config, struct vfs_ceph_config,
-				goto out);
-
-	cwd = config->ceph_getcwd_fn(config->mount);
-	DBG_DEBUG("[CEPH] getwd: cwd=%s\n", cwd);
-	result = cp_smb_basename(ctx, cwd);
-out:
-	END_PROFILE_X(syscall_getwd);
-	return result;
-}
-
 static int strict_allocate_ftruncate(struct vfs_handle_struct *handle,
 				     files_struct *fsp,
 				     off_t len)
@@ -3864,7 +3887,7 @@ static int vfs_ceph_ftruncate(struct vfs_handle_struct *handle,
 		  (intmax_t)len);
 
 	if (lp_strict_allocate(SNUM(fsp->conn))) {
-		END_PROFILE(syscall_ftruncate);
+		END_PROFILE_X(syscall_ftruncate);
 		return strict_allocate_ftruncate(handle, fsp, len);
 	}
 
@@ -4117,10 +4140,6 @@ static int vfs_ceph_linkat(struct vfs_handle_struct *handle,
 	}
 
 	result = vfs_ceph_ll_link(handle, dst_dircfh, newname, &iref);
-	if (result != 0) {
-		goto out;
-	}
-
 	vfs_ceph_iput(handle, &iref);
 out:
 	DBG_DEBUG("[CEPH] link done: result=%d\n", result);
@@ -4265,7 +4284,9 @@ static ssize_t vfs_ceph_fgetxattr(struct vfs_handle_struct *handle,
 				  void *value,
 				  size_t size)
 {
-	int ret;
+	ssize_t ret;
+
+	START_PROFILE_X(SNUM(handle->conn), syscall_fgetxattr);
 
 	DBG_DEBUG("[CEPH] fgetxattr: fsp_name=%s name=%s value=%p size=%zu\n",
 		  fsp_str_dbg(fsp),
@@ -4294,7 +4315,8 @@ static ssize_t vfs_ceph_fgetxattr(struct vfs_handle_struct *handle,
 		vfs_ceph_iput(handle, &iref);
 	}
 out:
-	DBG_DEBUG("[CEPH] fgetxattr done: ret=%d\n", ret);
+	DBG_DEBUG("[CEPH] fgetxattr done: ret=%zd\n", ret);
+	END_PROFILE_X(syscall_fgetxattr);
 	return lstatus_code(ret);
 }
 
@@ -4304,7 +4326,9 @@ static ssize_t vfs_ceph_flistxattr(struct vfs_handle_struct *handle,
 				   size_t size)
 {
 	size_t list_size = 0;
-	int ret;
+	ssize_t ret;
+
+	START_PROFILE_X(SNUM(handle->conn), syscall_flistxattr);
 
 	DBG_DEBUG("[CEPH] flistxattr: fsp_name=%s list=%p size=%zd\n",
 		  fsp_str_dbg(fsp),
@@ -4339,14 +4363,15 @@ static ssize_t vfs_ceph_flistxattr(struct vfs_handle_struct *handle,
 					    list,
 					    size,
 					    &list_size);
+		vfs_ceph_iput(handle, &iref);
 		if (ret != 0) {
 			goto out;
 		}
-		vfs_ceph_iput(handle, &iref);
 	}
-	ret = (int)list_size;
+	ret = (ssize_t)list_size;
 out:
-	DBG_DEBUG("[CEPH] flistxattr done: ret=%d\n", ret);
+	DBG_DEBUG("[CEPH] flistxattr done: ret=%zd\n", ret);
+	END_PROFILE_X(syscall_flistxattr);
 	return lstatus_code(ret);
 }
 
@@ -4355,6 +4380,8 @@ static int vfs_ceph_fremovexattr(struct vfs_handle_struct *handle,
 				 const char *name)
 {
 	int ret;
+
+	START_PROFILE_X(SNUM(handle->conn), syscall_fremovexattr);
 
 	DBG_DEBUG("[CEPH] fremovexattr: fsp_name=%s name=%s\n",
 		  fsp_str_dbg(fsp),
@@ -4382,6 +4409,7 @@ static int vfs_ceph_fremovexattr(struct vfs_handle_struct *handle,
 	}
 out:
 	DBG_DEBUG("[CEPH] fremovexattr done: ret=%d\n", ret);
+	END_PROFILE_X(syscall_fremovexattr);
 	return status_code(ret);
 }
 
@@ -4393,6 +4421,8 @@ static int vfs_ceph_fsetxattr(struct vfs_handle_struct *handle,
 			      int flags)
 {
 	int ret;
+
+	START_PROFILE_X(SNUM(handle->conn), syscall_fsetxattr);
 
 	DBG_DEBUG("[CEPH] fsetxattr: fsp_name=%s name=%s value=%p size=%zd"
 		  " flags=%d\n",
@@ -4432,6 +4462,7 @@ static int vfs_ceph_fsetxattr(struct vfs_handle_struct *handle,
 	}
 out:
 	DBG_DEBUG("[CEPH] fsetxattr done: ret=%d\n", ret);
+	END_PROFILE_X(syscall_fsetxattr);
 	return status_code(ret);
 }
 
@@ -4611,10 +4642,11 @@ static struct vfs_fn_pointers ceph_new_fns = {
 
 	.connect_fn = vfs_ceph_connect,
 	.disconnect_fn = vfs_ceph_disconnect,
+	.open_share_root_fn = vfs_ceph_open_share_root,
 	.disk_free_fn = vfs_ceph_disk_free,
 	.get_quota_fn = vfs_not_implemented_get_quota,
 	.set_quota_fn = vfs_not_implemented_set_quota,
-	.statvfs_fn = vfs_ceph_statvfs,
+	.fstatvfs_fn = vfs_ceph_fstatvfs,
 	.fs_capabilities_fn = vfs_ceph_fs_capabilities,
 
 	/* Directory operations */
@@ -4652,7 +4684,6 @@ static struct vfs_fn_pointers ceph_new_fns = {
 	.fchown_fn = vfs_ceph_fchown,
 	.lchown_fn = vfs_ceph_lchown,
 	.chdir_fn = vfs_ceph_chdir,
-	.getwd_fn = vfs_ceph_getwd,
 	.fntimes_fn = vfs_ceph_fntimes,
 	.ftruncate_fn = vfs_ceph_ftruncate,
 	.fallocate_fn = vfs_ceph_fallocate,

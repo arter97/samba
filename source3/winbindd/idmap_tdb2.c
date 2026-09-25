@@ -113,7 +113,7 @@ static NTSTATUS idmap_tdb2_open_db(struct idmap_domain *dom)
 	NT_STATUS_HAVE_NO_MEMORY(db_path);
 
 	/* Open idmap repository */
-	ctx->db = db_open(ctx, db_path, 0, TDB_DEFAULT, O_RDWR|O_CREAT, 0644,
+	ctx->db = db_open(ctx, db_path, 0, TDB_DEFAULT, O_RDWR|O_CREAT, 0640,
 			  DBWRAP_LOCK_ORDER_1, DBWRAP_FLAG_NONE);
 	if (ctx->db == NULL) {
 		DEBUG(0, ("Unable to open idmap_tdb2 database '%s'\n",
@@ -156,7 +156,7 @@ static NTSTATUS idmap_tdb2_set_mapping_action(struct db_context *db,
 
 	ret = dbwrap_store_bystring(db, state->ksidstr,
 				    string_term_tdb_data(state->kidstr),
-				    TDB_INSERT);
+				    DBWRAP_INSERT);
 	if (!NT_STATUS_IS_OK(ret)) {
 		DEBUG(0, ("Error storing SID -> ID: %s\n", nt_errstr(ret)));
 		goto done;
@@ -164,7 +164,7 @@ static NTSTATUS idmap_tdb2_set_mapping_action(struct db_context *db,
 
 	ret = dbwrap_store_bystring(db, state->kidstr,
 				    string_term_tdb_data(state->ksidstr),
-				    TDB_INSERT);
+				    DBWRAP_INSERT);
 	if (!NT_STATUS_IS_OK(ret)) {
 		DEBUG(0, ("Error storing ID -> SID: %s\n", nt_errstr(ret)));
 		/* try to remove the previous stored SID -> ID map */

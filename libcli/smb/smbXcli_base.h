@@ -22,6 +22,7 @@
 #define _SMBXCLI_BASE_H_
 
 #define SMB_SUICIDE_PACKET 0x74697865
+#define SMB_SUICIDE_EXIT_STATUS_BYPASS_CLEANUP 234
 
 #include "replace.h"
 #include <tevent.h>
@@ -577,6 +578,8 @@ NTSTATUS smb2cli_session_create_channel(TALLOC_CTX *mem_ctx,
 NTSTATUS smb2cli_session_set_channel_key(struct smbXcli_session *session,
 					 const DATA_BLOB channel_key,
 					 const struct iovec *recv_iov);
+NTSTATUS smb2cli_session_check_reauth(struct smbXcli_session *session,
+				      const struct iovec *recv_iov);
 NTSTATUS smb2cli_session_encryption_on(struct smbXcli_session *session);
 uint16_t smb2cli_session_get_encryption_cipher(struct smbXcli_session *session);
 

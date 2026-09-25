@@ -80,13 +80,15 @@ _PUBLIC_ uint64_t generate_unique_u64(uint64_t veto_value)
 		};
 	}
 
+	generate_unique_u64_state.next_value++;
+
 	while (unlikely(generate_unique_u64_state.next_value == veto_value)) {
 		generate_nonce_buffer(
 				(void *)&generate_unique_u64_state.next_value,
 				sizeof(generate_unique_u64_state.next_value));
 	}
 
-	return generate_unique_u64_state.next_value++;
+	return generate_unique_u64_state.next_value;
 }
 
 /**
@@ -231,7 +233,7 @@ _PUBLIC_ char *generate_random_str_list_buf(char *buf,
 	generate_secret_buffer((uint8_t *)buf, len);
 
 	for (i=0; i<len; i++) {
-		buf[i] = list[buf[i] % list_len];
+		buf[i] = list[(uint8_t)buf[i] % list_len];
 	}
 
 	return buf;
@@ -466,7 +468,6 @@ _PUBLIC_ char *generate_random_machine_password(TALLOC_CTX *mem_ctx, size_t min,
 		return NULL;
 	}
 	talloc_keep_secret(new_pw);
-	talloc_set_name_const(new_pw, __func__);
 	TALLOC_FREE(frame);
 	return new_pw;
 

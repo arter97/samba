@@ -430,6 +430,7 @@ smb2_s3only = [
     "smb2.create_no_streams",
     "smb2.streams",
     "smb2.maximum_allowed",
+    "smb2.persistent-open",
 ]
 smb2 = [x for x in smbtorture4_testsuites("smb2.") if x not in smb2_s3only]
 
@@ -633,6 +634,7 @@ for t in smbtorture4_testsuites("dlz_bind9."):
     plansmbtorture4testsuite(t, "chgdcpass:local", ["ncalrpc:$SERVER", '-U$USERNAME%$PASSWORD'])
 
 planpythontestsuite("fileserver_smb1", "samba.tests.libsmb-basic")
+planpythontestsuite("fileserver", "samba.tests.nps_echo_test")
 
 planpythontestsuite("ad_member", "samba.tests.smb-notify",
                     environ={'USERNAME':'$DC_USERNAME',

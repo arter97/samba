@@ -45,18 +45,18 @@ Vagrant.configure("2") do |config|
         v.vm.provision :shell, path: "debian12-32bit/locale.sh"
     end
 
-    config.vm.define "fedora43" do |v|
-        v.vm.box = "fedora/43-cloud-base"
-        v.vm.hostname = "fedora43"
-        v.vm.provision :shell, path: "fedora43/bootstrap.sh"
-        v.vm.provision :shell, path: "fedora43/locale.sh"
+    config.vm.define "fedora44" do |v|
+        v.vm.box = "fedora/44-cloud-base"
+        v.vm.hostname = "fedora44"
+        v.vm.provision :shell, path: "fedora44/bootstrap.sh"
+        v.vm.provision :shell, path: "fedora44/locale.sh"
     end
 
-    config.vm.define "opensuse155" do |v|
-        v.vm.box = "opensuse/openSUSE-15.5-x86_64"
-        v.vm.hostname = "opensuse155"
-        v.vm.provision :shell, path: "opensuse155/bootstrap.sh"
-        v.vm.provision :shell, path: "opensuse155/locale.sh"
+    config.vm.define "opensuse160" do |v|
+        v.vm.box = "opensuse/openSUSE-16.0-x86_64"
+        v.vm.hostname = "opensuse160"
+        v.vm.provision :shell, path: "opensuse160/bootstrap.sh"
+        v.vm.provision :shell, path: "opensuse160/locale.sh"
     end
 
     config.vm.define "rocky8" do |v|
@@ -64,13 +64,6 @@ Vagrant.configure("2") do |config|
         v.vm.hostname = "rocky8"
         v.vm.provision :shell, path: "rocky8/bootstrap.sh"
         v.vm.provision :shell, path: "rocky8/locale.sh"
-    end
-
-    config.vm.define "ubuntu2004" do |v|
-        v.vm.box = "ubuntu/focal64"
-        v.vm.hostname = "ubuntu2004"
-        v.vm.provision :shell, path: "ubuntu2004/bootstrap.sh"
-        v.vm.provision :shell, path: "ubuntu2004/locale.sh"
     end
 
     config.vm.define "ubuntu2204" do |v|
@@ -85,6 +78,13 @@ Vagrant.configure("2") do |config|
         v.vm.hostname = "ubuntu2404"
         v.vm.provision :shell, path: "ubuntu2404/bootstrap.sh"
         v.vm.provision :shell, path: "ubuntu2404/locale.sh"
+    end
+
+    config.vm.define "ubuntu2604" do |v|
+        v.vm.box = "ubuntu/resolute64"
+        v.vm.hostname = "ubuntu2604"
+        v.vm.provision :shell, path: "ubuntu2604/bootstrap.sh"
+        v.vm.provision :shell, path: "ubuntu2604/locale.sh"
     end
 
 

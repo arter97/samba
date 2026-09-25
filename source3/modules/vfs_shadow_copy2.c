@@ -79,8 +79,6 @@ struct shadow_copy2_private {
 	char *shadow_cwd; /* Absolute $cwd path. */
 	/* Absolute connectpath - can vary depending on $cwd. */
 	char *shadow_connectpath;
-	/* talloc'ed realpath return. */
-	struct smb_filename *shadow_realpath;
 };
 
 static int shadow_copy2_get_shadow_copy_data(
@@ -1665,106 +1663,33 @@ static int shadow_copy2_fchmod(vfs_handle_struct *handle,
 	return SMB_VFS_NEXT_FCHMOD(handle, fsp, mode);
 }
 
-static void store_cwd_data(vfs_handle_struct *handle,
-				const char *connectpath)
-{
-	struct shadow_copy2_private *priv = NULL;
-	struct smb_filename *cwd_fname = NULL;
-
-	SMB_VFS_HANDLE_GET_DATA(handle, priv, struct shadow_copy2_private,
-				return);
-
-	TALLOC_FREE(priv->shadow_cwd);
-	cwd_fname = SMB_VFS_NEXT_GETWD(handle, talloc_tos());
-	if (cwd_fname == NULL) {
-		smb_panic("getwd failed\n");
-	}
-	DBG_DEBUG("shadow cwd = %s\n", cwd_fname->base_name);
-	priv->shadow_cwd = talloc_strdup(priv, cwd_fname->base_name);
-	TALLOC_FREE(cwd_fname);
-	if (priv->shadow_cwd == NULL) {
-		smb_panic("talloc failed\n");
-	}
-	TALLOC_FREE(priv->shadow_connectpath);
-	if (connectpath) {
-		DBG_DEBUG("shadow connectpath = %s\n", connectpath);
-		priv->shadow_connectpath = talloc_strdup(priv, connectpath);
-		if (priv->shadow_connectpath == NULL) {
-			smb_panic("talloc failed\n");
-		}
-	}
-}
-
 static int shadow_copy2_chdir(vfs_handle_struct *handle,
 			       const struct smb_filename *smb_fname)
 {
-	time_t timestamp = 0;
-	char *stripped = NULL;
-	char *snappath = NULL;
-	int ret = -1;
-	int saved_errno = 0;
-	char *conv = NULL;
-	size_t rootpath_len = 0;
-	struct smb_filename *conv_smb_fname = NULL;
+	struct shadow_copy2_private *priv = NULL;
+	char *shadow_cwd = NULL;
+	int ret;
 
-	if (!shadow_copy2_strip_snapshot_internal(talloc_tos(),
-					handle,
-					smb_fname,
-					&timestamp,
-					&stripped,
-					&snappath,
-					NULL)) {
-		return -1;
-	}
-	if (stripped != NULL) {
-		conv = shadow_copy2_do_convert(talloc_tos(),
-						handle,
-						stripped,
-						timestamp,
-						&rootpath_len);
-		TALLOC_FREE(stripped);
-		if (conv == NULL) {
-			return -1;
-		}
-		conv_smb_fname = synthetic_smb_fname(talloc_tos(),
-					conv,
-					NULL,
-					NULL,
-					0,
-					smb_fname->flags);
-	} else {
-		conv_smb_fname = cp_smb_filename(talloc_tos(), smb_fname);
-	}
+	SMB_VFS_HANDLE_GET_DATA(handle,
+				priv,
+				struct shadow_copy2_private,
+				return -1);
 
-	if (conv_smb_fname == NULL) {
-		TALLOC_FREE(conv);
+	shadow_cwd = talloc_strdup(priv, smb_fname->base_name);
+	if (shadow_cwd == NULL) {
 		errno = ENOMEM;
 		return -1;
 	}
 
-	ret = SMB_VFS_NEXT_CHDIR(handle, conv_smb_fname);
+	ret = SMB_VFS_NEXT_CHDIR(handle, smb_fname);
 	if (ret == -1) {
-		saved_errno = errno;
+		return -1;
 	}
 
-	if (ret == 0) {
-		if (conv != NULL && rootpath_len != 0) {
-			conv[rootpath_len] = '\0';
-		} else if (snappath != 0) {
-			TALLOC_FREE(conv);
-			conv = snappath;
-		}
-		store_cwd_data(handle, conv);
-	}
+	TALLOC_FREE(priv->shadow_cwd);
+	priv->shadow_cwd = shadow_cwd;
 
-	TALLOC_FREE(stripped);
-	TALLOC_FREE(conv);
-	TALLOC_FREE(conv_smb_fname);
-
-	if (saved_errno != 0) {
-		errno = saved_errno;
-	}
-	return ret;
+	return 0;
 }
 
 static int shadow_copy2_fntimes(vfs_handle_struct *handle,
@@ -2622,17 +2547,19 @@ static NTSTATUS shadow_copy2_parent_pathname(vfs_handle_struct *handle,
 }
 
 static uint64_t shadow_copy2_disk_free(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				uint64_t *bsize,
-				uint64_t *dfree,
-				uint64_t *dsize)
+				       struct files_struct *fsp,
+				       uint64_t *bsize,
+				       uint64_t *dfree,
+				       uint64_t *dsize)
 {
+	const struct smb_filename *smb_fname = fsp->fsp_name;
 	time_t timestamp = 0;
 	char *stripped = NULL;
 	int saved_errno = 0;
 	char *conv = NULL;
 	struct smb_filename *conv_smb_fname = NULL;
 	uint64_t ret = (uint64_t)-1;
+	NTSTATUS status;
 
 	if (!shadow_copy2_strip_snapshot(talloc_tos(),
 				handle,
@@ -2642,26 +2569,28 @@ static uint64_t shadow_copy2_disk_free(vfs_handle_struct *handle,
 		return (uint64_t)-1;
 	}
 	if (timestamp == 0) {
-		return SMB_VFS_NEXT_DISK_FREE(handle, smb_fname,
-					      bsize, dfree, dsize);
+		return SMB_VFS_NEXT_DISK_FREE(
+			handle, fsp, bsize, dfree, dsize);
 	}
 	conv = shadow_copy2_convert(talloc_tos(), handle, stripped, timestamp);
 	TALLOC_FREE(stripped);
 	if (conv == NULL) {
 		return (uint64_t)-1;
 	}
-	conv_smb_fname = synthetic_smb_fname(talloc_tos(),
-					conv,
-					NULL,
-					NULL,
-					0,
-					smb_fname->flags);
-	if (conv_smb_fname == NULL) {
+	status = synthetic_pathref(talloc_tos(),
+				   handle->conn->cwd_fsp,
+				   conv,
+				   NULL,
+				   NULL,
+				   0,
+				   smb_fname->flags,
+				   &conv_smb_fname);
+	if (!NT_STATUS_IS_OK(status)) {
 		TALLOC_FREE(conv);
 		return (uint64_t)-1;
 	}
-	ret = SMB_VFS_NEXT_DISK_FREE(handle, conv_smb_fname,
-				bsize, dfree, dsize);
+	ret = SMB_VFS_NEXT_DISK_FREE(
+		handle, conv_smb_fname->fsp, bsize, dfree, dsize);
 	if (ret == (uint64_t)-1) {
 		saved_errno = errno;
 	}
@@ -2674,17 +2603,19 @@ static uint64_t shadow_copy2_disk_free(vfs_handle_struct *handle,
 }
 
 static int shadow_copy2_get_quota(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				enum SMB_QUOTA_TYPE qtype,
-				unid_t id,
-				SMB_DISK_QUOTA *dq)
+				  struct files_struct *fsp,
+				  enum SMB_QUOTA_TYPE qtype,
+				  unid_t id,
+				  SMB_DISK_QUOTA *dq)
 {
+	struct smb_filename *smb_fname = fsp->fsp_name;
 	time_t timestamp = 0;
 	char *stripped = NULL;
 	int ret;
 	int saved_errno = 0;
 	char *conv;
 	struct smb_filename *conv_smb_fname = NULL;
+	NTSTATUS status;
 
 	if (!shadow_copy2_strip_snapshot(talloc_tos(),
 				handle,
@@ -2694,25 +2625,31 @@ static int shadow_copy2_get_quota(vfs_handle_struct *handle,
 		return -1;
 	}
 	if (timestamp == 0) {
-		return SMB_VFS_NEXT_GET_QUOTA(handle, smb_fname, qtype, id, dq);
+		return SMB_VFS_NEXT_GET_QUOTA(handle, fsp, qtype, id, dq);
 	}
 
 	conv = shadow_copy2_convert(talloc_tos(), handle, stripped, timestamp);
 	TALLOC_FREE(stripped);
 	if (conv == NULL) {
+		errno = ENOMEM;
 		return -1;
 	}
-	conv_smb_fname = synthetic_smb_fname(talloc_tos(),
-					conv,
-					NULL,
-					NULL,
-					0,
-					smb_fname->flags);
-	if (conv_smb_fname == NULL) {
+
+	status = synthetic_pathref(talloc_tos(),
+				   fsp->conn->cwd_fsp,
+				   conv,
+				   NULL,
+				   NULL,
+				   0,
+				   smb_fname->flags,
+				   &conv_smb_fname);
+	if (!NT_STATUS_IS_OK(status)) {
 		TALLOC_FREE(conv);
+		errno = map_errno_from_nt_status(status);
 		return -1;
 	}
-	ret = SMB_VFS_NEXT_GET_QUOTA(handle, conv_smb_fname, qtype, id, dq);
+	ret = SMB_VFS_NEXT_GET_QUOTA(
+		handle, conv_smb_fname->fsp, qtype, id, dq);
 
 	if (ret == -1) {
 		saved_errno = errno;

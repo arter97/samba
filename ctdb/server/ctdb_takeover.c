@@ -289,21 +289,20 @@ static int32_t ctdb_vnn_assign_iface(struct ctdb_context *ctdb,
 	best->references++;
 	vnn->pnn = ctdb->pnn;
 
-	DBG_INFO("public address '%s' now assigned to iface '%s' refs[%d]\n",
-		 ctdb_vnn_address_string(vnn),
-		 ctdb_vnn_iface_string(vnn),
-		 best->references);
+	D_INFO("Assigned: %s (now on %s[refs=%d])\n",
+	       ctdb_vnn_address_string(vnn),
+	       ctdb_vnn_iface_string(vnn),
+	       best->references);
 	return 0;
 }
 
 static void ctdb_vnn_unassign_iface(struct ctdb_context *ctdb,
 				    struct ctdb_vnn *vnn)
 {
-	DBG_INFO("public address '%s' "
-		 "now unassigned (old iface '%s' refs[%d])\n",
-		 ctdb_vnn_address_string(vnn),
-		 ctdb_vnn_iface_string(vnn),
-		 vnn->iface != NULL ? vnn->iface->references : 0);
+	D_INFO("Unassigned: %s (was on %s[refs=%d])\n",
+	       ctdb_vnn_address_string(vnn),
+	       ctdb_vnn_iface_string(vnn),
+	       vnn->iface != NULL ? vnn->iface->references : 0);
 	if (vnn->iface) {
 		vnn->iface->references--;
 	}
@@ -514,7 +513,7 @@ static void ctdb_do_takeip_callback(struct ctdb_context *ctdb, int status,
 	data.dptr  = (uint8_t *)discard_const(
 		ctdb_vnn_address_string(state->vnn));
 	data.dsize = strlen((char *)data.dptr) + 1;
-	DEBUG(DEBUG_INFO,(__location__ " sending TAKE_IP for '%s'\n", data.dptr));
+	D_INFO("Sending TAKE_IP message [%s]\n", data.dptr);
 
 	ctdb_daemon_send_message(ctdb, ctdb->pnn, CTDB_SRVID_TAKE_IP, data);
 
@@ -888,7 +887,7 @@ static struct ctdb_vnn *release_ip_post(struct ctdb_context *ctdb,
 	 */
 	data.dptr = (uint8_t *)ctdb_addr_to_str(addr);
 	data.dsize = strlen((char *)data.dptr)+1;
-	DEBUG(DEBUG_INFO, ("Sending RELEASE_IP message for %s\n", data.dptr));
+	D_INFO("Sending RELEASE_IP message [%s]\n", data.dptr);
 	ctdb_daemon_send_message(ctdb, ctdb->pnn, CTDB_SRVID_RELEASE_IP, data);
 
 	ctdb_vnn_unassign_iface(ctdb, vnn);
@@ -2498,8 +2497,6 @@ int32_t ctdb_control_ipreallocated(struct ctdb_context *ctdb,
 	state = talloc(ctdb, struct ipreallocated_callback_state);
 	CTDB_NO_MEMORY(ctdb, state);
 
-	DEBUG(DEBUG_INFO,(__location__ " Running \"ipreallocated\" event\n"));
-
 	ret = ctdb_event_script_callback(ctdb, state,
 					 ctdb_ipreallocated_callback, state,
 					 CTDB_EVENT_IPREALLOCATED,
@@ -2568,8 +2565,6 @@ int32_t ctdb_control_start_ipreallocate(struct ctdb_context *ctdb,
 		DBG_ERR("Memory allocation error\n");
 		return -1;
 	}
-
-	DBG_INFO("Running \"startipreallocate\" event\n");
 
 	ret = ctdb_event_script_callback(ctdb,
 					 state,

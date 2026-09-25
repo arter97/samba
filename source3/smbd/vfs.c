@@ -27,6 +27,7 @@
 #include "system/filesys.h"
 #include "smbd/smbd.h"
 #include "smbd/globals.h"
+#include "lib/util/statvfs.h"
 #include "../lib/util/memcache.h"
 #include "transfer_file.h"
 #include "ntioctl.h"
@@ -541,7 +542,6 @@ ssize_t vfs_pwrite_data(struct smb_request *req,
 int vfs_allocate_file_space(files_struct *fsp, uint64_t len)
 {
 	int ret;
-	connection_struct *conn = fsp->conn;
 	uint64_t space_avail;
 	uint64_t bsize,dfree,dsize;
 	NTSTATUS status;
@@ -613,8 +613,7 @@ int vfs_allocate_file_space(files_struct *fsp, uint64_t len)
 
 	len -= fsp->fsp_name->st.st_ex_size;
 	len /= 1024; /* Len is now number of 1k blocks needed. */
-	space_avail =
-	    get_dfree_info(conn, fsp->fsp_name, &bsize, &dfree, &dsize);
+	space_avail = get_dfree_info(fsp, &bsize, &dfree, &dsize);
 	if (space_avail == (uint64_t)-1) {
 		return -1;
 	}
@@ -889,67 +888,31 @@ const char *vfs_readdirname(connection_struct *conn,
 	return translated;
 }
 
+static struct connection_struct *chdir_lastconn_cache = NULL;
+
+void reset_chdir_lastconn_cache(void)
+{
+	chdir_lastconn_cache = NULL;
+}
+
 /*******************************************************************
  A wrapper for vfs_chdir().
 ********************************************************************/
 
-int vfs_ChDir(connection_struct *conn, const struct smb_filename *smb_fname)
+int vfs_ChDir_shareroot(connection_struct *conn)
 {
+	const struct smb_filename smb_fname = {
+		.base_name = conn->connectpath,
+	};
 	int ret;
-	struct smb_filename *cwd = NULL;
 
-	if (!LastDir) {
-		LastDir = SMB_STRDUP("");
-	}
-
-	if (ISDOT(smb_fname->base_name)) {
-		/*
-		 * passing a '.' is a noop,
-		 * and we only expect this after
-		 * everything is initialized.
-		 *
-		 * So the first vfs_ChDir() on a given
-		 * connection_struct must not be '.'.
-		 *
-		 * Note: conn_new() sets
-		 * conn->cwd_fsp->fh->fd = -1
-		 * and vfs_ChDir() leaves with
-		 * conn->cwd_fsp->fh->fd = AT_FDCWD
-		 * on success!
-		 */
-		if (fsp_get_pathref_fd(conn->cwd_fsp) != AT_FDCWD) {
-			/*
-			 * This should never happen and
-			 * we might change this to
-			 * SMB_ASSERT() in future.
-			 */
-			DBG_ERR("Called with '.' as first operation!\n");
-			log_stack_trace();
-			errno = EINVAL;
-			return -1;
-		}
+	if (conn == chdir_lastconn_cache) {
 		return 0;
 	}
 
-	if (smb_fname->base_name[0] == '/' &&
-	    strcsequal(LastDir,smb_fname->base_name))
-	{
-		/*
-		 * conn->cwd_fsp->fsp_name and the kernel
-		 * are already correct, but conn->cwd_fsp->fh->fd
-		 * might still be -1 as initialized in conn_new().
-		 *
-		 * This can happen when a client made a 2nd
-		 * tree connect to a share with the same underlying
-		 * path (may or may not the same share).
-		 */
-		fsp_set_fd(conn->cwd_fsp, AT_FDCWD);
-		return 0;
-	}
+	DEBUG(4,("vfs_ChDir to %s\n", smb_fname.base_name));
 
-	DEBUG(4,("vfs_ChDir to %s\n", smb_fname->base_name));
-
-	ret = SMB_VFS_CHDIR(conn, smb_fname);
+	ret = SMB_VFS_CHDIR(conn, &smb_fname);
 	if (ret != 0) {
 		return -1;
 	}
@@ -961,175 +924,9 @@ int vfs_ChDir(connection_struct *conn, const struct smb_filename *smb_fname)
 	 */
 	fsp_set_fd(conn->cwd_fsp, AT_FDCWD);
 
-	/* conn cache. */
-	cwd = vfs_GetWd(conn, conn);
-	if (cwd == NULL) {
-		/*
-		 * vfs_GetWd() failed.
-		 * We must be able to read cwd.
-		 * Return to original directory
-		 * and return -1.
-		 */
-		int saved_errno = errno;
-
-		if (conn->cwd_fsp->fsp_name == NULL) {
-			/*
-			 * Failed on the very first chdir()+getwd()
-			 * for this connection. We can't
-			 * continue.
-			 */
-			smb_panic("conn->cwd getwd failed\n");
-			/* NOTREACHED */
-			return -1;
-		}
-
-		/* Return to the previous $cwd. */
-		ret = SMB_VFS_CHDIR(conn, conn->cwd_fsp->fsp_name);
-		if (ret != 0) {
-			smb_panic("conn->cwd getwd failed\n");
-			/* NOTREACHED */
-			return -1;
-		}
-		errno = saved_errno;
-		/* And fail the chdir(). */
-		return -1;
-	}
-
-	/* vfs_GetWd() succeeded. */
-	/* Replace global cache. */
-	SAFE_FREE(LastDir);
-	LastDir = SMB_STRDUP(smb_fname->base_name);
-
-	/*
-	 * (Indirect) Callers of vfs_ChDir() may still hold references to the
-	 * old conn->cwd_fsp->fsp_name. Move it to talloc_tos(), that way
-	 * callers can use it for the lifetime of the SMB request.
-	 */
-	talloc_move(talloc_tos(), &conn->cwd_fsp->fsp_name);
-
-	conn->cwd_fsp->fsp_name = talloc_move(conn->cwd_fsp, &cwd);
-
-	DBG_INFO("vfs_ChDir got %s\n", fsp_str_dbg(conn->cwd_fsp));
+	chdir_lastconn_cache = conn;
 
 	return ret;
-}
-
-/*******************************************************************
- Return the absolute current directory path - given a UNIX pathname.
- Note that this path is returned in DOS format, not UNIX
- format. Note this can be called with conn == NULL.
-********************************************************************/
-
-struct smb_filename *vfs_GetWd(TALLOC_CTX *ctx, connection_struct *conn)
-{
-        struct smb_filename *current_dir_fname = NULL;
-	struct file_id key;
-	struct smb_filename *smb_fname_dot = NULL;
-	struct smb_filename *smb_fname_full = NULL;
-	struct smb_filename *result = NULL;
-
-	if (!lp_getwd_cache()) {
-		goto nocache;
-	}
-	if (fsp_get_pathref_fd(conn->cwd_fsp) == -1) {
-		goto nocache;
-	}
-
-	smb_fname_dot = cp_smb_basename(ctx, ".");
-	if (smb_fname_dot == NULL) {
-		errno = ENOMEM;
-		goto out;
-	}
-
-	if (SMB_VFS_STAT(conn, smb_fname_dot) == -1) {
-		/*
-		 * Known to fail for root: the directory may be NFS-mounted
-		 * and exported with root_squash (so has no root access).
-		 */
-		DEBUG(1,("vfs_GetWd: couldn't stat \".\" error %s "
-			 "(NFS problem ?)\n", strerror(errno) ));
-		goto nocache;
-	}
-
-	key = vfs_file_id_from_sbuf(conn, &smb_fname_dot->st);
-
-	smb_fname_full = (struct smb_filename *)memcache_lookup_talloc(
-					smbd_memcache(),
-					GETWD_CACHE,
-					data_blob_const(&key, sizeof(key)));
-
-	if (smb_fname_full == NULL) {
-		goto nocache;
-	}
-
-	if ((SMB_VFS_STAT(conn, smb_fname_full) == 0) &&
-	    (smb_fname_dot->st.st_ex_dev == smb_fname_full->st.st_ex_dev) &&
-	    (smb_fname_dot->st.st_ex_ino == smb_fname_full->st.st_ex_ino) &&
-	    (S_ISDIR(smb_fname_dot->st.st_ex_mode))) {
-		/*
-		 * Ok, we're done
-		 * Note: smb_fname_full is owned by smbd_memcache()
-		 * so we must make a copy to return.
-		 */
-		result = cp_smb_filename(ctx, smb_fname_full);
-		if (result == NULL) {
-			errno = ENOMEM;
-		}
-		goto out;
-	}
-
- nocache:
-
-	/*
-	 * We don't have the information to hand so rely on traditional
-	 * methods. The very slow getcwd, which spawns a process on some
-	 * systems, or the not quite so bad getwd.
-	 */
-
-	current_dir_fname = SMB_VFS_GETWD(conn, ctx);
-	if (current_dir_fname == NULL) {
-		DEBUG(0, ("vfs_GetWd: SMB_VFS_GETWD call failed: %s\n",
-			  strerror(errno)));
-		goto out;
-	}
-
-	if ((smb_fname_dot != NULL) && VALID_STAT(smb_fname_dot->st)) {
-		key = vfs_file_id_from_sbuf(conn, &smb_fname_dot->st);
-
-		/*
-		 * smbd_memcache() will own current_dir_fname after the
-		 * memcache_add_talloc call, so we must make
-		 * a copy on ctx to return.
-		 */
-		result = cp_smb_filename(ctx, current_dir_fname);
-		if (result == NULL) {
-			errno = ENOMEM;
-		}
-
-		/*
-		 * Ensure the memory going into the cache
-		 * doesn't have a destructor so it can be
-		 * cleanly freed.
-		 */
-		talloc_set_destructor(current_dir_fname, NULL);
-
-		memcache_add_talloc(smbd_memcache(),
-				GETWD_CACHE,
-				data_blob_const(&key, sizeof(key)),
-				&current_dir_fname);
-		/* current_dir_fname is now == NULL here. */
-	} else {
-		/* current_dir_fname is already allocated on ctx. */
-		result = current_dir_fname;
-	}
-
- out:
-	TALLOC_FREE(smb_fname_dot);
-	/*
-	 * Don't free current_dir_fname here. It's either been moved
-	 * to the memcache or is being returned in result.
-	 */
-	return result;
 }
 
 /*
@@ -1198,11 +995,11 @@ NTSTATUS vfs_stat_fsp(files_struct *fsp)
 	return NT_STATUS_OK;
 }
 
-void init_smb_file_time(struct smb_file_time *ft)
+struct smb_file_time smb_file_time_omit(void)
 {
 	struct timespec omit = make_omit_timespec();
 
-	*ft = (struct smb_file_time) {
+	return (struct smb_file_time){
 		.atime = omit,
 		.ctime = omit,
 		.mtime = omit,
@@ -1318,14 +1115,23 @@ uint32_t vfs_get_fs_capabilities(struct connection_struct *conn,
 	uint32_t caps = FILE_CASE_SENSITIVE_SEARCH | FILE_CASE_PRESERVED_NAMES;
 	struct smb_filename *smb_fname_cpath = NULL;
 	struct vfs_statvfs_struct statbuf = {};
+	NTSTATUS status;
 	int ret;
 
-	smb_fname_cpath = cp_smb_basename(talloc_tos(), conn->connectpath);
-	if (smb_fname_cpath == NULL) {
-		return caps;
+	status = synthetic_pathref(talloc_tos(),
+				   conn->cwd_fsp,
+				   conn->connectpath,
+				   NULL,
+				   NULL,
+				   0,
+				   0,
+				   &smb_fname_cpath);
+	if (!NT_STATUS_IS_OK(status)) {
+		DBG_DEBUG("Could not open share root\n");
+		goto done;
 	}
 
-	ret = SMB_VFS_STATVFS(conn, smb_fname_cpath, &statbuf);
+	ret = SMB_VFS_FSTATVFS(conn, smb_fname_cpath->fsp, &statbuf);
 	if (ret == 0) {
 		caps = statbuf.FsCapabilities;
 	}
@@ -1340,12 +1146,6 @@ uint32_t vfs_get_fs_capabilities(struct connection_struct *conn,
 
 	/* Work out what timestamp resolution we can
 	 * use when setting a timestamp. */
-
-	ret = SMB_VFS_STAT(conn, smb_fname_cpath);
-	if (ret == -1) {
-		TALLOC_FREE(smb_fname_cpath);
-		return caps;
-	}
 
 	if (smb_fname_cpath->st.st_ex_mtime.tv_nsec ||
 			smb_fname_cpath->st.st_ex_atime.tv_nsec ||
@@ -1372,6 +1172,7 @@ uint32_t vfs_get_fs_capabilities(struct connection_struct *conn,
 			  lp_servicename(talloc_tos(), lp_sub, conn->params->service),
 			  conn->connectpath );
 	}
+done:
 	TALLOC_FREE(smb_fname_cpath);
 	return caps;
 }
@@ -1432,33 +1233,63 @@ void smb_vfs_call_disconnect(struct vfs_handle_struct *handle)
 	handle->fns->disconnect_fn(handle);
 }
 
+int smb_vfs_call_open_share_root(struct vfs_handle_struct *handle,
+				 struct files_struct *root_fsp,
+				 const char *connectpath)
+{
+	VFS_FIND(open_share_root);
+	return handle->fns->open_share_root_fn(handle, root_fsp, connectpath);
+}
+
+int vfs_set_share_root(struct files_struct *root_fsp,
+		       const char *connectpath,
+		       const SMB_STRUCT_STAT *pst)
+{
+	struct smb_filename fname = {
+		.base_name = discard_const_p(char, connectpath),
+		.st = *pst,
+	};
+	bool ok;
+
+	ok = fsp_set_smb_fname(root_fsp, &fname);
+	if (!ok) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	fsp_set_fd(root_fsp, AT_FDCWD);
+
+	return 0;
+}
+
 uint64_t smb_vfs_call_disk_free(struct vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
+				struct files_struct *fsp,
 				uint64_t *bsize,
 				uint64_t *dfree,
 				uint64_t *dsize)
 {
 	VFS_FIND(disk_free);
-	return handle->fns->disk_free_fn(handle, smb_fname,
-			bsize, dfree, dsize);
+	return handle->fns->disk_free_fn(handle, fsp, bsize, dfree, dsize);
 }
 
 int smb_vfs_call_get_quota(struct vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				enum SMB_QUOTA_TYPE qtype,
-				unid_t id,
-				SMB_DISK_QUOTA *qt)
+			   struct files_struct *fsp,
+			   enum SMB_QUOTA_TYPE qtype,
+			   unid_t id,
+			   SMB_DISK_QUOTA *qt)
 {
 	VFS_FIND(get_quota);
-	return handle->fns->get_quota_fn(handle, smb_fname, qtype, id, qt);
+	return handle->fns->get_quota_fn(handle, fsp, qtype, id, qt);
 }
 
 int smb_vfs_call_set_quota(struct vfs_handle_struct *handle,
-			   enum SMB_QUOTA_TYPE qtype, unid_t id,
+			   struct files_struct *fsp,
+			   enum SMB_QUOTA_TYPE qtype,
+			   unid_t id,
 			   SMB_DISK_QUOTA *qt)
 {
 	VFS_FIND(set_quota);
-	return handle->fns->set_quota_fn(handle, qtype, id, qt);
+	return handle->fns->set_quota_fn(handle, fsp, qtype, id, qt);
 }
 
 int smb_vfs_call_get_shadow_copy_data(struct vfs_handle_struct *handle,
@@ -1471,12 +1302,13 @@ int smb_vfs_call_get_shadow_copy_data(struct vfs_handle_struct *handle,
 						    shadow_copy_data,
 						    labels);
 }
-int smb_vfs_call_statvfs(struct vfs_handle_struct *handle,
-			const struct smb_filename *smb_fname,
-			struct vfs_statvfs_struct *statbuf)
+
+int smb_vfs_call_fstatvfs(struct vfs_handle_struct *handle,
+			  struct files_struct *fsp,
+			  struct vfs_statvfs_struct *statbuf)
 {
-	VFS_FIND(statvfs);
-	return handle->fns->statvfs_fn(handle, smb_fname, statbuf);
+	VFS_FIND(fstatvfs);
+	return handle->fns->fstatvfs_fn(handle, fsp, statbuf);
 }
 
 uint32_t smb_vfs_call_fs_capabilities(struct vfs_handle_struct *handle,
@@ -2006,13 +1838,6 @@ int smb_vfs_call_chdir(struct vfs_handle_struct *handle,
 {
 	VFS_FIND(chdir);
 	return handle->fns->chdir_fn(handle, smb_fname);
-}
-
-struct smb_filename *smb_vfs_call_getwd(struct vfs_handle_struct *handle,
-				TALLOC_CTX *ctx)
-{
-	VFS_FIND(getwd);
-	return handle->fns->getwd_fn(handle, ctx);
 }
 
 int smb_vfs_call_fntimes(struct vfs_handle_struct *handle,
@@ -2676,13 +2501,14 @@ NTSTATUS smb_vfs_call_durable_reconnect(struct vfs_handle_struct *handle,
 					struct smb_request *smb1req,
 					struct smbXsrv_open *op,
 					const DATA_BLOB old_cookie,
+					const struct smb2_lease *lease,
 					TALLOC_CTX *mem_ctx,
 					struct files_struct **fsp,
 					DATA_BLOB *new_cookie)
 {
 	VFS_FIND(durable_reconnect);
 	return handle->fns->durable_reconnect_fn(handle, smb1req, op,
-					         old_cookie, mem_ctx, fsp,
+					         old_cookie, lease, mem_ctx, fsp,
 					         new_cookie);
 }
 

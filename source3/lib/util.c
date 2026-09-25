@@ -192,39 +192,6 @@ void show_msg(const char *buf)
 }
 
 /*******************************************************************
- Setup only the byte count for a smb message.
-********************************************************************/
-
-int set_message_bcc(char *buf,int num_bytes)
-{
-	int num_words = CVAL(buf,smb_wct);
-	SSVAL(buf,smb_vwv + num_words*SIZEOFWORD,num_bytes);
-	_smb_setlen(buf,smb_size + num_words*2 + num_bytes - 4);
-	return (smb_size + num_words*2 + num_bytes);
-}
-
-/*******************************************************************
- Add a data blob to the end of a smb_buf, adjusting bcc and smb_len.
- Return the bytes added
-********************************************************************/
-
-ssize_t message_push_blob(uint8_t **outbuf, DATA_BLOB blob)
-{
-	size_t newlen = smb_len(*outbuf) + 4 + blob.length;
-	uint8_t *tmp;
-
-	if (!(tmp = talloc_realloc(NULL, *outbuf, uint8_t, newlen))) {
-		DEBUG(0, ("talloc failed\n"));
-		return -1;
-	}
-	*outbuf = tmp;
-
-	memcpy(tmp + smb_len(tmp) + 4, blob.data, blob.length);
-	set_message_bcc((char *)tmp, smb_buflen(tmp) + blob.length);
-	return blob.length;
-}
-
-/*******************************************************************
  Reduce a file name, removing .. elements.
 ********************************************************************/
 

@@ -2052,57 +2052,27 @@ static int net_ads_dns_async(struct net_context *c, int argc, const char **argv)
 		return -1;
 	}
 
-	status = ads_dns_lookup_a(talloc_tos(),
-				  argv[0],
-				  &num_names,
-				  &hostnames,
-				  &addrs);
+	status = ads_dns_lookup_in(talloc_tos(), argv[0], &hostnames, &addrs);
 	if (!NT_STATUS_IS_OK(status)) {
-		d_printf("Looking up A record for %s got error %s\n",
+		d_printf("Looking up %s got error %s\n",
 			 argv[0],
 			 nt_errstr(status));
 		return -1;
 	}
-	d_printf("Async A record lookup - got %u names for %s\n",
-		 (unsigned int)num_names,
+	num_names = talloc_array_length(hostnames);
+	d_printf("Async record lookup - got %zu names for %s\n",
+		 num_names,
 		 argv[0]);
 	for (i = 0; i < num_names; i++) {
-		char addr_buf[INET6_ADDRSTRLEN];
-		print_sockaddr(addr_buf,
-			       sizeof(addr_buf),
-			       &addrs[i].u.ss);
-		d_printf("hostname[%u] = %s, IPv4addr = %s\n",
-			(unsigned int)i,
-			hostnames[i],
-			addr_buf);
+		const struct samba_sockaddr *ss = &addrs[i];
+		struct ssaddr_buf addr_buf;
+		d_printf("hostname[%zu] = %s, IPv%caddr = %s\n",
+			 i,
+			 hostnames[i],
+			 ss->u.ss.ss_family == AF_INET6 ? '6' : '4',
+			 ssaddr_str_buf(ss, &addr_buf));
 	}
 
-#if defined(HAVE_IPV6)
-	status = ads_dns_lookup_aaaa(talloc_tos(),
-				     argv[0],
-				     &num_names,
-				     &hostnames,
-				     &addrs);
-	if (!NT_STATUS_IS_OK(status)) {
-		d_printf("Looking up AAAA record for %s got error %s\n",
-			 argv[0],
-			 nt_errstr(status));
-		return -1;
-	}
-	d_printf("Async AAAA record lookup - got %u names for %s\n",
-		 (unsigned int)num_names,
-		 argv[0]);
-	for (i = 0; i < num_names; i++) {
-		char addr_buf[INET6_ADDRSTRLEN];
-		print_sockaddr(addr_buf,
-			       sizeof(addr_buf),
-			       &addrs[i].u.ss);
-		d_printf("hostname[%u] = %s, IPv6addr = %s\n",
-			(unsigned int)i,
-			hostnames[i],
-			addr_buf);
-	}
-#endif
 	return 0;
 }
 
@@ -2281,7 +2251,7 @@ static int net_ads_printer_publish(struct net_context *c,
 	const char *printername = NULL;
 	struct cli_state *cli = NULL;
 	struct rpc_pipe_client *pipe_hnd = NULL;
-	struct sockaddr_storage server_ss = { 0 };
+	struct samba_sockaddr server_ss = { 0 };
 	NTSTATUS nt_status;
 	ADS_MODLIST mods = NULL;
 	char *prt_dn = NULL;
@@ -2343,7 +2313,7 @@ static int net_ads_printer_publish(struct net_context *c,
 					      &cli,
 					      lp_netbios_name(),
 					      servername,
-					      &server_ss,
+					      &server_ss.u.ss,
 					      &ts,
 					      "IPC$",
 					      "IPC",

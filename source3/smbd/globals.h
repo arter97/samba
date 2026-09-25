@@ -95,7 +95,6 @@ extern int conn_ctx_stack_ndx;
 struct vfs_init_function_entry;
 extern struct vfs_init_function_entry *backends;
 extern char *sparse_buf;
-extern char *LastDir;
 
 struct smbd_parent_context;
 extern struct smbd_parent_context *am_parent;
@@ -106,6 +105,7 @@ struct tstream_context;
 struct smbd_smb2_request;
 
 DATA_BLOB negprot_spnego(TALLOC_CTX *ctx, struct smbXsrv_connection *xconn);
+void smbd_server_guid(struct GUID *server_guid);
 
 void smbd_lock_socket(struct smbXsrv_connection *xconn);
 void smbd_unlock_socket(struct smbXsrv_connection *xconn);
@@ -157,7 +157,6 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 			 unsigned int max_data_bytes,
 			 size_t *fixed_portion,
 			 struct files_struct *fsp,
-			 struct smb_filename *smb_fname,
 			 char **ppdata,
 			 int *ret_data_len);
 
@@ -578,9 +577,9 @@ NTSTATUS smb2srv_tcon_lookup(struct smbXsrv_session *session,
 			     uint32_t tree_id, NTTIME now,
 			     struct smbXsrv_tcon **tcon);
 NTSTATUS smb2srv_tcon_disconnect_all(struct smbXsrv_session *session);
-struct smbXsrv_tcon_global0;
+struct smbXsrv_tcon_global;
 NTSTATUS smbXsrv_tcon_global_traverse(
-			int (*fn)(struct smbXsrv_tcon_global0 *, void *),
+			int (*fn)(struct smbXsrv_tcon_global *, void *),
 			void *private_data);
 
 
@@ -667,6 +666,13 @@ struct smbd_smb2_request {
 	 */
 	bool request_counters_updated;
 	uint64_t channel_generation;
+
+	/*
+	 * The client provided CreateGuid from a
+	 * SMB2_CREATE_DURABLE_HANDLE_REQUEST_V2 if any.
+	 */
+	struct GUID _create_guid;
+	struct GUID *create_guid;
 
 	/*
 	 * The sub request for async backend calls.
@@ -776,7 +782,6 @@ struct pending_message_list;
 struct pending_auth_data;
 
 struct pthreadpool_tevent;
-struct dcesrv_context;
 
 struct smbd_server_connection {
 	const struct tsocket_address *local_address;
@@ -784,7 +789,6 @@ struct smbd_server_connection {
 	const char *remote_hostname;
 	struct tevent_context *ev_ctx;
 	struct messaging_context *msg_ctx;
-	struct dcesrv_context *dce_ctx;
 	struct notify_context *notify_ctx;
 	int trans_num;
 

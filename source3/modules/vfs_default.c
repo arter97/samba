@@ -37,6 +37,7 @@
 #include "offload_token.h"
 #include "util_reparse.h"
 #include "lib/util/string_wrappers.h"
+#include "lib/util/statvfs.h"
 
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_VFS
@@ -95,33 +96,61 @@ static void vfswrap_disconnect(vfs_handle_struct *handle)
 {
 }
 
+static int vfswrap_open_share_root(struct vfs_handle_struct *handle,
+				   struct files_struct *root_fsp,
+				   const char *connectpath)
+{
+	SMB_STRUCT_STAT st = {};
+	int ret;
+
+	ret = sys_stat(connectpath,
+		       &st,
+		       lp_fake_directory_create_times(SNUM(handle->conn)));
+	if (ret == -1) {
+		return ret;
+	}
+
+	ret = vfs_set_share_root(root_fsp, connectpath, &st);
+
+	return ret;
+}
+
 /* Disk operations */
 
 static uint64_t vfswrap_disk_free(vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				uint64_t *bsize,
-				uint64_t *dfree,
-				uint64_t *dsize)
+				  struct files_struct *fsp,
+				  uint64_t *bsize,
+				  uint64_t *dfree,
+				  uint64_t *dsize)
 {
-	if (sys_fsusage(smb_fname->base_name, dfree, dsize) != 0) {
+	struct vfs_statvfs_struct statvfsbuf;
+	int fd, ret;
+
+	fd = fsp_get_pathref_fd(fsp);
+
+	ret = sys_fstatvfs(fd, &statvfsbuf);
+	if (ret != 0) {
 		return (uint64_t)-1;
 	}
+	statvfs2fsusage(&statvfsbuf, dfree, dsize);
 
 	*bsize = 512;
 	return *dfree / 2;
 }
 
 static int vfswrap_get_quota(struct vfs_handle_struct *handle,
-				const struct smb_filename *smb_fname,
-				enum SMB_QUOTA_TYPE qtype,
-				unid_t id,
-				SMB_DISK_QUOTA *qt)
+			     struct files_struct *fsp,
+			     enum SMB_QUOTA_TYPE qtype,
+			     unid_t id,
+			     SMB_DISK_QUOTA *qt)
 {
 #ifdef HAVE_SYS_QUOTAS
+	struct smb_filename *smb_fname = fsp->fsp_name;
 	int result;
 
 	START_PROFILE_X(SNUM(handle->conn), syscall_get_quota);
-	result = sys_get_quota(smb_fname->base_name, qtype, id, qt);
+	result = sys_get_quota(
+		smb_fname->st.st_ex_dev, smb_fname->base_name, qtype, id, qt);
 	END_PROFILE_X(syscall_get_quota);
 	return result;
 #else
@@ -130,13 +159,19 @@ static int vfswrap_get_quota(struct vfs_handle_struct *handle,
 #endif
 }
 
-static int vfswrap_set_quota(struct vfs_handle_struct *handle, enum SMB_QUOTA_TYPE qtype, unid_t id, SMB_DISK_QUOTA *qt)
+static int vfswrap_set_quota(struct vfs_handle_struct *handle,
+			     struct files_struct *fsp,
+			     enum SMB_QUOTA_TYPE qtype,
+			     unid_t id,
+			     SMB_DISK_QUOTA *qt)
 {
 #ifdef HAVE_SYS_QUOTAS
+	struct smb_filename *smb_fname = fsp->fsp_name;
 	int result;
 
 	START_PROFILE_X(SNUM(handle->conn), syscall_set_quota);
-	result = sys_set_quota(handle->conn->connectpath, qtype, id, qt);
+	result = sys_set_quota(
+		smb_fname->st.st_ex_dev, smb_fname->base_name, qtype, id, qt);
 	END_PROFILE_X(syscall_set_quota);
 	return result;
 #else
@@ -154,11 +189,20 @@ static int vfswrap_get_shadow_copy_data(struct vfs_handle_struct *handle,
 	return -1;  /* Not implemented. */
 }
 
-static int vfswrap_statvfs(struct vfs_handle_struct *handle,
-			   const struct smb_filename *smb_fname,
-			   struct vfs_statvfs_struct *statbuf)
+static int vfswrap_fstatvfs(struct vfs_handle_struct *handle,
+			    struct files_struct *fsp,
+			    struct vfs_statvfs_struct *statbuf)
 {
-	return sys_statvfs(smb_fname->base_name, statbuf);
+	int ret, fd;
+
+	START_PROFILE_X(SNUM(handle->conn), syscall_fstatvfs);
+
+	fd = fsp_get_pathref_fd(fsp);
+
+	ret = sys_fstatvfs(fd, statbuf);
+
+	END_PROFILE_X(syscall_fstatvfs);
+	return ret;
 }
 
 static uint32_t vfswrap_fs_capabilities(struct vfs_handle_struct *handle,
@@ -221,13 +265,7 @@ static NTSTATUS vfswrap_get_dfs_referrals(struct vfs_handle_struct *handle,
 				   handle->conn->sconn->remote_address,
 				   handle->conn->sconn->local_address,
 				   junction, &consumedcnt, &self_referral);
-
-	{
-		struct smb_filename connectpath_fname = {
-			.base_name = handle->conn->connectpath
-		};
-		vfs_ChDir(handle->conn, &connectpath_fname);
-	}
+	vfs_ChDir_shareroot(handle->conn);
 
 	if (!NT_STATUS_IS_OK(status)) {
 		return status;
@@ -840,8 +878,7 @@ struct vfswrap_pread_state {
 	off_t offset;
 
 	struct vfs_aio_state vfs_aio_state;
-	SMBPROFILE_BYTES_ASYNC_STATE(profile_bytes);
-	SMBPROFILE_BYTES_ASYNC_STATE(profile_bytes_x);
+	SMBPROFILE_BYTES_ASYNC_STATE_X(profile_bytes, profile_bytes_x);
 };
 
 static void vfs_pread_do(void *private_data);
@@ -1083,8 +1120,8 @@ static void vfs_pwrite_done(struct tevent_req *subreq)
 
 	ret = pthreadpool_tevent_job_recv(subreq);
 	TALLOC_FREE(subreq);
-	SMBPROFILE_BYTES_ASYNC_END(state->profile_bytes);
-	SMBPROFILE_BYTES_ASYNC_END(state->profile_bytes_x);
+	SMBPROFILE_BYTES_ASYNC_END_X(state->profile_bytes,
+				     state->profile_bytes_x);
 	talloc_set_destructor(state, NULL);
 	if (ret != 0) {
 		if (ret != EAGAIN) {
@@ -1122,8 +1159,7 @@ struct vfswrap_fsync_state {
 	int fd;
 
 	struct vfs_aio_state vfs_aio_state;
-	SMBPROFILE_BYTES_ASYNC_STATE(profile_bytes);
-	SMBPROFILE_BYTES_ASYNC_STATE(profile_bytes_x);
+	SMBPROFILE_BYTES_ASYNC_STATE_X(profile_bytes, profile_bytes_x);
 };
 
 static void vfs_fsync_do(void *private_data);
@@ -2851,29 +2887,6 @@ static int vfswrap_chdir(vfs_handle_struct *handle,
 	return result;
 }
 
-static struct smb_filename *vfswrap_getwd(vfs_handle_struct *handle,
-				TALLOC_CTX *ctx)
-{
-	char *result;
-	struct smb_filename *smb_fname = NULL;
-
-	START_PROFILE_X(SNUM(handle->conn), syscall_getwd);
-	result = sys_getwd();
-	END_PROFILE_X(syscall_getwd);
-
-	if (result == NULL) {
-		return NULL;
-	}
-	smb_fname = cp_smb_basename(ctx, result);
-	/*
-	 * sys_getwd() *always* returns malloced memory.
-	 * We must free here to avoid leaks:
-	 * BUG:https://bugzilla.samba.org/show_bug.cgi?id=13372
-	 */
-	SAFE_FREE(result);
-	return smb_fname;
-}
-
 /*********************************************************************
  nsec timestamp resolution call. Convert down to whatever the underlying
  system will support.
@@ -3011,8 +3024,7 @@ static int strict_allocate_ftruncate(vfs_handle_struct *handle, files_struct *fs
 		"error %d. Falling back to slow manual allocation\n", errno);
 
 	/* available disk space is enough or not? */
-	space_avail =
-	    get_dfree_info(fsp->conn, fsp->fsp_name, &bsize, &dfree, &dsize);
+	space_avail = get_dfree_info(fsp, &bsize, &dfree, &dsize);
 	/* space_avail is 1k blocks */
 	if (space_avail == (uint64_t)-1 ||
 			((uint64_t)space_to_write/1024 > space_avail) ) {
@@ -3564,23 +3576,31 @@ static ssize_t vfswrap_fgetxattr(struct vfs_handle_struct *handle,
 				 size_t size)
 {
 	int fd = fsp_get_pathref_fd(fsp);
+	ssize_t res = -1;
+
+	START_PROFILE_X(SNUM(handle->conn), syscall_fgetxattr);
 
 	SMB_ASSERT(!fsp_is_alternate_stream(fsp));
 
 	if (!fsp->fsp_flags.is_pathref) {
-		return fgetxattr(fd, name, value, size);
+		res = fgetxattr(fd, name, value, size);
+		goto out;
 	}
 
 	if (fsp->fsp_flags.have_proc_fds) {
 		struct sys_proc_fd_path_buf buf;
 
-		return getxattr(sys_proc_fd_path(fd, &buf), name, value, size);
+		res = getxattr(sys_proc_fd_path(fd, &buf), name, value, size);
+		goto out;
 	}
 
 	/*
 	 * This is no longer a handle based call.
 	 */
-	return getxattr(fsp->fsp_name->base_name, name, value, size);
+	res = getxattr(fsp->fsp_name->base_name, name, value, size);
+out:
+	END_PROFILE_X(syscall_fgetxattr);
+	return res;
 }
 
 struct vfswrap_getxattrat_state {
@@ -3894,71 +3914,95 @@ static ssize_t vfswrap_getxattrat_recv(struct tevent_req *req,
 static ssize_t vfswrap_flistxattr(struct vfs_handle_struct *handle, struct files_struct *fsp, char *list, size_t size)
 {
 	int fd = fsp_get_pathref_fd(fsp);
+	ssize_t res = -1;
+
+	START_PROFILE_X(SNUM(handle->conn), syscall_flistxattr);
 
 	SMB_ASSERT(!fsp_is_alternate_stream(fsp));
 
 	if (!fsp->fsp_flags.is_pathref) {
-		return flistxattr(fd, list, size);
+		res = flistxattr(fd, list, size);
+		goto out;
 	}
 
 	if (fsp->fsp_flags.have_proc_fds) {
 		struct sys_proc_fd_path_buf buf;
 
-		return listxattr(sys_proc_fd_path(fd, &buf), list, size);
+		res = listxattr(sys_proc_fd_path(fd, &buf), list, size);
+		goto out;
 	}
 
 	/*
 	 * This is no longer a handle based call.
 	 */
-	return listxattr(fsp->fsp_name->base_name, list, size);
+	res = listxattr(fsp->fsp_name->base_name, list, size);
+out:
+	END_PROFILE_X(syscall_flistxattr);
+	return res;
 }
 
 static int vfswrap_fremovexattr(struct vfs_handle_struct *handle, struct files_struct *fsp, const char *name)
 {
 	int fd = fsp_get_pathref_fd(fsp);
+	int res = -1;
+
+	START_PROFILE_X(SNUM(handle->conn), syscall_fremovexattr);
 
 	SMB_ASSERT(!fsp_is_alternate_stream(fsp));
 
 	if (!fsp->fsp_flags.is_pathref) {
-		return fremovexattr(fd, name);
+		res = fremovexattr(fd, name);
+		goto out;
 	}
 
 	if (fsp->fsp_flags.have_proc_fds) {
 		struct sys_proc_fd_path_buf buf;
 
-		return removexattr(sys_proc_fd_path(fd, &buf), name);
+		res = removexattr(sys_proc_fd_path(fd, &buf), name);
+		goto out;
 	}
 
 	/*
 	 * This is no longer a handle based call.
 	 */
-	return removexattr(fsp->fsp_name->base_name, name);
+	res = removexattr(fsp->fsp_name->base_name, name);
+out:
+	END_PROFILE_X(syscall_fremovexattr);
+	return res;
 }
 
 static int vfswrap_fsetxattr(struct vfs_handle_struct *handle, struct files_struct *fsp, const char *name, const void *value, size_t size, int flags)
 {
 	int fd = fsp_get_pathref_fd(fsp);
+	int res = -1;
+
+	START_PROFILE_X(SNUM(handle->conn), syscall_fsetxattr);
 
 	SMB_ASSERT(!fsp_is_alternate_stream(fsp));
 
 	if (!fsp->fsp_flags.is_pathref) {
-		return fsetxattr(fd, name, value, size, flags);
+		res = fsetxattr(fd, name, value, size, flags);
+		goto out;
 	}
 
 	if (fsp->fsp_flags.have_proc_fds) {
 		struct sys_proc_fd_path_buf buf;
 
-		return setxattr(sys_proc_fd_path(fd, &buf),
+		res =  setxattr(sys_proc_fd_path(fd, &buf),
 				name,
 				value,
 				size,
 				flags);
+		goto out;
 	}
 
 	/*
 	 * This is no longer a handle based call.
 	 */
-	return setxattr(fsp->fsp_name->base_name, name, value, size, flags);
+	res = setxattr(fsp->fsp_name->base_name, name, value, size, flags);
+out:
+	END_PROFILE_X(syscall_fsetxattr);
+	return res;
 }
 
 static bool vfswrap_aio_force(struct vfs_handle_struct *handle, struct files_struct *fsp)
@@ -3969,7 +4013,6 @@ static bool vfswrap_aio_force(struct vfs_handle_struct *handle, struct files_str
 static bool vfswrap_is_offline(struct connection_struct *conn,
 			       const struct smb_filename *fname)
 {
-	NTSTATUS status;
 	char *path;
 	bool offline = false;
 
@@ -3984,11 +4027,11 @@ static bool vfswrap_is_offline(struct connection_struct *conn,
 		return false;
 	}
 
-        status = get_full_smb_filename(talloc_tos(), fname, &path);
-        if (!NT_STATUS_IS_OK(status)) {
-                errno = map_errno_from_nt_status(status);
-                return false;
-        }
+	path = get_full_smb_filename(talloc_tos(), fname);
+	if (path == NULL) {
+		errno = ENOMEM;
+		return false;
+	}
 
 	offline = (dmapi_file_flags(path) & FILE_ATTRIBUTE_OFFLINE) != 0;
 
@@ -4019,12 +4062,13 @@ static NTSTATUS vfswrap_durable_reconnect(struct vfs_handle_struct *handle,
 					  struct smb_request *smb1req,
 					  struct smbXsrv_open *op,
 					  const DATA_BLOB old_cookie,
+					  const struct smb2_lease *lease,
 					  TALLOC_CTX *mem_ctx,
 					  struct files_struct **fsp,
 					  DATA_BLOB *new_cookie)
 {
 	return vfs_default_durable_reconnect(handle->conn, smb1req, op,
-					     old_cookie, mem_ctx,
+					     old_cookie, lease, mem_ctx,
 					     fsp, new_cookie);
 }
 
@@ -4033,11 +4077,12 @@ static struct vfs_fn_pointers vfs_default_fns = {
 
 	.connect_fn = vfswrap_connect,
 	.disconnect_fn = vfswrap_disconnect,
+	.open_share_root_fn = vfswrap_open_share_root,
 	.disk_free_fn = vfswrap_disk_free,
 	.get_quota_fn = vfswrap_get_quota,
 	.set_quota_fn = vfswrap_set_quota,
 	.get_shadow_copy_data_fn = vfswrap_get_shadow_copy_data,
-	.statvfs_fn = vfswrap_statvfs,
+	.fstatvfs_fn = vfswrap_fstatvfs,
 	.fs_capabilities_fn = vfswrap_fs_capabilities,
 	.get_dfs_referrals_fn = vfswrap_get_dfs_referrals,
 	.create_dfs_pathat_fn = vfswrap_create_dfs_pathat,
@@ -4083,7 +4128,6 @@ static struct vfs_fn_pointers vfs_default_fns = {
 	.fchown_fn = vfswrap_fchown,
 	.lchown_fn = vfswrap_lchown,
 	.chdir_fn = vfswrap_chdir,
-	.getwd_fn = vfswrap_getwd,
 	.fntimes_fn = vfswrap_fntimes,
 	.ftruncate_fn = vfswrap_ftruncate,
 	.fallocate_fn = vfswrap_fallocate,

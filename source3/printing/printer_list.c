@@ -50,7 +50,7 @@ static struct db_context *get_printer_list_db(void)
 				 0,
 				 TDB_DEFAULT|TDB_INCOMPATIBLE_HASH,
 				 O_RDWR|O_CREAT,
-				 0644,
+				 0640,
 				 DBWRAP_LOCK_ORDER_1,
 				 DBWRAP_FLAG_NONE);
 	TALLOC_FREE(db_path);
@@ -217,7 +217,7 @@ NTSTATUS printer_list_set_printer(TALLOC_CTX *mem_ctx,
 		       comment,
 		       location);
 
-	status = dbwrap_store_bystring_upper(db, key, data, TDB_REPLACE);
+	status = dbwrap_store_bystring_upper(db, key, data, DBWRAP_REPLACE);
 
 done:
 	TALLOC_FREE(key);
@@ -292,7 +292,7 @@ NTSTATUS printer_list_mark_reload(void)
 		       PL_TSTAMP_FORMAT, time_h, time_l);
 
 	status = dbwrap_store_bystring(db, PL_TIMESTAMP_KEY,
-						data, TDB_REPLACE);
+						data, DBWRAP_REPLACE);
 
 done:
 	TALLOC_FREE(data.dptr);

@@ -21,7 +21,9 @@ bld.SAMBA_BINARY('samba-dcerpcd',
 bld.SAMBA_LIBRARY('RPC_WORKER',
                   private_library=True,
                   source='''
-                  rpc_worker.c
+                  rpc_worker_internal.c
+                  rpc_worker_dcerpc.c
+                  rpc_worker_nps.c
                   ''',
                   deps='''
                   smbd_base
@@ -31,6 +33,14 @@ bld.SAMBA_LIBRARY('RPC_WORKER',
                   RPC_NCACN_NP
                   npa_tstream
                   ''')
+
+bld.SAMBA3_BINARY('npsd_echo_server',
+                  source='npsd_echo_server.c',
+                  deps='''
+                  RPC_WORKER
+                  ''',
+                  for_selftest=True,
+                  install_path='${SAMBA_LIBEXECDIR}')
 
 bld.SAMBA3_BINARY('rpcd_rpcecho',
                   source='rpcd_rpcecho.c',
@@ -181,7 +191,7 @@ bld.SAMBA3_SUBSYSTEM('RPC_LSARPC',
 
 bld.SAMBA3_SUBSYSTEM('RPC_NETDFS',
                     source='''dfs/srv_dfs_nt.c''',
-                    deps='samba-util')
+                    deps='samba-util smbd_base RPC_SERVER_LOOP')
 
 bld.SAMBA3_SUBSYSTEM('RPC_NETLOGON',
                      source='''netlogon/srv_netlog_nt.c''',

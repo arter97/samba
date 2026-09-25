@@ -1534,57 +1534,37 @@ static char *_pam_compose_pwd_restriction_string(struct pwb_context *ctx,
 	char *str = NULL;
 
 	if (!i) {
-		goto failed;
+		return NULL;
 	}
 
 	str = talloc_asprintf(ctx, _("Your password "));
-	if (!str) {
-		goto failed;
-	}
 
 	if (i->min_length_password > 0) {
-		str = talloc_asprintf_append(str,
-			       _("must be at least %d characters; "),
-			       i->min_length_password);
-		if (!str) {
-			goto failed;
-		}
+		talloc_asprintf_addbuf(&str,
+				       _("must be at least %d characters; "),
+				       i->min_length_password);
 	}
 
 	if (i->password_history > 0) {
-		str = talloc_asprintf_append(str,
-			       _("cannot repeat any of your previous %d "
-			        "passwords; "),
-			       i->password_history);
-		if (!str) {
-			goto failed;
-		}
+		talloc_asprintf_addbuf(&str,
+				       _("cannot repeat any of your previous "
+					 "%d passwords; "),
+				       i->password_history);
 	}
 
 	if (i->password_properties & WBC_DOMAIN_PASSWORD_COMPLEX) {
-		str = talloc_asprintf_append(str,
-			       _("must contain capitals, numerals "
-			         "or punctuation; "
-			         "and cannot contain your account "
-			         "or full name; "));
-		if (!str) {
-			goto failed;
-		}
+		talloc_asprintf_addbuf(&str,
+				       _("must contain capitals, numerals "
+					 "or punctuation; "
+					 "and cannot contain your account "
+					 "or full name; "));
 	}
 
-	str = talloc_asprintf_append(str,
-		       _("Please type a different password. "
-		         "Type a password which meets these requirements in "
-		         "both text boxes."));
-	if (!str) {
-		goto failed;
-	}
-
+	talloc_asprintf_addbuf(&str,
+			       _("Please type a different password. "
+				 "Type a password which meets these "
+				 "requirements in both text boxes."));
 	return str;
-
- failed:
-	TALLOC_FREE(str);
-	return NULL;
 }
 
 static int _pam_create_homedir(struct pwb_context *ctx,
@@ -2345,20 +2325,28 @@ static const char *get_conf_item_string(struct pwb_context *ctx,
 	}
 
 	/* let the pam opt take precedence over the pam_winbind.conf option */
-	for (i=0; i<ctx->argc; i++) {
+	for (i = 0; i < ctx->argc; i++) {
+		const char *p = strchr(ctx->argv[i], '=');
+		if (p != NULL) {
+			size_t len = p - ctx->argv[i];
+			char name[len + 1];
 
-		if ((strncmp(ctx->argv[i], item, strlen(item)) == 0)) {
-			const char *p;
+			memcpy(name, ctx->argv[i], len);
+			name[len] = 0;
 
-			if ((p = strchr(ctx->argv[i], '=')) == NULL) {
-				_pam_log(ctx, LOG_INFO,
-					 "no \"=\" delimiter for \"%s\" found\n",
-					 item);
-				goto out;
+			if (strcmp(name, item) != 0) {
+				continue;
 			}
 			_pam_log_debug(ctx, LOG_INFO,
-				       "PAM config: %s '%s'\n", item, p+1);
+				       "PAM config: %s '%s'\n",
+				       item, p + 1);
 			return p + 1;
+		}
+		if (strcmp(ctx->argv[i], item) == 0) {
+			_pam_log(ctx, LOG_INFO,
+				 "no \"=\" delimiter for \"%s\" found\n",
+				 item);
+			goto out;
 		}
 	}
 
@@ -2384,49 +2372,14 @@ static int get_config_item_int(struct pwb_context *ctx,
 			       const char *item,
 			       int config_flag)
 {
-	int i, parm_opt = -1;
+	const char *value;
 
-	if (!(ctx->ctrl & config_flag)) {
-		goto out;
+	value = get_conf_item_string(ctx, item, config_flag);
+	if (value == NULL) {
+		return -1;
 	}
 
-	/* let the pam opt take precedence over the pam_winbind.conf option */
-	for (i = 0; i < ctx->argc; i++) {
-
-		if ((strncmp(ctx->argv[i], item, strlen(item)) == 0)) {
-			const char *p;
-
-			if ((p = strchr(ctx->argv[i], '=')) == NULL) {
-				_pam_log(ctx, LOG_INFO,
-					 "no \"=\" delimiter for \"%s\" found\n",
-					 item);
-				goto out;
-			}
-			parm_opt = atoi(p + 1);
-			_pam_log_debug(ctx, LOG_INFO,
-				       "PAM config: %s '%d'\n",
-				       item, parm_opt);
-			return parm_opt;
-		}
-	}
-
-	if (ctx->dict) {
-		char *key = NULL;
-
-		key = talloc_asprintf(ctx, "global:%s", item);
-		if (!key) {
-			goto out;
-		}
-
-		parm_opt = tiniparser_getint(ctx->dict, key, -1);
-		TALLOC_FREE(key);
-
-		_pam_log_debug(ctx, LOG_INFO,
-			       "CONFIG file: %s '%d'\n",
-			       item, parm_opt);
-	}
-out:
-	return parm_opt;
+	return atoi(value);
 }
 
 static const char *get_krb5_cc_type_from_config(struct pwb_context *ctx)

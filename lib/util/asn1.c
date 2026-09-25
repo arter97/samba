@@ -80,30 +80,44 @@ off_t asn1_current_ofs(const struct asn1_data *data)
 }
 
 /* write to the ASN1 buffer, advancing the buffer pointer */
-bool asn1_write(struct asn1_data *data, const void *p, int len)
+bool asn1_write(struct asn1_data *data, const void *p, int _len)
 {
+	size_t len, ofs, newlen;
+
 	if (data->has_error) return false;
 
-	if ((len < 0) || (data->ofs + (size_t)len < data->ofs)) {
-		data->has_error = true;
-		return false;
+	if (_len < 0) {
+		goto error;
+	}
+	len = _len;
+
+	if (data->ofs < 0) {
+		goto error;
+	}
+	ofs = data->ofs;
+
+	newlen = ofs + len;
+	if (newlen < ofs) {
+		goto error;
 	}
 
-	if (data->length < data->ofs+len) {
+	if (data->length < newlen) {
 		uint8_t *newp;
-		newp = talloc_realloc(data, data->data, uint8_t, data->ofs+len);
+		newp = talloc_realloc(data, data->data, uint8_t, newlen);
 		if (!newp) {
-			data->has_error = true;
-			return false;
+			goto error;
 		}
 		data->data = newp;
-		data->length = data->ofs+len;
+		data->length = newlen;
 	}
 	if (len > 0) {
 		memcpy(data->data + data->ofs, p, len);
 		data->ofs += len;
 	}
 	return true;
+error:
+	data->has_error = true;
+	return false;
 }
 
 /* useful fn for writing a uint8_t */
@@ -493,27 +507,44 @@ bool asn1_load(struct asn1_data *data, DATA_BLOB blob)
 	 */
 	unsigned max_depth = data->max_depth;
 
-	ZERO_STRUCTP(data);
-	data->data = (uint8_t *)talloc_memdup(data, blob.data, blob.length);
-	if (!data->data) {
+	*data = (struct asn1_data){
+		.data = talloc_memdup(data, blob.data, blob.length),
+		.length = blob.length,
+		.max_depth = max_depth,
+	};
+
+	if (data->data == NULL) {
 		data->has_error = true;
 		return false;
 	}
-	data->length = blob.length;
-	data->max_depth = max_depth;
+
 	return true;
 }
 
 /* Peek into an ASN1 buffer, not advancing the pointer */
-bool asn1_peek(struct asn1_data *data, void *p, int len)
+static bool asn1_peek(struct asn1_data *data, void *p, int len)
 {
+	size_t ofs, end;
+
 	if (data->has_error)
 		return false;
 
-	if (len < 0 || data->ofs + len < data->ofs || data->ofs + len < len)
+	if (len < 0) {
 		return false;
+	}
 
-	if (data->ofs + len > data->length) {
+	if (data->ofs < 0) {
+		data->has_error = true;
+		return false;
+	}
+	ofs = data->ofs;
+
+	end = ofs + len;
+	if (end < ofs) {
+		return false;
+	}
+
+	if (end > data->length) {
 		/* we need to mark the buffer as consumed, so the caller knows
 		   this was an out of data error, and not a decode error */
 		data->ofs = data->length;
@@ -742,25 +773,40 @@ bool asn1_end_tag(struct asn1_data *data)
 /* work out how many bytes are left in this nested tag */
 int asn1_tag_remaining(struct asn1_data *data)
 {
-	int remaining;
+	size_t consumed, remaining_tag, remaining_data;
 	if (data->has_error) {
 		return -1;
 	}
 
 	if (!data->nesting) {
-		data->has_error = true;
-		return -1;
+		goto error;
 	}
-	remaining = data->nesting->taglen - (data->ofs - data->nesting->start);
-	if (remaining > (data->length - data->ofs)) {
-		data->has_error = true;
-		return -1;
+
+	if (data->ofs < data->nesting->start) {
+		goto error;
 	}
-	if (remaining < 0) {
-		data->has_error = true;
-		return -1;
+	consumed = data->ofs - data->nesting->start;
+
+	if (data->nesting->taglen < consumed) {
+		goto error;
 	}
-	return remaining;
+	remaining_tag = data->nesting->taglen - consumed;
+
+	if ((data->ofs < 0) || (data->length < (size_t)data->ofs)) {
+		goto error;
+	}
+	remaining_data = data->length - data->ofs;
+
+	if (remaining_tag > remaining_data) {
+		goto error;
+	}
+	if (remaining_tag > INT_MAX) {
+		goto error;
+	}
+	return remaining_tag;
+error:
+	data->has_error = true;
+	return -1;
 }
 
 /**
@@ -1121,8 +1167,10 @@ bool asn1_extract_blob(struct asn1_data *asn1, TALLOC_CTX *mem_ctx,
 		return false;
 	}
 
-	*pblob = (DATA_BLOB) { .length = blob.length };
-	pblob->data = talloc_move(mem_ctx, &blob.data);
+	*pblob = (DATA_BLOB){
+		.length = blob.length,
+		.data = talloc_move(mem_ctx, &blob.data),
+	};
 
 	/*
 	 * Stop access from here on
@@ -1141,21 +1189,21 @@ void asn1_load_nocopy(struct asn1_data *data, uint8_t *buf, size_t len)
 	 * Save max_depth
 	 */
 	unsigned max_depth = data->max_depth;
-	ZERO_STRUCTP(data);
-	data->data = buf;
-	data->length = len;
-	data->max_depth = max_depth;
+
+	*data = (struct asn1_data) {
+		.data = buf,
+		.length = len,
+		.max_depth = max_depth,
+	};
 }
 
 int asn1_peek_full_tag(DATA_BLOB blob, uint8_t tag, size_t *packet_size)
 {
-	struct asn1_data asn1;
+	struct asn1_data asn1 = {};
 	size_t size;
 	bool ok;
 
-	ZERO_STRUCT(asn1);
-	asn1.data = blob.data;
-	asn1.length = blob.length;
+	asn1_load_nocopy(&asn1, blob.data, blob.length);
 
 	ok = asn1_peek_tag_needed_size(&asn1, tag, &size);
 	if (!ok) {

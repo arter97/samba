@@ -30,6 +30,7 @@
 #include "version.h"
 #include "smbd/smbd.h"
 #include "smbd/globals.h"
+#include "lib/util/statvfs.h"
 #include "../libcli/auth/libcli_auth.h"
 #include "../librpc/gen_ndr/xattr.h"
 #include "../librpc/gen_ndr/ndr_security.h"
@@ -1963,9 +1964,6 @@ static bool fsinfo_unix_valid_level(connection_struct *conn,
 	return false;
 }
 
-/*
- * fsp is only valid for SMB2.
- */
 NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 			 connection_struct *conn,
 			 TALLOC_CTX *mem_ctx,
@@ -1974,7 +1972,6 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 			 unsigned int max_data_bytes,
 			 size_t *fixed_portion,
 			 struct files_struct *fsp,
-			 struct smb_filename *fname,
 			 char **ppdata,
 			 int *ret_data_len)
 {
@@ -1986,19 +1983,11 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 	const char *vname = volume_label(talloc_tos(), SNUM(conn));
 	int snum = SNUM(conn);
 	const char *fstype = lp_fstype(SNUM(conn));
-	const char *filename = NULL;
 	uint64_t bytes_per_sector = 512;
-	struct smb_filename smb_fname;
 	SMB_STRUCT_STAT st;
 	NTSTATUS status = NT_STATUS_OK;
 	uint64_t df_ret;
 	uint32_t serial;
-
-	if (fname == NULL || fname->base_name == NULL) {
-		filename = ".";
-	} else {
-		filename = fname->base_name;
-	}
 
 	if (IS_IPC(conn)) {
 		if (info_level != SMB_QUERY_CIFS_UNIX_INFO) {
@@ -2010,19 +1999,7 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 
 	DBG_NOTICE("level = %d\n", info_level);
 
-	smb_fname = (struct smb_filename) {
-		.base_name = discard_const_p(char, filename),
-		.flags = fname ? fname->flags : 0,
-		.twrp = fname ? fname->twrp : 0,
-	};
-
-	if(info_level != SMB_FS_QUOTA_INFORMATION
-	   && SMB_VFS_STAT(conn, &smb_fname) != 0) {
-		DEBUG(2,("stat of . failed (%s)\n", strerror(errno)));
-		return map_nt_error_from_unix(errno);
-	}
-
-	st = smb_fname.st;
+	st = fsp->fsp_name->st;
 
 	if (max_data_bytes + DIR_ENTRY_SAFETY_MARGIN < max_data_bytes) {
 		return NT_STATUS_INVALID_PARAMETER;
@@ -2045,8 +2022,7 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 		{
 			uint64_t dfree,dsize,bsize,block_size,sectors_per_unit;
 			data_len = 18;
-			df_ret = get_dfree_info(conn, &smb_fname, &bsize,
-						&dfree, &dsize);
+			df_ret = get_dfree_info(fsp, &bsize, &dfree, &dsize);
 			if (df_ret == (uint64_t)-1) {
 				return map_nt_error_from_unix(errno);
 			}
@@ -2206,8 +2182,7 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 		{
 			uint64_t dfree,dsize,bsize,block_size,sectors_per_unit;
 			data_len = 24;
-			df_ret = get_dfree_info(conn, &smb_fname, &bsize,
-						&dfree, &dsize);
+			df_ret = get_dfree_info(fsp, &bsize, &dfree, &dsize);
 			if (df_ret == (uint64_t)-1) {
 				return map_nt_error_from_unix(errno);
 			}
@@ -2236,8 +2211,8 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 				 bytes_per_sector,
 				 dsize,
 				 dfree);
-			SBIG_UINT(pdata,0,dsize);
-			SBIG_UINT(pdata,8,dfree);
+			PUSH_LE_U64(pdata, 0, dsize);
+			PUSH_LE_U64(pdata, 8, dfree);
 			SIVAL(pdata,16,sectors_per_unit);
 			SIVAL(pdata,20,bytes_per_sector);
 			*fixed_portion = 24;
@@ -2248,8 +2223,7 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 		{
 			uint64_t dfree,dsize,bsize,block_size,sectors_per_unit;
 			data_len = 32;
-			df_ret = get_dfree_info(conn, &smb_fname, &bsize,
-						&dfree, &dsize);
+			df_ret = get_dfree_info(fsp, &bsize, &dfree, &dsize);
 			if (df_ret == (uint64_t)-1) {
 				return map_nt_error_from_unix(errno);
 			}
@@ -2278,9 +2252,9 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 				 bytes_per_sector,
 				 dsize,
 				 dfree);
-			SBIG_UINT(pdata,0,dsize); /* Total Allocation units. */
-			SBIG_UINT(pdata,8,dfree); /* Caller available allocation units. */
-			SBIG_UINT(pdata,16,dfree); /* Actual available allocation units. */
+			PUSH_LE_U64(pdata, 0, dsize); /* Total Allocation units. */
+			PUSH_LE_U64(pdata, 8, dfree); /* Caller available allocation units. */
+			PUSH_LE_U64(pdata, 16, dfree); /* Actual available allocation units. */
 			SIVAL(pdata,24,sectors_per_unit); /* Sectors per allocation unit. */
 			SIVAL(pdata,28,bytes_per_sector); /* Bytes per sector. */
 			*fixed_portion = 32;
@@ -2355,15 +2329,15 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 				  lp_servicename(talloc_tos(), lp_sub, SNUM(conn))));
 
 			/* Unknown1 24 NULL bytes*/
-			SBIG_UINT(pdata,0,(uint64_t)0);
-			SBIG_UINT(pdata,8,(uint64_t)0);
-			SBIG_UINT(pdata,16,(uint64_t)0);
+			PUSH_LE_U64(pdata, 0, 0);
+			PUSH_LE_U64(pdata, 8, 0);
+			PUSH_LE_U64(pdata, 16, 0);
 
 			/* Default Soft Quota 8 bytes */
-			SBIG_UINT(pdata,24,quotas.softlim);
+			PUSH_LE_U64(pdata, 24, quotas.softlim);
 
 			/* Default Hard Quota 8 bytes */
-			SBIG_UINT(pdata,32,quotas.hardlim);
+			PUSH_LE_U64(pdata, 32, quotas.hardlim);
 
 			/* Quota flag 2 bytes */
 			SSVAL(pdata,40,quotas.qflags);
@@ -2384,7 +2358,9 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 			SIVAL(pdata,16,extended_info.samba_magic);
 			SIVAL(pdata,20,extended_info.samba_version);
 			SIVAL(pdata,24,extended_info.samba_subversion);
-			SBIG_UINT(pdata,28,extended_info.samba_gitcommitdate);
+			PUSH_LE_U64(pdata,
+				    28,
+				    extended_info.samba_gitcommitdate);
 			memcpy(pdata+36,extended_info.samba_version_string,28);
 			data_len = 64;
 			break;
@@ -2476,16 +2452,18 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 			/* We have POSIX ACLs, pathname, encryption,
 			 * large read/write, and locking capability. */
 
-			SBIG_UINT(pdata,4,((uint64_t)(
-					CIFS_UNIX_POSIX_ACLS_CAP|
-					CIFS_UNIX_POSIX_PATHNAMES_CAP|
-					CIFS_UNIX_FCNTL_LOCKS_CAP|
-					CIFS_UNIX_EXTATTR_CAP|
-					CIFS_UNIX_POSIX_PATH_OPERATIONS_CAP|
-					encrypt_caps|
-					(large_read ? CIFS_UNIX_LARGE_READ_CAP : 0) |
-					(large_write ?
-					CIFS_UNIX_LARGE_WRITE_CAP : 0))));
+			PUSH_LE_U64(pdata,
+				    4,
+				    CIFS_UNIX_POSIX_ACLS_CAP |
+				    CIFS_UNIX_POSIX_PATHNAMES_CAP |
+				    CIFS_UNIX_FCNTL_LOCKS_CAP |
+				    CIFS_UNIX_EXTATTR_CAP |
+				    CIFS_UNIX_POSIX_PATH_OPERATIONS_CAP |
+				    encrypt_caps |
+				    (large_read ?
+					CIFS_UNIX_LARGE_READ_CAP : 0) |
+				    (large_write ?
+					CIFS_UNIX_LARGE_WRITE_CAP : 0));
 			break;
 		}
 #endif
@@ -2500,7 +2478,7 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 				return NT_STATUS_INVALID_LEVEL;
 			}
 
-			rc = SMB_VFS_STATVFS(conn, &smb_fname, &svfs);
+			rc = SMB_VFS_FSTATVFS(conn, fsp, &svfs);
 
 #ifdef EOPNOTSUPP
 			if (rc == EOPNOTSUPP) {
@@ -2531,6 +2509,9 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 
 		case SMB_QUERY_POSIX_WHOAMI:
 		{
+			struct auth_session_info *sess = conn->session_info;
+			struct security_token *tok = sess->security_token;
+			struct security_unix_token *utok = sess->unix_token;
 			uint32_t flags = 0;
 			uint32_t sid_bytes;
 			uint32_t i;
@@ -2543,7 +2524,8 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 				return NT_STATUS_BUFFER_TOO_SMALL;
 			}
 
-			if (security_session_user_level(conn->session_info, NULL) < SECURITY_USER) {
+			if (security_session_user_level(sess, NULL) <
+			    SECURITY_USER) {
 				flags |= SMB_WHOAMI_GUEST;
 			}
 
@@ -2551,27 +2533,23 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 			 * platform size. This matches
 			 * SMB_QUERY_FILE_UNIX_BASIC and friends.
 			 */
-			data_len = 4 /* flags */
-			    + 4 /* flag mask */
-			    + 8 /* uid */
-			    + 8 /* gid */
-			    + 4 /* ngroups */
-			    + 4 /* num_sids */
-			    + 4 /* SID bytes */
-			    + 4 /* pad/reserved */
-			    + (conn->session_info->unix_token->ngroups * 8)
-				/* groups list */
-			    + (conn->session_info->security_token->num_sids *
-				    SID_MAX_SIZE)
+			data_len = 4   /* flags */
+				   + 4 /* flag mask */
+				   + 8 /* uid */
+				   + 8 /* gid */
+				   + 4 /* ngroups */
+				   + 4 /* num_sids */
+				   + 4 /* SID bytes */
+				   + 4 /* pad/reserved */
+				   + (utok->ngroups * 8)
+				   /* groups list */
+				   + (tok->num_sids * SID_MAX_SIZE)
 				/* SID list */;
 
 			SIVAL(pdata, 0, flags);
 			SIVAL(pdata, 4, SMB_WHOAMI_MASK);
-			SBIG_UINT(pdata, 8,
-				  (uint64_t)conn->session_info->unix_token->uid);
-			SBIG_UINT(pdata, 16,
-				  (uint64_t)conn->session_info->unix_token->gid);
-
+			PUSH_LE_U64(pdata, 8, utok->uid);
+			PUSH_LE_U64(pdata, 16, utok->gid);
 
 			if (data_len >= max_data_bytes) {
 				/* Potential overflow, skip the GIDs and SIDs. */
@@ -2585,18 +2563,16 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 				break;
 			}
 
-			SIVAL(pdata, 24, conn->session_info->unix_token->ngroups);
-			SIVAL(pdata, 28, conn->session_info->security_token->num_sids);
+			SIVAL(pdata, 24, utok->ngroups);
+			SIVAL(pdata, 28, tok->num_sids);
 
 			/* We walk the SID list twice, but this call is fairly
 			 * infrequent, and I don't expect that it's performance
 			 * sensitive -- jpeach
 			 */
-			for (i = 0, sid_bytes = 0;
-			     i < conn->session_info->security_token->num_sids; ++i) {
-				sid_bytes += ndr_size_dom_sid(
-					&conn->session_info->security_token->sids[i],
-					0);
+			for (i = 0, sid_bytes = 0; i < tok->num_sids; ++i) {
+				sid_bytes += ndr_size_dom_sid(&tok->sids[i],
+							      0);
 			}
 
 			/* SID list byte count */
@@ -2607,22 +2583,19 @@ NTSTATUS smbd_do_qfsinfo(struct smbXsrv_connection *xconn,
 			data_len = 40;
 
 			/* GID list */
-			for (i = 0; i < conn->session_info->unix_token->ngroups; ++i) {
-				SBIG_UINT(pdata, data_len,
-					  (uint64_t)conn->session_info->unix_token->groups[i]);
+			for (i = 0; i < utok->ngroups; ++i) {
+				PUSH_LE_U64(pdata, data_len, utok->groups[i]);
 				data_len += 8;
 			}
 
 			/* SID list */
-			for (i = 0;
-			    i < conn->session_info->security_token->num_sids; ++i) {
-				int sid_len = ndr_size_dom_sid(
-					&conn->session_info->security_token->sids[i],
-					0);
+			for (i = 0; i < tok->num_sids; ++i) {
+				int sid_len = ndr_size_dom_sid(&tok->sids[i],
+							       0);
 
 				sid_linearize((uint8_t *)(pdata + data_len),
 					      sid_len,
-				    &conn->session_info->security_token->sids[i]);
+					      &tok->sids[i]);
 				data_len += sid_len;
 			}
 
@@ -3538,7 +3511,11 @@ NTSTATUS smbd_do_qfilepathinfo(connection_struct *conn,
 			/* Pathname with leading '\'. */
 			{
 				size_t byte_len;
-				byte_len = dos_PutUniCode(pdata+4,dos_fname,(size_t)max_data_bytes,False);
+				byte_len = push_string_check(
+					pdata + 4,
+					dos_fname,
+					(size_t)max_data_bytes,
+					STR_UNICODE | STR_NOALIGN);
 				DBG_DEBUG("SMB_FILE_NAME_INFORMATION\n");
 				SIVAL(pdata,0,byte_len);
 				data_size = 4 + byte_len;
@@ -3771,7 +3748,7 @@ NTSTATUS hardlink_internals(TALLOC_CTX *ctx,
 			status = unlink_internals(conn,
 						req,
 						FILE_ATTRIBUTE_NORMAL,
-						NULL, /* new_dirfsp */
+						dirfsp_new,
 						smb_fname_new);
 			if (!NT_STATUS_IS_OK(status)) {
 				goto out;
@@ -4654,11 +4631,9 @@ static NTSTATUS smb_set_file_basic_info(connection_struct *conn,
 					struct smb_filename *smb_fname)
 {
 	/* Patch to do this correctly from Paul Eggert <eggert@twinsun.com>. */
-	struct smb_file_time ft;
+	struct smb_file_time ft = smb_file_time_omit();
 	uint32_t dosmode = 0;
 	NTSTATUS status = NT_STATUS_OK;
-
-	init_smb_file_time(&ft);
 
 	if (total_data < 36) {
 		return NT_STATUS_INVALID_PARAMETER;
@@ -4710,9 +4685,7 @@ static NTSTATUS smb_set_info_standard(connection_struct *conn,
 					struct smb_filename *smb_fname)
 {
 	NTSTATUS status;
-	struct smb_file_time ft;
-
-	init_smb_file_time(&ft);
+	struct smb_file_time ft = smb_file_time_omit();
 
 	if (total_data < 12) {
 		return NT_STATUS_INVALID_PARAMETER;

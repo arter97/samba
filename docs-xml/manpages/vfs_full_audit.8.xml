@@ -89,7 +89,6 @@
 	<member>get_real_filename</member>
 	<member>get_real_filename_at</member>
 	<member>get_shadow_copy_data</member>
-	<member>getwd</member>
 	<member>getxattrat_recv</member>
 	<member>getxattrat_send</member>
 	<member>is_offline</member>
@@ -108,6 +107,7 @@
 	<member>offload_write_send</member>
 	<member>open</member>
 	<member>openat</member>
+	<member>open_share_root</member>
 	<member>parent_pathname</member>
 	<member>pread</member>
 	<member>pread_recv</member>

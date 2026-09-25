@@ -203,6 +203,9 @@ void winbind_msg_domain_online(struct messaging_context *msg_ctx,
 
 void set_domain_offline(struct winbindd_domain *domain);
 void set_domain_online_request(struct winbindd_domain *domain);
+void set_domain_failover_state(struct winbindd_domain *domain,
+			       enum winbindd_failover_reason reason);
+void reset_domain_failover_state(struct winbindd_domain *domain);
 void winbind_add_failed_connection_entry(
 	const struct winbindd_domain *domain,
 	const char *server,
@@ -311,7 +314,9 @@ struct tevent_req *wb_domain_request_send(TALLOC_CTX *mem_ctx,
 int wb_domain_request_recv(struct tevent_req *req, TALLOC_CTX *mem_ctx,
 			   struct winbindd_response **presponse, int *err);
 
-void setup_child(struct winbindd_domain *domain, struct winbindd_child *child,
+void setup_child(struct winbindd_domain *domain,
+		 TALLOC_CTX *mem_ctx,
+		 struct winbindd_child **_child,
 		 const char *logprefix,
 		 const char *logname);
 void winbind_child_died(pid_t pid);
