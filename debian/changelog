@@ -1,3 +1,15 @@
+samba (2:4.25.0+dfsg-1) unstable; urgency=medium
+
+  * gbp.conf, watch: 4.25.x
+  * new upstream release (4.25.0). See WHATSNEW.txt for more details.
+  * rules: bump upstream versions of talloc & tevent
+  * libtalloc*.symbols, libtevent*.symbols: update
+  * d/rules, d/patches/ctdb-create-piddir.patch: refresh,
+    use doc/examples/ctdb.init
+  * d/patches/: refresh
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 25 Sep 2026 12:44:12 +0300
+
 samba (2:4.24.7+dfsg-1) unstable; urgency=medium
 
   * new upstream stable.bugfix release:
