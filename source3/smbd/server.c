@@ -1427,15 +1427,17 @@ static void smbd_accept_connection(struct tevent_context *ev,
 	force_check_log_size();
 }
 
-static bool smbd_open_one_socket(struct smbd_parent_context *parent,
-				 struct tevent_context *ev_ctx,
-				 const struct sockaddr_storage *ifss,
-				 const struct smb_transport *transport)
+static int smbd_open_one_socket(struct smbd_parent_context *parent,
+				struct tevent_context *ev_ctx,
+				const struct sockaddr_storage *ifss,
+				const struct smb_transport *transport,
+				bool ignore_bind_errors)
 {
 	struct smbd_open_socket *s;
 	uint16_t port = 0;
 	int protocol = 0;
 	bool rebind = false;
+	int err = 0;
 
 	switch (transport->type) {
 	case SMB_TRANSPORT_TYPE_TCP:
@@ -1456,19 +1458,19 @@ static bool smbd_open_one_socket(struct smbd_parent_context *parent,
 		 * Should never happen
 		 */
 		smb_panic(__location__);
-		return false;
+		return EIO;
 	}
 
 	if (port == 0) {
 		/*
 		 * Transport not supported...
 		 */
-		return false;
+		return EPROTONOSUPPORT;
 	}
 
 	s = talloc_zero(parent, struct smbd_open_socket);
 	if (!s) {
-		return false;
+		return ENOMEM;
 	}
 
 	s->parent = parent;
@@ -1476,13 +1478,17 @@ static bool smbd_open_one_socket(struct smbd_parent_context *parent,
 
 	s->fd = open_socket_in_protocol(SOCK_STREAM, protocol, ifss, port, rebind);
 	if (s->fd < 0) {
-		int err = -(s->fd);
-		DBG_ERR("open_socket_in failed: %s\n", strerror(err));
+		err = -(s->fd);
+		DBG_ERR("open_socket_in_protocol failed: %s\n", strerror(err));
 		TALLOC_FREE(s);
 		/*
-		 * We ignore an error here, as we've done before
+		 * For historical reasons, some callers like to ignore
+		 * errors here
 		 */
-		return true;
+		if (ignore_bind_errors) {
+			return 0;
+		}
+		return err;
 	}
 
 	/* ready to listen */
@@ -1500,11 +1506,11 @@ static bool smbd_open_one_socket(struct smbd_parent_context *parent,
 	set_blocking(s->fd, False);
 
 	if (listen(s->fd, SMBD_LISTEN_BACKLOG) == -1) {
-		DEBUG(0,("smbd_open_one_socket: listen: "
-			"%s\n", strerror(errno)));
-			close(s->fd);
+		err = errno;
+		DBG_ERR("listen: %s\n", strerror(errno));
+		close(s->fd);
 		TALLOC_FREE(s);
-		return false;
+		return err;
 	}
 
 	s->fde = tevent_add_fd(ev_ctx,
@@ -1513,23 +1519,23 @@ static bool smbd_open_one_socket(struct smbd_parent_context *parent,
 			       smbd_accept_connection,
 			       s);
 	if (!s->fde) {
-		DEBUG(0,("smbd_open_one_socket: "
-			 "tevent_add_fd: %s\n",
-			 strerror(errno)));
+		err = errno;
+		DBG_ERR("tevent_add_fd: %s\n", strerror(errno));
 		close(s->fd);
 		TALLOC_FREE(s);
-		return false;
+		return err;
 	}
 	tevent_fd_set_close_fn(s->fde, smbd_open_socket_close_fn);
 
 	DLIST_ADD_END(parent->sockets, s);
 
-	return true;
+	return 0;
 }
 
-static size_t smbd_open_socket_for_ip(struct smbd_parent_context *parent,
-				      struct tevent_context *ev_ctx,
-				      const struct sockaddr_storage *ifss);
+static int smbd_open_socket_for_ip(struct smbd_parent_context *parent,
+				   struct tevent_context *ev_ctx,
+				   const struct sockaddr_storage *ifss,
+				   bool ignore_bind_errors);
 
 /****************************************************************************
  Open the socket communication.
@@ -1596,7 +1602,7 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 		for(i = 0; i < num_interfaces; i++) {
 			const struct sockaddr_storage *ifss =
 					iface_n_sockaddr_storage(i);
-			size_t num_ok;
+			int num_ok;
 
 			if (ifss == NULL) {
 				DEBUG(0,("open_sockets_smbd: "
@@ -1607,8 +1613,9 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 
 			num_ok = smbd_open_socket_for_ip(parent,
 							 ev_ctx,
-							 ifss);
-			if (num_ok != ts->num_transports) {
+							 ifss,
+							 true);
+			if ((size_t)num_ok != ts->num_transports) {
 				return false;
 			}
 		}
@@ -1626,7 +1633,7 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 		for (i = 0; i < ARRAY_SIZE(sock_addrs); i++) {
 			const char *sock_tok = sock_addrs[i];
 			struct sockaddr_storage ss;
-			size_t num_ok;
+			int num_ok;
 
 			/* open an incoming socket */
 			if (!interpret_string_addr(&ss, sock_tok,
@@ -1636,16 +1643,17 @@ static bool open_sockets_smbd(struct smbd_parent_context *parent,
 
 			num_ok = smbd_open_socket_for_ip(parent,
 							 ev_ctx,
-							 &ss);
+							 &ss,
+							 true);
 			if (num_ok == 0) {
 				/*
 				 * If we fail to open any sockets
-				 * in this loop the parent-sockets == NULL
+				 * in this loop the parent->sockets == NULL
 				 * case below will prevent us from starting.
 				 */
 				continue;
 			}
-			if (num_ok != ts->num_transports) {
+			if ((size_t)num_ok != ts->num_transports) {
 				return false;
 			}
 		}
@@ -1954,24 +1962,29 @@ static NTSTATUS smbd_claim_version(struct messaging_context *msg,
  Open socket communication on given ip address
 ****************************************************************************/
 
-static size_t smbd_open_socket_for_ip(struct smbd_parent_context *parent,
-				      struct tevent_context *ev_ctx,
-				      const struct sockaddr_storage *ifss)
+static int smbd_open_socket_for_ip(struct smbd_parent_context *parent,
+				   struct tevent_context *ev_ctx,
+				   const struct sockaddr_storage *ifss,
+				   bool ignore_bind_errors)
 {
 	const struct smb_transports *ts = &parent->transports;
-	size_t num_ok = 0;
+	int num_ok = 0;
 	uint8_t ti;
 
 	for (ti = 0; ti < ts->num_transports; ti++) {
 		const struct smb_transport *t =
 			&ts->transports[ti];
-		bool ok;
+		int ret = 0;
 
-		ok = smbd_open_one_socket(parent,
-					  ev_ctx,
-					  ifss,
-					  t);
-		if (!ok) {
+		ret = smbd_open_one_socket(parent,
+					   ev_ctx,
+					   ifss,
+					   t,
+					   ignore_bind_errors);
+		if (ret != 0) {
+			if (!ignore_bind_errors) {
+				return -ret;
+			}
 			continue;
 		}
 
@@ -2067,6 +2080,176 @@ static void smbd_close_socket_for_ip(struct smbd_parent_context *parent,
 	}
 }
 
+struct smbd_dynamic_open_socket_state {
+	struct smbd_parent_context *parent;
+	struct tevent_context *ev;
+	struct samba_sockaddr addr;
+	struct ssaddr_buf addrbuf;
+	unsigned int max_attempts;
+	unsigned int num_attempts;
+};
+
+static void smbd_dynamic_open_socket_attempt(struct tevent_req *subreq)
+{
+	struct smbd_dynamic_open_socket_state *state = tevent_req_callback_data(
+			subreq, struct smbd_dynamic_open_socket_state);
+	bool ok = true;
+	int num_ok = 0;
+
+	state->num_attempts++;
+	DBG_INFO("Attempt #%u for %s\n", state->num_attempts, state->addrbuf.buf);
+
+	ok = tevent_wakeup_recv(subreq);
+	TALLOC_FREE(subreq);
+	if (!ok) {
+		DBG_WARNING("tevent_wakeup_recv() error\n");
+		TALLOC_FREE(state);
+		return;
+	}
+
+	num_ok = smbd_open_socket_for_ip(state->parent,
+					 state->ev,
+					 &state->addr.u.ss,
+					 false);
+	if (num_ok > 0) {
+		/* Success */
+		TALLOC_FREE(state);
+		return;
+	}
+
+	if (num_ok == 0) {
+		DBG_NOTICE("smbd: Unable to open socket on %s\n",
+			   state->addrbuf.buf);
+		TALLOC_FREE(state);
+		return;
+	}
+
+	if (num_ok != -EADDRNOTAVAIL) {
+		DBG_WARNING("smbd: Error opening socket on %s - %s\n",
+			    state->addrbuf.buf,
+			    strerror(-num_ok));
+		TALLOC_FREE(state);
+		return;
+	}
+
+	/* EADDRNOTAVAIL, consider retry */
+	if (state->num_attempts >= state->max_attempts) {
+		DBG_WARNING("smbd: Too many attempts opening socket on %s\n",
+			    state->addrbuf.buf);
+		TALLOC_FREE(state);
+		return;
+	}
+
+	/*
+	 * Retry
+	 */
+	subreq = tevent_wakeup_send(state,
+				    state->ev,
+				    tevent_timeval_current_ofs(0, 1000));
+	if (subreq == NULL) {
+		DBG_WARNING("scheduling next attempt failed, giving up\n");
+		TALLOC_FREE(state);
+		return;
+	}
+
+	tevent_req_set_callback(subreq, smbd_dynamic_open_socket_attempt, state);
+}
+
+/*
+ * Races have been observed between an IPv4 address being added and
+ * trying to bind(2), with EADDRNOTAVAIL returned.  Delay the first
+ * attempt to add an address by 20µs and then retry up to 10 times at
+ * 1ms intervals.
+ */
+static void smbd_dynamic_open_socket_ipv4(struct smbd_parent_context *parent,
+					  struct tevent_context *ev,
+					  struct samba_sockaddr *addr,
+					  struct ssaddr_buf *addrstr_buf)
+{
+	struct smbd_dynamic_open_socket_state *state = NULL;
+	struct tevent_req *req = NULL;
+
+	state = talloc_zero(parent, struct smbd_dynamic_open_socket_state);
+	if (state == NULL) {
+		DBG_ERR("Memory allocation error\n");
+		return;
+	}
+
+	state->parent = parent;
+	state->ev = ev;
+	state->addr = *addr;
+	state->addrbuf = *addrstr_buf;
+	state->max_attempts = 10;
+
+	req = tevent_wakeup_send(state,
+				 state->ev,
+				 tevent_timeval_current_ofs(0, 20));
+	if (req == NULL) {
+		DBG_WARNING("scheduling initial attempt failed, giving up\n");
+		return;
+	}
+
+	tevent_req_set_callback(req, smbd_dynamic_open_socket_attempt, state);
+}
+
+#if defined(HAVE_IPV6)
+/*
+ * For IPv6, retries are not needed because an additional notification
+ * is sent when Duplicate Address Detection (DAD) completes, and
+ * bind(2) always succeeds after this notification.  However, failures
+ * are expected earlier in the process so complain more quietly about
+ * EADDRNOTAVAIL.  Also, RFC 4429 (Optimistic DAD) says:
+ *
+ *   Optimistic DAD SHOULD NOT be used for manually entered addresses.
+ *
+ * so regular DAD should be used here and a delay is always expected
+ * before the final notification.
+ *
+ * There should be no race between an address being added and trying
+ * to bind(2).
+ */
+static void smbd_dynamic_open_socket_ipv6(struct smbd_parent_context *parent,
+					  struct tevent_context *ev,
+					  struct samba_sockaddr *addr,
+					  struct ssaddr_buf *addrstr_buf)
+{
+	int num_ok = 0;
+
+	num_ok = smbd_open_socket_for_ip(parent,
+					 ev,
+					 &addr->u.ss,
+					 false);
+	if (num_ok == -EADDRNOTAVAIL) {
+		DBG_DEBUG("smbd: Address not available (DAD?) %s\n",
+			  addrstr_buf->buf);
+		return;
+	}
+	if (num_ok == 0) {
+		DBG_NOTICE("smbd: Unable to open socket on %s\n",
+			   addrstr_buf->buf);
+	}
+}
+#endif /* defined(HAVE_IPV6) */
+
+static void smbd_dynamic_open_socket(struct smbd_parent_context *parent,
+				     struct tevent_context *ev,
+				     struct samba_sockaddr *addr,
+				     struct ssaddr_buf *addrstr_buf)
+{
+	switch (addr->u.ss.ss_family) {
+	case AF_INET:
+		smbd_dynamic_open_socket_ipv4(parent, ev, addr, addrstr_buf);
+		break;
+#if defined(HAVE_IPV6)
+	case AF_INET6:
+		smbd_dynamic_open_socket_ipv6(parent, ev, addr, addrstr_buf);
+		break;
+#endif
+	default:
+		DBG_WARNING("smbd: Unknown family for %s\n", addrstr_buf->buf);
+	}
+}
+
 static void smbd_addr_changed(struct tevent_req *req)
 {
 	struct smbd_addrchanged_state *state = tevent_req_callback_data(
@@ -2075,7 +2258,9 @@ static void smbd_addr_changed(struct tevent_req *req)
 	struct samba_sockaddr addr = { .sa_socklen = 0, };
 	NTSTATUS status;
 	uint32_t if_index;
-	bool match;
+	struct ssaddr_buf addrstr_buf = { 0 };
+	char *addrstr = NULL;
+	bool is_dynamic = false;
 
 	status = addrchange_recv(req, &type, &addr.u.ss, &if_index);
 	TALLOC_FREE(req);
@@ -2086,22 +2271,22 @@ static void smbd_addr_changed(struct tevent_req *req)
 		return;
 	}
 
-	match = interface_ifindex_exists_with_options(if_index,
-						      IFACE_DYNAMIC_OPTION);
-	if (!match) {
-		DBG_NOTICE(
-			"smbd: No interface present for if_index %u "
-			"with dynamic option\n",
-			if_index);
-		goto rearm;
-	}
+	addrstr = ssaddr_str_buf(&addr, &addrstr_buf);
+	is_dynamic = interface_ifindex_exists_with_options(if_index,
+							   IFACE_DYNAMIC_OPTION);
 
 	if (type == ADDRCHANGE_DEL) {
-		struct ssaddr_buf addrstr_buf;
+		if (!is_dynamic) {
+			DBG_DEBUG("smbd: kernel (AF_NETLINK) dropped ip %s "
+				  "on if_index %u (not dynamic)\n",
+				  addrstr,
+				  if_index);
+			goto rearm;
+		}
 
 		DBG_NOTICE("smbd: kernel (AF_NETLINK) dropped ip %s "
 			   "on if_index %u\n",
-			   ssaddr_str_buf(&addr, &addrstr_buf),
+			   addrstr,
 			   if_index);
 
 		smbd_close_socket_for_ip(state->parent, state->msg_ctx, &addr);
@@ -2110,22 +2295,25 @@ static void smbd_addr_changed(struct tevent_req *req)
 	}
 
 	if (type == ADDRCHANGE_ADD) {
-		struct ssaddr_buf addrstr_buf;
-		char *addrstr = ssaddr_str_buf(&addr, &addrstr_buf);
-		size_t num_ok;
+		if (!is_dynamic) {
+			DBG_DEBUG("smbd: kernel (AF_NETLINK) added ip %s "
+				  "on if_index %u (not dynamic)\n",
+				  addrstr,
+				  if_index);
+			goto rearm;
+		}
 
 		DBG_NOTICE("smbd: kernel (AF_NETLINK) added ip %s "
 			   "on if_index %u\n",
-			   addrstr, if_index);
+			   addrstr,
+			   if_index);
 
-		num_ok = smbd_open_socket_for_ip(state->parent,
-						 state->ev,
-						 &addr.u.ss);
-		if (num_ok == 0) {
-			DBG_NOTICE("smbd: Unable to open socket on %s\n",
-				   addrstr);
-		}
+		smbd_dynamic_open_socket(state->parent,
+					 state->ev,
+					 &addr,
+					 &addrstr_buf);
 	}
+
 rearm:
 	req = addrchange_send(state, state->ev, state->ctx);
 	if (req == NULL) {
