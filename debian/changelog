@@ -1,3 +1,13 @@
+samba (2:4.25.1+dfsg-1) unstable; urgency=medium
+
+  * new upstream stable/bugfix release, including the following
+    security fix:
+   o https://bugzilla.samba.org/show_bug.cgi?id=16276 CVE-2026-109411:
+     Access control bypass via vfs_ceph_rgw case-insensitive open
+     (for the new vfs module introduced in 4.25.0)
+
+ -- Michael Tokarev <mjt@tls.msk.ru>  Fri, 23 Oct 2026 18:56:53 +0300
+
 samba (2:4.25.0+dfsg-1) unstable; urgency=medium
 
   * gbp.conf, watch: 4.25.x
