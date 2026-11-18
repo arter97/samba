@@ -147,7 +147,7 @@ endif
 
 # Ubuntu i386 binary compatibility only effort: Disable some i386 packages and modules
 ifeq (${DEB_VENDOR}-${DEB_HOST_ARCH}, Ubuntu-i386)
-omit-pkgs += ctdb libpam-winbind samba samba-ad-dc samba-testsuite samba-vfs-modules samba-vfs-ceph samba-vfs-glusterfs
+omit-pkgs += ctdb libpam-winbind samba samba-ad-dc samba-testsuite samba-vfs-modules samba-vfs-ceph samba-vfs-glusterfs python3-samba
 endif
 
 # we had t64 transition (libsmbclient => libsmbclient0) for trixie

@@ -1,12 +1,12 @@
 # Available build profiles:
 #  pkg.samba.before-trixie: no t64, no usrmerge, no rpcsvc-proto
-#  pkg.samba.builtin-ngtcp2: use built-in ngtcp2 (required version of libngtcp2 is >= 1.12.0)
 #  pkg.samba.dumpmscat: build /usr/bin/dumpmscat binary
 #  pkg.samba.mitkrb5: build with mit-krb5 kerberos instead of bundled heimdal
 Source: samba
 Section: net
 Priority: optional
-Maintainer: Debian Samba Maintainers <pkg-samba-maint@lists.alioth.debian.org>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Debian Samba Maintainers <pkg-samba-maint@lists.alioth.debian.org>
 Uploaders: Jelmer Vernooĳ <jelmer@debian.org>,
            Mathieu Parent <sathieu@debian.org>,
            Michael Tokarev <mjt@tls.msk.ru>
@@ -52,8 +52,6 @@ Build-Depends-Arch:
 	libkrb5-dev (>= 1.21.0~) <pkg.samba.mitkrb5>,
 	libldap2-dev,
 	liblmdb-dev,
-	libngtcp2-dev (>> 1.12.0~) [linux-any] <!pkg.samba.builtin-ngtcp2>,
-	libngtcp2-crypto-gnutls-dev (>> 1.12.0~) [linux-any] <!pkg.samba.builtin-ngtcp2>,
 	libpam0g-dev,
 	libpcap-dev [hurd-any],
 	libpopt-dev,
@@ -62,7 +60,7 @@ Build-Depends-Arch:
 	libsystemd-dev [linux-any],
 	libtasn1-6-dev <pkg.samba.dumpmscat>,
 	libtasn1-bin <pkg.samba.dumpmscat>,
-	liburing-dev [linux-any],
+	liburing-dev [!i386],
 # xfslibs-dev is not multi-arch-usable but we only need .h (#1092689)
 	xfslibs-dev:native [linux-any],
 	zlib1g-dev,
@@ -85,7 +83,6 @@ Build-Depends-Arch:
 #	python3-pyasn1 <!nocheck>,
 #	tdb-tools <!nocheck>,
 Build-Conflicts-Arch:
- libngtcp2-dev <pkg.samba.builtin-ngtcp2>,
  libtasn1-bin <!pkg.samba.dumpmscat>,
 Rules-Requires-Root: no
 Vcs-Browser: https://salsa.debian.org/samba-team/samba
@@ -175,7 +172,7 @@ Depends: samba-common,
          ${misc:Depends},
          ${python3:Depends},
          ${shlibs:Depends}
-Recommends: python3-samba,
+Recommends: python3-samba [!i386],
 Suggests: heimdal-clients,
 # moved libnet-keytab-samba4.so.0 & libRPC-WORKER-samba4.so.0 samba-libs=>samba-common-bin in 4.19.0~r1
 # moved smbcontrol samba=>samba-common-bin in 4.20.0-2
@@ -367,7 +364,8 @@ Package: samba-vfs-modules
 # Remove this package for trixie+1
 Architecture: any
 Section: oldlibs
-Depends: ${misc:Depends}
+# ceph was in samba-vfs-modules before this became a transitional package
+Depends: ${misc:Depends}, samba-vfs-ceph [amd64 arm64 mips64el ppc64el riscv64 s390x]
 Description: Samba Virtual FileSystem plugins (transitional package)
  Samba is an implementation of the SMB/CIFS protocol for Unix systems,
  providing support for cross-platform file sharing with Microsoft Windows, OS X,
