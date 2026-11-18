@@ -1,3 +1,9 @@
+samba (2:4.25.1-0arter97) nodistro; urgency=medium
+
+  * 4.25.1
+
+ -- Juhyung Park <qkrwngud825@gmail.com>  Wed, 18 Nov 2026 18:31:00 +0900
+
 samba (2:4.25.1+dfsg-1) unstable; urgency=medium
 
   * new upstream stable/bugfix release, including the following
